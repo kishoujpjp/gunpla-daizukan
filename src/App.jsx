@@ -3429,7 +3429,7 @@ export default function App() {
                 <button className="add-btn" onClick={() => setAdding("zukan")}>＋ 追加</button>
               </div>
             </div>
-            <div className="section-note">{sorted.length} 件</div>
+            <div className="section-note">{sorted.length} 件{advActive && <button className="cond-clear" onClick={() => { haptic(); setAdv({ series: "", prem: "", stat: "", yFrom: "", yTo: "" }); }}>条件をクリア</button>}</div>
             {grouped
               ? grouped.map(([year, kits]) => (
                   <section key={year} className="year-sec">
@@ -3478,7 +3478,7 @@ export default function App() {
                   <button className="add-btn" onClick={() => setAdding(isPlan ? "plan" : "owned")}>＋ 追加</button>
                 </div>
               </div>
-              <div className="section-note">{isPlan ? "予定" : "収蔵"} {listKits.length} 体</div>
+              <div className="section-note">{isPlan ? "予定" : "収蔵"} {listKits.length} 体{advActive && <button className="cond-clear" onClick={() => { haptic(); setAdv({ series: "", prem: "", stat: "", yFrom: "", yTo: "" }); }}>条件をクリア</button>}</div>
               {listKits.length === 0
                 ? <p className="ana-note">検索条件に一致する{isPlan ? "予定" : "収蔵"}がありません。</p>
                 : <Grid kits={listVisible} />}
@@ -3790,7 +3790,6 @@ export default function App() {
                   <GradeChip grade={detailKit.grade} />
                   {detailKit.no !== "—" && <span className="tc-no mono">No.{detailKit.no}</span>}
                   <span className="tc-name">{detailKit.name}</span>
-                  <button className="modal-x static" onClick={() => setDetail(null)}>✕</button>
                 </div>
                 <div className={"tc-art square" + (images[detailKit.id] ? " zoomable" : "")}
                   onClick={() => { if (images[detailKit.id]) { haptic(); setViewer(images[detailKit.id]); } }}>
@@ -3929,7 +3928,11 @@ export default function App() {
           return (
             <button key={k}
               className={`tab ${tab === k ? "on" : ""} ${k === "collection" && collMode === "plan" ? "plan-tab" : ""}`}
-              onClick={() => { if (k === "collection" && consumeLP()) return; changeTab(k); setConfirmReset(false); }}
+              onClick={() => {
+                if (k === "collection" && consumeLP()) return;
+                if (k === "collection" && tab === "collection") { hapticStrong(); setCollMode((m) => (m === "plan" ? "owned" : "plan")); return; }
+                changeTab(k); setConfirmReset(false);
+              }}
               {...collLP}>
               <span className="tab-icon">{icon}</span>
               <span className="tab-label">{label}</span>
@@ -3993,6 +3996,8 @@ input,textarea{font-family:var(--sans)}
 
 .body{padding:8px 14px 16px;max-width:920px;margin:0 auto}
 .section-note{font-size:11px;color:var(--ink-mid);letter-spacing:.1em;padding:6px 4px 10px}
+.cond-clear{margin-left:12px;font-size:11px;font-weight:700;color:var(--shu);letter-spacing:.04em;
+  border:1px solid var(--shu-deep);border-radius:5px;padding:2px 8px;background:rgba(177,58,40,.10)}
 .footnote{font-size:10.5px;color:var(--ink-dim);line-height:1.7;padding:18px 4px 6px}
 
 .toolbar{display:flex;gap:8px;padding:4px 0 6px}
@@ -4097,10 +4102,8 @@ input,textarea{font-family:var(--sans)}
   animation:up .26s cubic-bezier(.2,.9,.3,1.1);max-height:88vh;overflow-y:auto}
 @keyframes up{from{transform:translateY(34px) scale(.97);opacity:0}to{transform:none;opacity:1}}
 /* ── 交換カード式詳細レイアウト ── */
-.tc-head{display:flex;align-items:center;gap:8px;padding:9px 12px;margin-bottom:10px;
-  background:linear-gradient(135deg,rgba(217,179,106,.16),rgba(217,179,106,.04) 55%,transparent);
-  border:1px solid rgba(217,179,106,.45);border-radius:10px}
-.tc-head .tc-no{font-size:13px;font-weight:700;color:var(--gold);letter-spacing:.06em;flex:none}
+.tc-head{display:flex;align-items:center;gap:6px;padding:2px 2px 9px;margin-bottom:10px}
+.tc-head .tc-no{font-size:20px;font-weight:800;color:var(--gold);letter-spacing:.02em;flex:none;line-height:1}
 .tc-head .tc-name{font-family:var(--serif);font-weight:800;font-size:19px;color:var(--ink-strong);line-height:1.28;flex:1;min-width:0}
 .tc-head .modal-x.static{position:static;margin-left:auto;flex:none}
 .tc-art{position:relative;height:230px;border:1px solid rgba(217,179,106,.5);border-radius:6px;
@@ -4159,7 +4162,7 @@ input,textarea{font-family:var(--sans)}
   color:var(--ink);padding:9px 10px;font-size:13px;color-scheme:dark}
 
 /* ── 進階檢索面板 ── */
-.adv-panel{margin:4px 2px 2px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;
+.adv-panel{margin:4px 0 2px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;
   background:var(--panel);display:flex;flex-direction:column;gap:9px;
   animation:advIn .22s ease-out}
 @keyframes advIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
@@ -4172,7 +4175,7 @@ input,textarea{font-family:var(--sans)}
   border-radius:7px;color:var(--ink-mid);background:var(--bg2);white-space:nowrap}
 .adv-seg-btn.on{border-color:var(--gold);color:var(--gold);background:rgba(217,179,106,.12)}
 .adv-foot{display:flex;align-items:center;justify-content:space-between;margin-top:1px}
-.adv-years{flex:1;display:flex;align-items:center;gap:8px}
+.adv-years{flex:1;min-width:0;display:flex;align-items:center;gap:8px}
 .adv-year{flex:1;min-width:0;background:var(--bg2);border:1px solid var(--line);border-radius:7px;
   color:var(--ink);padding:8px 9px;font-size:12.5px;text-align:center;color-scheme:dark;
   -moz-appearance:textfield}
@@ -4340,7 +4343,7 @@ input,textarea{font-family:var(--sans)}
   .modal-bg{align-items:center}
   .modal{max-width:660px;border-radius:16px;border-bottom:1px solid var(--line)}
   .modal-name{font-size:21px}
-  .tc-head .tc-no{font-size:14.5px}
+  .tc-head .tc-no{font-size:22px}
   .tc-head .tc-name{font-size:21px}
   .tc-art{height:300px}
   .tc-row{font-size:13.5px;padding:8px 14px}
@@ -4723,8 +4726,8 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .gf-btn{padding:4px 12px;font-size:11.5px;font-weight:700;letter-spacing:.05em;
   border:1px solid var(--line);border-radius:999px;color:var(--ink-mid);background:var(--panel)}
 .gf-btn.on{color:#fff;border-color:var(--shu);background:var(--shu);box-shadow:0 0 10px rgba(232,85,61,.35)}
-.search-x{flex:none;width:44px;border:1px solid var(--line);border-radius:8px;
-  color:var(--ink-mid);background:var(--panel);font-size:13px}
+.search-x{flex:none;width:44px;border:1px solid var(--shu-deep);border-radius:8px;
+  color:var(--shu-deep);background:rgba(177,58,40,.12);font-size:13px;font-weight:700}
 .cr-right{display:flex;gap:8px;align-items:stretch}
 .cr-right .add-btn{padding:0 13px;display:flex;align-items:center}
 
