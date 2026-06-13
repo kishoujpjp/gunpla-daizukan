@@ -2655,11 +2655,21 @@ export default function App() {
   const changeTab = (next) => {
     const el = bodyRef.current;
     if (el) scrollPosRef.current[tab] = el.scrollTop;
+    haptic(); // 分頁切換觸覺回饋
     setTab(next);
-    requestAnimationFrame(() => {
+    const target = scrollPosRef.current[next] || 0;
+    /* 內容(含懶載入清單)渲染撐高需數幀,連續嘗試還原避免被夾住 */
+    let tries = 0;
+    const restore = () => {
       const b = bodyRef.current;
-      if (b) b.scrollTop = scrollPosRef.current[next] || 0;
-    });
+      if (!b) return;
+      b.scrollTop = target;
+      if (Math.abs(b.scrollTop - target) > 2 && tries < 10) {
+        tries++;
+        requestAnimationFrame(restore);
+      }
+    };
+    requestAnimationFrame(restore);
   };
   const lpRef = useRef({ timer: null, fired: false });
   /* 長按手勢:回傳可展開到元素的 handlers。fired 時阻止後續 click。 */
@@ -2785,7 +2795,7 @@ export default function App() {
     return () => clearTimeout(t);
   }, [records, overrides, customKits, settings, sortKey, sortDir, achvSeen, loaded, saveKey]);
 
-  useEffect(() => { setLimit(60); }, [query, gf, sortKey, sortDir, tab, settings.view]);
+  useEffect(() => { setLimit(60); }, [query, gf, sortKey, sortDir, settings.view]);
 
   useEffect(() => {
     supaRef.current = { url: (settings.supaUrl || "").trim().replace(/\/+$/, ""), key: (settings.supaKey || "").trim() };
@@ -3273,7 +3283,6 @@ export default function App() {
       {k.line === "MGEX" && <span className="line-chip ex">MGEX</span>}
       {k.line === "CUSTOM" && <span className="line-chip cu">追加</span>}
       {showPb && k.premium && <span className="line-chip pb">プレバン</span>}
-      {k.base && <span className="line-chip base">ベース限定</span>}
     </>
   );
 
@@ -3330,7 +3339,7 @@ export default function App() {
         <div className="card-sketch">
           <KitImage kit={kit} img={img} owned={rec.owned} built={!!rec.buildDate} size={settings.compact ? 56 : 78} />
           {kit.premium && <span className="line-chip pb corner-pb">プレバン</span>}
-          {kit.base && <span className="line-chip base corner-base">ベース限定</span>}
+          {kit.base && <span className="line-chip base corner-base">ベース</span>}
           {rec.plan && <span className="plan-corner">予定</span>}
         </div>
         <div className="card-name"><GradeChip grade={kit.grade} />{kit.name}</div>
@@ -3810,7 +3819,7 @@ export default function App() {
                     <button className="own-btn half plan" onClick={() => togglePlan(detailKit.id)}>◆ 購入予定</button>
                   </div>
                 )}
-                <button className="edit-link" onClick={() => setEditing(true)}>✎ 機体情報・画像を編集{detailRec.owned ? "(購入日・完成日も)" : ""}</button>
+                <button className="edit-link" onClick={() => setEditing(true)}>✎ 機体情報・画像を編集</button>
               </>
             ) : (
               <>
@@ -4084,15 +4093,15 @@ input,textarea{font-family:var(--sans)}
   display:flex;align-items:flex-end;justify-content:center;z-index:50;animation:bgfade .2s ease-out}
 @keyframes bgfade{from{opacity:0}to{opacity:1}}
 .modal{width:100%;max-width:520px;background:var(--bg2);border:1px solid var(--line);
-  border-bottom:none;border-radius:16px 16px 0 0;padding:20px 18px 28px;
+  border-radius:16px;padding:20px 18px 28px;margin-bottom:calc(14px + env(safe-area-inset-bottom));
   animation:up .26s cubic-bezier(.2,.9,.3,1.1);max-height:88vh;overflow-y:auto}
 @keyframes up{from{transform:translateY(34px) scale(.97);opacity:0}to{transform:none;opacity:1}}
 /* ── 交換カード式詳細レイアウト ── */
 .tc-head{display:flex;align-items:center;gap:8px;padding:9px 12px;margin-bottom:10px;
   background:linear-gradient(135deg,rgba(217,179,106,.16),rgba(217,179,106,.04) 55%,transparent);
   border:1px solid rgba(217,179,106,.45);border-radius:10px}
-.tc-head .tc-no{font-size:11px;color:var(--gold);letter-spacing:.08em;flex:none}
-.tc-head .tc-name{font-family:var(--serif);font-weight:800;font-size:16.5px;color:var(--ink-strong);line-height:1.3;flex:1;min-width:0}
+.tc-head .tc-no{font-size:13px;font-weight:700;color:var(--gold);letter-spacing:.06em;flex:none}
+.tc-head .tc-name{font-family:var(--serif);font-weight:800;font-size:19px;color:var(--ink-strong);line-height:1.28;flex:1;min-width:0}
 .tc-head .modal-x.static{position:static;margin-left:auto;flex:none}
 .tc-art{position:relative;height:230px;border:1px solid rgba(217,179,106,.5);border-radius:6px;
   margin:0 4px 12px;padding:10px;display:flex;align-items:center;justify-content:center;
@@ -4331,7 +4340,8 @@ input,textarea{font-family:var(--sans)}
   .modal-bg{align-items:center}
   .modal{max-width:660px;border-radius:16px;border-bottom:1px solid var(--line)}
   .modal-name{font-size:21px}
-  .tc-head .tc-name{font-size:19px}
+  .tc-head .tc-no{font-size:14.5px}
+  .tc-head .tc-name{font-size:21px}
   .tc-art{height:300px}
   .tc-row{font-size:13.5px;padding:8px 14px}
   .tc-row>span{width:78px;font-size:11.5px}

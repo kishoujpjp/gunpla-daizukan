@@ -1,4 +1,4 @@
-const CACHE = "mgz-v72";
+const CACHE = "mgz-v74";
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil(clients.claim()));
 self.addEventListener("fetch", (e) => {
