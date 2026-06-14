@@ -2129,10 +2129,9 @@ const HGWM_KITS = [
 
 const ALL_BASE = BASE_KITS.concat(MGP_KITS, KAP_KITS, HG_KITS, HGHP_KITS, HGSEED_KITS, HG00_KITS, HGBF_KITS, HGIBO_KITS, HGGBB_KITS, HGCDI_KITS, HGORG_KITS, HGGR_KITS, HGAGE_KITS, HGTB_KITS, HGGBD_KITS, HGGBM_KITS, HGGQ_KITS, HGWM_KITS, RG_KITS, RGP_KITS, PG_KITS, PGP_KITS, HIRM_KITS, RE100_KITS, REP_KITS, BASEMG_KITS, FM_KITS, BASERG_KITS, BASEHG_KITS, MGSD_KITS);
 
-function CRTPlaceholder({ scan = true }) {
+function CRTPlaceholder() {
   return (
-    <div className={"crt-ph" + (scan ? " scan" : "")} aria-hidden="true">
-      <div className="crt-scanlines" />
+    <div className="crt-ph" aria-hidden="true">
       <div className="crt-data">
         <div>UNIT&nbsp;&nbsp;: ////</div>
         <div>SPEC&nbsp;&nbsp;: ////</div>
@@ -2171,10 +2170,17 @@ function CRTPlaceholder({ scan = true }) {
           <text x="55" y="77" textAnchor="end">ENERGY CORE</text>
         </g>
       </svg>
-      {scan && <div className="crt-beam" />}
       <div className="crt-label">UNIDENTIFIED</div>
     </div>
   );
+}
+
+/* 機体名:長い場合は最初の括弧前で1回だけ改行候補を入れ、空白・括弧優先で折り返す */
+function KitName({ name }) {
+  const cands = ["(", "（"].map((c) => name.indexOf(c)).filter((x) => x > 0);
+  const i = cands.length ? Math.min(...cands) : -1;
+  if (i <= 0) return name;
+  return (<>{name.slice(0, i)}<wbr />{name.slice(i)}</>);
 }
 
 function GradeBracket({ grade }) {
@@ -2183,9 +2189,9 @@ function GradeBracket({ grade }) {
   return <span className={`tc-grade-tx g-${cls}`}>【{g}】</span>;
 }
 
-function KitImage({ kit, img, owned, built, size = 84, cls = "", scan = true }) {
+function KitImage({ kit, img, owned, built, size = 84, cls = "" }) {
   if (img) return <img src={img} alt={kit.name} className={`kit-img ${cls}`} loading="lazy" decoding="async" />;
-  if (cls.indexOf("tc") !== -1) return <CRTPlaceholder scan={scan} />;
+  if (cls.indexOf("tc") !== -1) return <CRTPlaceholder />;
   return <MechSketch seedKey={kit.id} owned={owned} built={built} size={size} />;
 }
 
@@ -3936,21 +3942,29 @@ export default function App() {
               <>
                 <div className="tc-head">
                   <div className="tc-head-sub">
-                    <GradeBracket grade={detailKit.grade} />
+                    <GradeChip grade={detailKit.grade} />
                     {detailKit.no !== "—" && <span className="tc-no">No.{detailKit.no}</span>}
                     <span className="tc-head-series">{detailKit.code || "—"}</span>
                   </div>
                   <span className="tc-head-rule" />
                   <div className="tc-head-top">
-                    <span className="tc-name">{detailKit.name}</span>
+                    <span className="tc-name"><KitName name={detailKit.name} /></span>
                   </div>
                 </div>
                 <div className={"tc-art square" + (images[detailKit.id] ? " zoomable" : "")}
                   onClick={() => { if (images[detailKit.id]) { haptic(); setViewer(images[detailKit.id]); } }}>
-                  <KitImage kit={detailKit} img={images[detailKit.id]} owned={detailRec.owned} built={!!detailRec.buildDate} size={150} cls="tc" scan={settings.crtScan !== false} />
+                  <KitImage kit={detailKit} img={images[detailKit.id]} owned={detailRec.owned} built={!!detailRec.buildDate} size={150} cls="tc" />
+                  <div className="tc-scan" aria-hidden="true">
+                    {settings.crtScan !== false && <span className="crt-beam" />}
+                  </div>
                   {images[detailKit.id] && <span className="zoom-hint">⤢</span>}
                 </div>
                 <div className="tc-info tappable" onClick={() => { setDetail(null); setEditing(false); }}>
+                  <div className="tc-row"><span>原作</span><b>{detailKit.series || "—"}</b></div>
+                  <div className="tc-row tc-row-split">
+                    <div className="tc-half"><span>発売</span><b className="tc-num">{detailKit.ym ? detailKit.ym.replace("-", ".") : "—"}</b></div>
+                    <div className="tc-half"><span>定価</span><b className="tc-num price">{fmtYen(detailKit.price)}</b></div>
+                  </div>
                   <div className="tc-row tc-row-tag"><span>Tag</span>
                     <div className="tc-tags">
                       <GradeChip grade={detailKit.grade} />
@@ -3958,11 +3972,6 @@ export default function App() {
                       {lineBadge(detailKit)}
                     </div>
                   </div>
-                  <div className="tc-row tc-row-split">
-                    <div className="tc-half"><span>発売</span><b className="tc-num">{detailKit.ym ? detailKit.ym.replace("-", ".") : "—"}</b></div>
-                    <div className="tc-half"><span>定価</span><b className="tc-num price">{fmtYen(detailKit.price)}</b></div>
-                  </div>
-                  <div className="tc-row"><span>原作</span><b>{detailKit.series || "—"}</b></div>
                 </div>
                 {detailKit.note && <div className="note-box">{detailKit.note}</div>}
 
@@ -4262,33 +4271,29 @@ input,textarea{font-family:var(--sans)}
   animation:up .26s cubic-bezier(.2,.9,.3,1.1);max-height:88vh;overflow-y:auto}
 @keyframes up{from{transform:translateY(34px) scale(.97);opacity:0}to{transform:none;opacity:1}}
 /* ── 交換カード式詳細レイアウト ── */
-.tc-head{position:relative;overflow:hidden;margin-bottom:14px;padding:13px 15px 11px 18px;border-radius:10px;
-  background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(0,0,0,.06)),var(--panel);
-  border:1px solid rgba(184,146,74,.32);
-  box-shadow:inset 0 0 0 1px rgba(217,179,106,.10),
-             inset 0 1px 0 rgba(255,242,214,.12),
-             inset 4px 0 0 -1px rgba(184,146,74,.6),
-             inset 5px 0 0 -1px rgba(217,179,106,.22)}
+.tc-head{position:relative;overflow:hidden;margin-bottom:14px;padding:12px 14px 11px;border-radius:10px;
+  background:linear-gradient(180deg,rgba(255,255,255,.022),rgba(0,0,0,.05)),var(--panel)}
 .tc-head-top{display:flex;align-items:flex-start;gap:10px}
 .tc-head .tc-name{font-family:var(--serif);font-weight:800;font-size:24px;line-height:1.22;
   color:var(--ink-strong);flex:1;min-width:0;letter-spacing:.01em;
+  word-break:keep-all;overflow-wrap:anywhere;
   text-shadow:0 1px 2px rgba(0,0,0,.3)}
 .tc-head-rule{display:block;height:1px;margin:9px 0 7px;
-  background:linear-gradient(90deg,rgba(184,146,74,.55),rgba(184,146,74,.12) 60%,transparent)}
-.tc-head-sub{display:flex;align-items:center;gap:8px;min-width:0}
-.tc-grade-tx{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:15px;font-weight:800;
-  letter-spacing:.01em;line-height:1;flex:none;background:none!important;border:none;padding:0}
+  background:linear-gradient(90deg,rgba(184,146,74,.45),rgba(184,146,74,.1) 60%,transparent)}
+.tc-head-sub{display:flex;align-items:center;gap:6px;min-width:0}
+.tc-head-sub .grade-chip{font-size:13.5px;font-weight:800;letter-spacing:.04em;
+  margin-right:0;vertical-align:0;padding:1px 7px;border-width:1.5px;border-radius:4px;line-height:1.4;flex:none}
 .tc-head .tc-no{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:15px;font-weight:800;color:var(--gold);
-  letter-spacing:.05em;flex:none;line-height:1}
-.tc-head-series{font-size:11.5px;color:var(--ink-mid);letter-spacing:.04em;
+  letter-spacing:.05em;flex:none;line-height:1;margin-left:1px}
+.tc-head-series{font-size:11.5px;color:var(--ink-mid);letter-spacing:.04em;margin-left:4px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.tc-art{position:relative;overflow:hidden;height:230px;border:1px solid rgba(184,146,74,.32);border-radius:10px;
+.tc-art{position:relative;overflow:hidden;height:230px;border:1px solid var(--line);border-radius:8px;
   margin:0 4px 12px;padding:0;display:flex;align-items:center;justify-content:center;
   background:
     radial-gradient(ellipse at 50% 42%,rgba(255,255,255,.045),transparent 60%),
     linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.10)),
     var(--bg2)}
-.tc-art.square{height:auto;aspect-ratio:1/1}
+.tc-art.square{height:auto;aspect-ratio:1/0.82}
 .tc-art.zoomable{cursor:zoom-in}
 .tc-art.zoomable:active{filter:brightness(.93);transform:scale(.99)}
 /* 方向C:極淡灰階噪點質感(標題列與圖片框統一),內容置於其上 */
@@ -4305,18 +4310,22 @@ input,textarea{font-family:var(--sans)}
   color:var(--teal);overflow:hidden;border-radius:9px;
   background:radial-gradient(ellipse at 50% 42%,rgba(111,211,199,.12),transparent 66%),#0a1014;
   box-shadow:inset 0 0 50px 12px rgba(0,0,0,.62)}
-.crt-scanlines{position:absolute;inset:0;pointer-events:none;z-index:2;
-  background:repeating-linear-gradient(0deg,rgba(111,211,199,.06) 0 1px,transparent 1px 3px)}
-.crt-art{position:relative;z-index:1;width:90%;height:90%;filter:drop-shadow(0 0 5px rgba(111,211,199,.45))}
+/* スキャンライン+ビーム:アップロード画像/CRT 両方の上に重ねる。ビームはトグルのみで制御(OSの省電/reduce-motionより優先) */
+.tc-scan{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden;border-radius:inherit;
+  background:repeating-linear-gradient(0deg,rgba(111,211,199,.05) 0 1px,transparent 1px 3px)}
+.tc-art>.tc-scan{z-index:2}
+.tc-scan .crt-beam{position:absolute;left:0;right:0;top:-22px;height:22px;
+  background:linear-gradient(180deg,transparent,rgba(111,211,199,.3),transparent);
+  animation:crtbeam 3.2s linear infinite !important}
+@keyframes crtbeam{0%{top:-22px}100%{top:100%}}
+.crt-art{position:relative;z-index:1;width:92%;height:86%;filter:drop-shadow(0 0 5px rgba(111,211,199,.45))}
 .crt-clabel{letter-spacing:.4px}
+/* CRT 線稿に軽いノイズ質感 */
+.crt-ph::before{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;opacity:.08;background-size:100px 100px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cfilter id='m'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23m)'/%3E%3C/svg%3E")}
 .crt-data{position:absolute;top:10px;left:12px;z-index:4;font-family:ui-monospace,"SF Mono",Menlo,monospace;
   font-size:8.5px;line-height:1.75;letter-spacing:.1em;color:rgba(111,211,199,.62)}
-.crt-beam{position:absolute;left:0;right:0;top:-22px;height:22px;z-index:3;pointer-events:none;
-  background:linear-gradient(180deg,transparent,rgba(111,211,199,.32),transparent);
-  animation:crtbeam 3.2s linear infinite}
-@keyframes crtbeam{0%{top:-22px}100%{top:100%}}
-.crt-ph:not(.scan) .crt-beam{display:none}
-.crt-label{position:absolute;left:0;right:0;top:73%;z-index:4;text-align:center;
+.crt-label{position:absolute;left:0;right:0;top:72%;z-index:4;text-align:center;
   font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:24px;font-weight:700;letter-spacing:.1em;
   color:var(--teal);text-shadow:0 0 10px rgba(111,211,199,.6)}
 .tc-info{margin:0 4px 12px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:rgba(255,255,255,.015)}
@@ -4328,9 +4337,10 @@ input,textarea{font-family:var(--sans)}
 .tc-row>b.price{color:var(--gold)}
 /* 発売年月／定価 同列左右各半,數字加大 */
 .tc-row-split{gap:0;padding:0}
-.tc-half{flex:1;min-width:0;display:flex;align-items:baseline;justify-content:center;gap:8px;padding:9px 12px}
+.tc-half{flex:1;min-width:0;display:flex;align-items:baseline;gap:6px;padding:9px 12px}
 .tc-half+.tc-half{border-left:1px dashed rgba(255,255,255,.07)}
 .tc-half>span{flex:none;color:var(--ink-dim);font-size:10.5px;letter-spacing:.1em}
+.tc-half>.tc-num{flex:1;text-align:center}
 .tc-num{font-weight:700;font-size:14.5px;color:var(--ink);letter-spacing:.01em}
 .tc-num.price{color:var(--gold)}
 /* Tag 列:Grade 排頭,其餘標籤同列,統一 GradeChip 規格、各自保留代表色 */
@@ -5032,5 +5042,5 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 }
 /* ═══ v3.8:初期復元 ═══ */
 .setup-note{font-size:12px;color:var(--ink-mid);line-height:1.8;margin-bottom:12px}
-@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (prefers-reduced-motion:reduce){*:not(.crt-beam){animation:none!important;transition:none!important}}
 `;
