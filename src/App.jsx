@@ -282,6 +282,9 @@ K("ka30", "Ka-30", "FA-010S", "フルアーマーZZガンダム Ver.Ka", "2026-0
 
 const META_KEY = "mg_zukan_v2";
 const IMG_SHARDS = 8;
+// クラウド同期 1 行あたりの上限(超える画像シャードは送らず本地保存のみ)。
+// Supabase/プロキシの行・リクエスト上限に余裕を持たせた保守値。必要なら調整可。
+const MAX_SYNC_BYTES = 4 * 1024 * 1024;
 
 /* ── 機密キーは端末ローカルにのみ保存し、雲端・バックアップには出さない ──
    キーは値を空にするのではなく【削除】する。受信側の applyMeta /
@@ -301,6 +304,55 @@ const metaForCloud = (v) => {
     return JSON.stringify(d);
   } catch (e) { return v; }
 };
+
+/* ── バックアップ JSON の構造検証 ──
+   壊れた/別物の JSON を読み込んでも state を汚さないための門番。
+   問題があればユーザ向けメッセージ(文字列)を返す。OK なら null。 */
+const isPlainObj = (x) => x != null && typeof x === "object" && !Array.isArray(x);
+const SORT_KEYS = ["year", "name", "purchase", "build", "price"];
+function validateBackup(d) {
+  if (!isPlainObj(d)) return "ファイルの中身がバックアップ形式ではありません。";
+  if (d.records !== undefined && !isPlainObj(d.records)) return "records の形式が不正です。";
+  if (d.overrides !== undefined && !isPlainObj(d.overrides)) return "overrides の形式が不正です。";
+  if (d.images !== undefined && !isPlainObj(d.images)) return "images の形式が不正です。";
+  if (d.settings !== undefined && !isPlainObj(d.settings)) return "settings の形式が不正です。";
+  if (d.customKits !== undefined && !Array.isArray(d.customKits)) return "customKits の形式が不正です。";
+  // records / overrides の各値は object であるべき
+  for (const m of [d.records, d.overrides]) {
+    if (isPlainObj(m)) for (const v of Object.values(m)) if (!isPlainObj(v)) return "records/overrides に不正なレコードが含まれています。";
+  }
+  // images の各値は文字列(data URL / URL)
+  if (isPlainObj(d.images)) for (const v of Object.values(d.images)) if (typeof v !== "string") return "images に不正なデータが含まれています。";
+  // customKits の各要素は id を持つ object
+  if (Array.isArray(d.customKits)) for (const c of d.customKits) if (!isPlainObj(c) || typeof c.id !== "string") return "customKits に不正な項目が含まれています。";
+  return null;
+}
+
+/* ── スキーマ版数と漸進的マイグレーション ──
+   META を取り込む全経路(起動時ロード・クラウド受信・バックアップ復元)で
+   migrateMeta を通す。schemaVersion 無印は v2(本機構導入前)とみなす。
+   将来データ構造を変えるたびに SCHEMA_VERSION を上げ、MIGRATIONS に
+   「N → N+1」変換を1つ追記する。各変換が実装を伴う時はテストを書くこと。 */
+const SCHEMA_VERSION = 3;
+const MIGRATIONS = {
+  // v2 → v3:フィールド級時戳(_ts)導入。旧 record は読み出し時に tsOf が
+  // 頂層 t から合成するため、ここでは明示変換は不要(no-op)。
+  2: (d) => d,
+};
+function migrateMeta(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return data;
+  const start = typeof data.schemaVersion === "number" ? data.schemaVersion : 2;
+  let v = start;
+  let d = data;
+  while (v < SCHEMA_VERSION) {
+    const step = MIGRATIONS[v];
+    if (!step) break;            // 該当変換が無ければ打ち切り(前方互換)
+    d = step(d) || d;
+    v++;
+  }
+  d.schemaVersion = Math.max(v, start); // 未来版(start>現行)はそのまま保持
+  return d;
+}
 
 function hashId(s) {
   let h = 2166136261;
@@ -2849,7 +2901,7 @@ export default function App() {
       try {
         const r = await window.storage.get(META_KEY);
         if (r && r.value) {
-          const d = JSON.parse(r.value);
+          const d = migrateMeta(JSON.parse(r.value));
           metaEmpty =
             (!d.records || !Object.keys(d.records).length) &&
             (!d.overrides || !Object.keys(d.overrides).length) &&
@@ -2939,6 +2991,19 @@ export default function App() {
     }
     if (v == null) { unmarkDirty(k); return true; }
     const pushVal = k === META_KEY ? metaForCloud(v) : v;
+    // 画像シャードが大きすぎるとクラウドの行/リクエスト上限を超え、永久に
+    // 失敗→再送ループになり、しかも flushDirty の queue を塞ぐ。事前にサイズ確認し、
+    // 超過分は本地保存のみとして dirty を外し、最適化を促す(圧縮後の保存で再送される)。
+    if (k.indexOf("mg_imgs_") === 0) {
+      let bytes;
+      try { bytes = new Blob([pushVal]).size; } catch (e) { bytes = pushVal.length; }
+      if (bytes > MAX_SYNC_BYTES) {
+        unmarkDirty(k);
+        setSyncMsg("画像が大きすぎてクラウド同期できません(" + Math.round(bytes / 1048576) +
+          "MB)。設定→「画像を最適化(容量削減)」で圧縮してください(本地には保存済み)。");
+        return true; // 取りこぼし扱いで queue を進める
+      }
+    }
     const updated_at = syncTsRef.current[k] || new Date().toISOString();
     try {
       const res = await fetch(`${url}/rest/v1/kv?on_conflict=key`, {
@@ -3035,13 +3100,32 @@ export default function App() {
   }, [loaded]);
 
   /* ── 保存中繼資料 ── */
+  const latestMetaRef = useRef("");
   useEffect(() => {
     if (!loaded) return;
-    const t = setTimeout(() => {
-      saveKey(META_KEY, JSON.stringify({ records, overrides, customKits, settings, sortKey, sortDir, achvSeen }));
-    }, 350);
+    const payload = JSON.stringify({ schemaVersion: SCHEMA_VERSION, records, overrides, customKits, settings, sortKey, sortDir, achvSeen });
+    latestMetaRef.current = payload; // 背景化/終了時に debounce を待たず即落とすための最新版
+    const t = setTimeout(() => { saveKey(META_KEY, payload); }, 350);
     return () => clearTimeout(t);
   }, [records, overrides, customKits, settings, sortKey, sortDir, achvSeen, loaded, saveKey]);
+
+  /* ── 背景化/終了の直前に未保存の META を即時 flush(debounce 350ms の取りこぼし防止)──
+     visibilitychange→hidden は freeze 前に発火するため非同期書き込みも概ね間に合う。
+     pagehide も併せて捕捉。クラウド未送信分も同時に再送試行。 */
+  useEffect(() => {
+    if (!loaded) return;
+    const doFlush = () => {
+      if (latestMetaRef.current) saveKey(META_KEY, latestMetaRef.current);
+      flushDirty();
+    };
+    const onVisHide = () => { if (document.visibilityState === "hidden") doFlush(); };
+    document.addEventListener("visibilitychange", onVisHide);
+    window.addEventListener("pagehide", doFlush);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisHide);
+      window.removeEventListener("pagehide", doFlush);
+    };
+  }, [loaded, saveKey, flushDirty]);
 
   useEffect(() => { setLimit(60); }, [query, gf, sortKey, sortDir, settings.view]);
 
@@ -3070,7 +3154,9 @@ export default function App() {
     await saveKey(key, JSON.stringify(map));
   }, [saveKey]);
 
-  const applyMeta = useCallback((d) => {
+  const applyMeta = useCallback((raw) => {
+    const d = migrateMeta(raw);
+    if (!d || typeof d !== "object") return;
     if (d.records) setRecords((prev) => mergeRecMap(prev, d.records));
     if (d.overrides) setOverrides((prev) => mergeRecMap(prev, d.overrides));
     if (d.customKits) setCustomKits((prev) => mergeArrStamped(prev, d.customKits));
@@ -3126,7 +3212,7 @@ export default function App() {
     setSyncMsg("同期中…");
     try {
       const nn = await pullCloud(cfg);
-      await saveKey(META_KEY, JSON.stringify({ records, overrides, customKits, settings, sortKey, sortDir, achvSeen }));
+      await saveKey(META_KEY, JSON.stringify({ schemaVersion: SCHEMA_VERSION, records, overrides, customKits, settings, sortKey, sortDir, achvSeen }));
       for (let i = 0; i < IMG_SHARDS; i++) {
         const map = {};
         for (const [ik, iv] of Object.entries(images)) if (hashId(ik) % IMG_SHARDS === i) map[ik] = iv;
@@ -3242,7 +3328,7 @@ export default function App() {
   const importRef = useRef(null);
   const exportData = async () => {
     // バックアップにも機密キーは含めない(端末ローカルにのみ残す)
-    const data = { v: 2, exportedAt: new Date().toISOString(), records, overrides, customKits, settings: stripSecrets(settings), sortKey, sortDir, images };
+    const data = { schemaVersion: SCHEMA_VERSION, exportedAt: new Date().toISOString(), records, overrides, customKits, settings: stripSecrets(settings), sortKey, sortDir, images };
     const json = JSON.stringify(data);
     const name = `mg_zukan_backup_${new Date().toISOString().slice(0, 10)}.json`;
     const file = new File([json], name, { type: "application/json" });
@@ -3261,7 +3347,10 @@ export default function App() {
     const f = e.target.files && e.target.files[0];
     if (!f) return;
     try {
-      const d = JSON.parse(await f.text());
+      const raw = JSON.parse(await f.text());
+      const verr = validateBackup(raw);
+      if (verr) { alert("読み込みに失敗しました:" + verr); e.target.value = ""; return; }
+      const d = migrateMeta(raw);
       const now = new Date().toISOString();
       // 復元は全フィールドを now で時戳付けして確実に勝たせる(フィールド級マージ)
       const stampMap = (m) => { const o = {}; for (const k of Object.keys(m || {})) o[k] = stampRecAll(m[k], now); return o; };
@@ -3269,8 +3358,8 @@ export default function App() {
       if (d.overrides) setOverrides((prev) => mergeRecMap(prev, stampMap(d.overrides)));
       if (d.customKits) setCustomKits((prev) => mergeArrStamped(prev, d.customKits.map((c) => ({ ...c, t: now }))));
       if (d.settings) setSettings((s) => ({ ...s, ...d.settings }));
-      if (d.sortKey) setSortKey(d.sortKey);
-      if (d.sortDir) setSortDir(d.sortDir);
+      if (d.sortKey && SORT_KEYS.includes(d.sortKey)) setSortKey(d.sortKey);
+      if (d.sortDir === "asc" || d.sortDir === "desc") setSortDir(d.sortDir);
       if (d.images) {
         setImages(d.images);
         for (let i = 0; i < IMG_SHARDS; i++) {
