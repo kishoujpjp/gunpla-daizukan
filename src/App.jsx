@@ -2178,21 +2178,42 @@ function CRTPlaceholder() {
 /* 機体名:長い場合は最初の括弧前で1回だけ改行候補を入れ、空白・括弧優先で折り返す */
 /* 機体名:第一個括號「前」換行(keep-all,空白/括號優先,行數不會被多撐)。
    單一連續長字串(無空白/括號可斷)真的溢出時,才由 JS 退回任意斷行避免溢框。 */
+/* 機体名:量測後決定是否在「第一個括號前」強制換行。
+   規則 — 只有當「括號前強制換行」不會讓總行數增加時才採用,
+   因此括號一定落到下一行行首、且絕不多撐一行。括號後過長則在其內部折行。 */
 function KitName({ name }) {
   const ref = useRef(null);
+  const [broken, setBroken] = useState(false);
   const bi = useMemo(() => {
     const c = ["(", "（"].map((x) => name.indexOf(x)).filter((x) => x > 0);
     return c.length ? Math.min(...c) : -1;
   }, [name]);
   useLayoutEffect(() => {
-    const par = ref.current && ref.current.parentElement;
-    if (!par) return;
-    par.classList.remove("kn-any");
-    if (par.scrollWidth > par.clientWidth + 1) par.classList.add("kn-any");
+    const el = ref.current;
+    const par = el && el.parentElement;
+    if (!par || bi <= 0) { setBroken(false); return; }
+    const w = par.clientWidth;
+    if (!w) return;
+    const cs = getComputedStyle(par);
+    const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.35;
+    const m = document.createElement("div");
+    m.style.cssText = "position:absolute;left:-99999px;top:0;visibility:hidden;white-space:normal;"
+      + "word-break:keep-all;overflow-wrap:anywhere;width:" + w + "px";
+    m.style.fontFamily = cs.fontFamily; m.style.fontSize = cs.fontSize;
+    m.style.fontWeight = cs.fontWeight; m.style.letterSpacing = cs.letterSpacing;
+    m.style.lineHeight = cs.lineHeight;
+    document.body.appendChild(m);
+    const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    m.innerHTML = esc(name);
+    const linesPlain = Math.round(m.offsetHeight / lh);
+    m.innerHTML = esc(name.slice(0, bi)) + "<br>" + esc(name.slice(bi));
+    const linesForced = Math.round(m.offsetHeight / lh);
+    document.body.removeChild(m);
+    setBroken(linesForced <= linesPlain);
   }, [name, bi]);
   return (
     <span ref={ref} className="kn">
-      {bi > 0 ? (<>{name.slice(0, bi)}<wbr />{name.slice(bi)}</>) : name}
+      {broken ? (<>{name.slice(0, bi)}<br />{name.slice(bi)}</>) : name}
     </span>
   );
 }
@@ -4238,7 +4259,7 @@ input,textarea{font-family:var(--sans)}
 .row.dim{opacity:.45}
 .row-sketch{flex:none;width:46px;display:flex;justify-content:center}
 .row-main{flex:1;min-width:0}
-.row-name{font-size:13px;font-weight:700;color:var(--ink-strong);word-break:keep-all}
+.row-name{font-size:13px;font-weight:700;color:var(--ink-strong);word-break:keep-all;overflow-wrap:anywhere}
 .row-sub{display:flex;gap:8px;align-items:center;margin-top:3px;flex-wrap:wrap}
 .row-seals{display:flex;gap:5px;flex:none}
 .date-tag{font-size:10px;color:var(--ink-mid);letter-spacing:.05em}
@@ -4290,9 +4311,8 @@ input,textarea{font-family:var(--sans)}
 .tc-head-top{display:flex;align-items:flex-start;gap:10px}
 .tc-head .tc-name{font-family:var(--serif);font-weight:800;font-size:24px;line-height:1.22;
   color:var(--ink-strong);flex:1;min-width:0;letter-spacing:.01em;
-  word-break:keep-all;
+  word-break:keep-all;overflow-wrap:anywhere;
   text-shadow:0 1px 2px rgba(0,0,0,.3)}
-.tc-head .tc-name.kn-any,.row-name.kn-any{overflow-wrap:anywhere}
 .kn{display:inline}
 .tc-head-rule{display:block;height:1px;margin:9px 0 7px;
   background:linear-gradient(90deg,rgba(184,146,74,.45),rgba(184,146,74,.1) 60%,transparent)}
