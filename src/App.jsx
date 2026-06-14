@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from "react";
+import { mergeRecMap, mergeArrStamped, stampRec, stampRecAll } from "./merge.js";
 
 /* ─────────────────────────────────────────────────────────
    MG GUNPLA 図鑑・蒐集帖 v2
@@ -281,6 +282,25 @@ K("ka30", "Ka-30", "FA-010S", "フルアーマーZZガンダム Ver.Ka", "2026-0
 
 const META_KEY = "mg_zukan_v2";
 const IMG_SHARDS = 8;
+
+/* ── 機密キーは端末ローカルにのみ保存し、雲端・バックアップには出さない ──
+   キーは値を空にするのではなく【削除】する。受信側の applyMeta /
+   importData は `{ ...prev, ...incoming.settings }` で合成するため、
+   削除しておけば既存の端末ローカルの値が上書きされず温存される。 */
+const SECRET_KEYS = ["geminiKey", "supaKey"];
+const stripSecrets = (settings) => {
+  const out = { ...(settings || {}) };
+  for (const k of SECRET_KEYS) delete out[k];
+  return out;
+};
+// META の JSON 文字列から settings の機密だけを抜いた版を返す(送信用)
+const metaForCloud = (v) => {
+  try {
+    const d = JSON.parse(v);
+    if (d && d.settings) d.settings = stripSecrets(d.settings);
+    return JSON.stringify(d);
+  } catch (e) { return v; }
+};
 
 function hashId(s) {
   let h = 2166136261;
@@ -2766,6 +2786,7 @@ export default function App() {
   const [achvSeen, setAchvSeen] = useState(null);
   const [achvPop, setAchvPop] = useState(null);
   const [syncMsg, setSyncMsg] = useState("");
+  const [storageErr, setStorageErr] = useState(""); // 端末保存失敗(容量不足等)の可視化
   const [setupOpen, setSetupOpen] = useState(false);
   const [setupBusy, setSetupBusy] = useState(false);
   const [setupMsg, setSetupMsg] = useState("");
@@ -2774,6 +2795,7 @@ export default function App() {
   const syncTsRef = useRef({});
   const pushTimers = useRef({});
   const supaRef = useRef({ url: "", key: "" });
+  const dirtyRef = useRef(new Set()); // 雲端へ未確定の変更キー(オフライン再送用)
   const [limit, setLimit] = useState(60);
   const [optimizing, setOptimizing] = useState(false);
   const moreRef = useRef(null);
@@ -2846,6 +2868,11 @@ export default function App() {
         const tsr = await window.storage.get("mg_sync_ts");
         syncTsRef.current = JSON.parse(tsr.value) || {};
       } catch (e) { syncTsRef.current = {}; }
+      try {
+        const dr = await window.storage.get("mg_dirty");
+        const arr = JSON.parse(dr.value);
+        if (Array.isArray(arr)) dirtyRef.current = new Set(arr);
+      } catch (e) { /* 未送信なし */ }
       setLoaded(true); // UI 立即顯示,圖像分片於背景逐片載入
       for (let i = 0; i < IMG_SHARDS; i++) {
         window.storage.get("mg_imgs_" + i)
@@ -2872,10 +2899,68 @@ export default function App() {
     })();
   }, []);
 
+  /* ── 守衛付き本地保存:成否を返す。失敗は握り潰さず可視化する ──
+     重要:時戳(syncTsRef)は「確実に端末へ落ちた値」だけを指すべき。
+     書き込み失敗時に時戳を進めると、再起動後に端末の【古い値】が
+     【新しい時戳】を帯び、pullCloud の LWW が雲端の正しい副本を
+     「本地が新しい」と誤判してスキップ → 静かに古いデータに固着する。 */
+  const persist = useCallback(async (k, v) => {
+    try {
+      await window.storage.set(k, v);
+      setStorageErr((prev) => (prev ? "" : prev)); // 成功したら警告を消す
+      return true;
+    } catch (e) {
+      console.error("storage error", e);
+      setStorageErr("⚠ 端末への保存に失敗しました(空き容量不足の可能性)。クラウド同期またはバックアップ書き出しで保全してください。");
+      return false;
+    }
+  }, []);
+
+  /* ── オフライン再送キュー ──
+     雲端へ未確定の変更キーを dirtyRef に貯め、端末にも mg_dirty として保存。
+     push 成功で解除、失敗で残置。online / 復帰 / 定期で flushDirty が再送する。
+     値は push 時に IndexedDB から読むので、再起動・オフラインをまたいでも
+     最新の本地値が、変更時の時戳(syncTsRef)付きで正しく送られる。 */
+  const persistDirty = useCallback(async () => {
+    try { await window.storage.set("mg_dirty", JSON.stringify([...dirtyRef.current])); } catch (e) {}
+  }, []);
+  const markDirty = useCallback((k) => { dirtyRef.current.add(k); persistDirty(); }, [persistDirty]);
+  const unmarkDirty = useCallback((k) => { if (dirtyRef.current.delete(k)) persistDirty(); }, [persistDirty]);
+
+  // 単一キーを雲端へ送る。成功=true。失敗時は dirty に残す。
+  const pushKey = useCallback(async (k) => {
+    const { url, key } = supaRef.current;
+    if (!url || !key) return false;
+    let v;
+    try { const r = await window.storage.get(k); v = r && r.value; }
+    catch (e) {
+      if (e && /not found/i.test(e.message || "")) { unmarkDirty(k); return true; } // 値が無い→送る物なし
+      return false; // 一時的エラー→残して後で再送
+    }
+    if (v == null) { unmarkDirty(k); return true; }
+    const pushVal = k === META_KEY ? metaForCloud(v) : v;
+    const updated_at = syncTsRef.current[k] || new Date().toISOString();
+    try {
+      const res = await fetch(`${url}/rest/v1/kv?on_conflict=key`, {
+        method: "POST",
+        headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates" },
+        body: JSON.stringify([{ key: k, value: pushVal, updated_at }]),
+      });
+      if (res.ok) { unmarkDirty(k); setSyncMsg("クラウド同期済み " + new Date().toLocaleTimeString()); return true; }
+      let detail = "";
+      try { const j = await res.json(); detail = j.message || ""; } catch (e2) {}
+      setSyncMsg("同期エラー HTTP " + res.status + (detail ? " — " + detail : "") + "(後で再送します)");
+      return false;
+    } catch (e) {
+      setSyncMsg("オフライン — 接続回復後に再送します");
+      return false;
+    }
+  }, [unmarkDirty]);
+
   /* ── 本地保存 + 雲端推送(防抖) ── */
   const saveKey = useCallback(async (k, v) => {
-    // 防護:空集合的 META 僅本地保存——不更新同步時戳、不推送。
-    // (時戳一旦被空狀態更新,LWW 會誤判本地較新而跳過雲端復元)
+    // 防護:空集合の META は本地保存のみ——時戳を更新せず、推送もしない。
+    // (時戳が空状態で進むと、LWW が本地を新しいと誤判し雲端復元を跳ばす)
     if (k === META_KEY) {
       try {
         const d = JSON.parse(v);
@@ -2883,35 +2968,71 @@ export default function App() {
           (!d.records || !Object.keys(d.records).length) &&
           (!d.overrides || !Object.keys(d.overrides).length) &&
           (!d.customKits || !d.customKits.length);
-        if (emptyish) {
-          try { await window.storage.set(k, v); } catch (e) { console.error("storage error", e); }
-          return;
-        }
+        if (emptyish) { await persist(k, v); return; }
       } catch (e) {}
     }
-    try { await window.storage.set(k, v); }
-    catch (e) { console.error("storage error", e); }
+    // 本地書き込みが失敗したら時戳を進めず、推送もしない(復元の安全網を守る)
+    const ok = await persist(k, v);
+    if (!ok) return;
     syncTsRef.current[k] = new Date().toISOString();
-    try { await window.storage.set("mg_sync_ts", JSON.stringify(syncTsRef.current)); } catch (e) {}
+    await persist("mg_sync_ts", JSON.stringify(syncTsRef.current));
     const { url, key } = supaRef.current;
     if (!url || !key) return;
+    // 未確定としてキューに積み、防抖後に送信。失敗しても pushKey が dirty に残す。
+    markDirty(k);
     clearTimeout(pushTimers.current[k]);
-    pushTimers.current[k] = setTimeout(async () => {
+    pushTimers.current[k] = setTimeout(() => { pushKey(k); }, 900);
+  }, [persist, markDirty, pushKey]);
+
+  // dirty キューを順次再送(オフライン中は何もしない)
+  const flushDirty = useCallback(async () => {
+    const { url, key } = supaRef.current;
+    if (!url || !key || !dirtyRef.current.size) return;
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+    for (const k of [...dirtyRef.current]) {
+      // eslint-disable-next-line no-await-in-loop
+      const ok = await pushKey(k);
+      if (!ok) break; // 1件失敗(オフライン等)したら以降は次の機会に
+    }
+  }, [pushKey]);
+
+  // online 復帰・前景復帰・定期で未送信分を再送
+  useEffect(() => {
+    if (!loaded) return;
+    const fn = () => flushDirty();
+    const onVis = () => { if (document.visibilityState === "visible") flushDirty(); };
+    window.addEventListener("online", fn);
+    document.addEventListener("visibilitychange", onVis);
+    const iv = setInterval(fn, 60 * 1000);
+    const kick = setTimeout(fn, 1500); // 起動直後にも一度(supaRef 確定後)
+    return () => {
+      window.removeEventListener("online", fn);
+      document.removeEventListener("visibilitychange", onVis);
+      clearInterval(iv);
+      clearTimeout(kick);
+    };
+  }, [loaded, flushDirty]);
+
+  // ストレージ永続化の要求 + 残容量の監視(端末側データ消失への備え)
+  useEffect(() => {
+    if (!loaded) return;
+    (async () => {
       try {
-        const res = await fetch(`${url}/rest/v1/kv?on_conflict=key`, {
-          method: "POST",
-          headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates" },
-          body: JSON.stringify([{ key: k, value: v, updated_at: syncTsRef.current[k] }]),
-        });
-        if (res.ok) setSyncMsg("クラウド同期済み " + new Date().toLocaleTimeString());
-        else {
-          let detail = "";
-          try { const j = await res.json(); detail = j.message || ""; } catch (e2) {}
-          setSyncMsg("同期エラー HTTP " + res.status + (detail ? " — " + detail : ""));
+        const s = navigator.storage;
+        if (s && s.persist) {
+          const already = s.persisted ? await s.persisted() : false;
+          if (!already) await s.persist(); // 退避(eviction)されにくくする。iOS は限定的
         }
-      } catch (e) { setSyncMsg("同期エラー(オフライン?)"); }
-    }, 900);
-  }, []);
+        if (s && s.estimate) {
+          const { usage, quota } = await s.estimate();
+          if (quota && usage / quota > 0.8) {
+            setStorageErr("⚠ 端末の保存容量が残りわずかです(使用 " + Math.round(usage / 1048576) +
+              "MB / " + Math.round(quota / 1048576) + "MB)。設定→画像を最適化、またはバックアップ書き出しをおすすめします。");
+          }
+        }
+      } catch (e) { /* 非対応環境は黙ってスキップ */ }
+    })();
+  }, [loaded]);
 
   /* ── 保存中繼資料 ── */
   useEffect(() => {
@@ -2949,32 +3070,9 @@ export default function App() {
     await saveKey(key, JSON.stringify(map));
   }, [saveKey]);
 
-  /* 逐筆時間戳 LWW 合併:incoming 的 t 較大(或本地缺)才覆蓋,否則保留本地。永不刪除本地既有筆。 */
-  const mergeStamped = (prev, incoming) => {
-    if (!incoming) return prev;
-    const out = { ...prev };
-    for (const k of Object.keys(incoming)) {
-      const a = out[k], b = incoming[k];
-      const ta = (a && a.t) || "", tb = (b && b.t) || "";
-      if (!a || tb >= ta) out[k] = b;
-    }
-    return out;
-  };
-  const mergeArrStamped = (prevArr, incomingArr) => {
-    if (!incomingArr) return prevArr;
-    const map = {};
-    for (const c of prevArr || []) map[c.id] = c;
-    for (const c of incomingArr) {
-      const a = map[c.id];
-      const ta = (a && a.t) || "", tb = (c && c.t) || "";
-      if (!a || tb >= ta) map[c.id] = c;
-    }
-    return Object.values(map);
-  };
-
   const applyMeta = useCallback((d) => {
-    if (d.records) setRecords((prev) => mergeStamped(prev, d.records));
-    if (d.overrides) setOverrides((prev) => mergeStamped(prev, d.overrides));
+    if (d.records) setRecords((prev) => mergeRecMap(prev, d.records));
+    if (d.overrides) setOverrides((prev) => mergeRecMap(prev, d.overrides));
     if (d.customKits) setCustomKits((prev) => mergeArrStamped(prev, d.customKits));
     if (d.settings) setSettings((s) => ({ ...s, ...d.settings }));
     if (d.sortKey) setSortKey(d.sortKey);
@@ -3011,13 +3109,16 @@ export default function App() {
           });
         } catch (e) { continue; }
       } else continue;
-      try { await window.storage.set(row.key, row.value); } catch (e) {}
+      // 本地へ確実に落ちた時だけ時戳を進める。失敗時は時戳を据え置き、
+      // 次回 pull で再適用させる(古い本地値に新時戳が付くのを防ぐ)。
+      const okSet = await persist(row.key, row.value);
+      if (!okSet) continue;
       syncTsRef.current[row.key] = row.updated_at;
       applied++;
     }
-    try { await window.storage.set("mg_sync_ts", JSON.stringify(syncTsRef.current)); } catch (e) {}
+    await persist("mg_sync_ts", JSON.stringify(syncTsRef.current));
     return applied;
-  }, [applyMeta]);
+  }, [applyMeta, persist]);
 
   const syncNow = async () => {
     const cfg = supaRef.current;
@@ -3140,7 +3241,8 @@ export default function App() {
   /* ── 備份匯出 / 匯入 ── */
   const importRef = useRef(null);
   const exportData = async () => {
-    const data = { v: 2, exportedAt: new Date().toISOString(), records, overrides, customKits, settings, sortKey, sortDir, images };
+    // バックアップにも機密キーは含めない(端末ローカルにのみ残す)
+    const data = { v: 2, exportedAt: new Date().toISOString(), records, overrides, customKits, settings: stripSecrets(settings), sortKey, sortDir, images };
     const json = JSON.stringify(data);
     const name = `mg_zukan_backup_${new Date().toISOString().slice(0, 10)}.json`;
     const file = new File([json], name, { type: "application/json" });
@@ -3161,9 +3263,10 @@ export default function App() {
     try {
       const d = JSON.parse(await f.text());
       const now = new Date().toISOString();
-      const stampMap = (m) => { const o = {}; for (const k of Object.keys(m || {})) o[k] = { ...m[k], t: now }; return o; };
-      if (d.records) setRecords((prev) => mergeStamped(prev, stampMap(d.records)));
-      if (d.overrides) setOverrides((prev) => mergeStamped(prev, stampMap(d.overrides)));
+      // 復元は全フィールドを now で時戳付けして確実に勝たせる(フィールド級マージ)
+      const stampMap = (m) => { const o = {}; for (const k of Object.keys(m || {})) o[k] = stampRecAll(m[k], now); return o; };
+      if (d.records) setRecords((prev) => mergeRecMap(prev, stampMap(d.records)));
+      if (d.overrides) setOverrides((prev) => mergeRecMap(prev, stampMap(d.overrides)));
       if (d.customKits) setCustomKits((prev) => mergeArrStamped(prev, d.customKits.map((c) => ({ ...c, t: now }))));
       if (d.settings) setSettings((s) => ({ ...s, ...d.settings }));
       if (d.sortKey) setSortKey(d.sortKey);
@@ -3192,7 +3295,10 @@ export default function App() {
     [allKits]);
 
   const getRec = useCallback((id) => records[id] || { owned: false, plan: false, purchaseDate: "", buildDate: "" }, [records]);
-  const setRec = (id, patch) => setRecords((r) => ({ ...r, [id]: { ...getRec(id), ...patch, t: new Date().toISOString() } }));
+  const setRec = (id, patch) => setRecords((r) => {
+    const cur = r[id] || { owned: false, plan: false, purchaseDate: "", buildDate: "" };
+    return { ...r, [id]: stampRec(cur, patch, new Date().toISOString()) };
+  });
   /* 入手/予定互斥切換 */
   const toggleOwned = (id) => {
     const r = getRec(id);
@@ -3431,7 +3537,7 @@ export default function App() {
     if (kit.line === "CUSTOM") {
       setCustomKits((cs) => cs.map((c) => (c.id === kit.id ? { ...c, ...fields, t: now } : c)));
     } else {
-      setOverrides((o) => ({ ...o, [kit.id]: { ...(o[kit.id] || {}), ...fields, t: now } }));
+      setOverrides((o) => ({ ...o, [kit.id]: stampRec(o[kit.id], fields, now) }));
     }
     if (imgVal !== undefined) setImage(kit.id, imgVal);
     setEditing(false);
@@ -3441,8 +3547,8 @@ export default function App() {
     const now = new Date().toISOString();
     const id = "c" + Date.now().toString(36);
     setCustomKits((cs) => [...cs, { id, no: "—", line: "CUSTOM", ...values, t: now }]);
-    if (adding === "owned") setRecords((r) => ({ ...r, [id]: { owned: true, plan: false, purchaseDate: "", buildDate: "", t: now } }));
-    if (adding === "plan") setRecords((r) => ({ ...r, [id]: { owned: false, plan: true, purchaseDate: "", buildDate: "", t: now } }));
+    if (adding === "owned") setRecords((r) => ({ ...r, [id]: stampRecAll({ owned: true, plan: false, purchaseDate: "", buildDate: "" }, now) }));
+    if (adding === "plan") setRecords((r) => ({ ...r, [id]: stampRecAll({ owned: false, plan: true, purchaseDate: "", buildDate: "" }, now) }));
     if (imgVal !== undefined && imgVal !== null) setImage(id, imgVal);
     setAdding(false);
     setDetail(id);
@@ -3452,7 +3558,7 @@ export default function App() {
     const now = new Date().toISOString();
     // 墓碑:保留 deleted 旗標並打新時戳,阻止雲端/別台用舊資料復活
     setCustomKits((cs) => cs.map((c) => (c.id === id ? { ...c, deleted: true, t: now } : c)));
-    setRecords((r) => ({ ...r, [id]: { deleted: true, t: now } }));
+    setRecords((r) => ({ ...r, [id]: stampRecAll({ owned: false, plan: false, purchaseDate: "", buildDate: "", deleted: true }, now) }));
     setImage(id, null);
     setDetail(null); setEditing(false);
   };
@@ -3554,6 +3660,23 @@ export default function App() {
   return (
     <div className={"app " + (settings.theme === "light" ? "light" : "") + (detailKit || adding || promptEdit || setupOpen ? " lock" : "")}>
       <style>{CSS}</style>
+
+      {storageErr && (
+        <div
+          role="alert"
+          onClick={() => setStorageErr("")}
+          style={{
+            position: "fixed", left: 8, right: 8, top: "calc(env(safe-area-inset-top) + 8px)",
+            zIndex: 99998, background: "#5a1410", color: "#ffd9d2",
+            padding: "10px 14px", borderRadius: 10, fontSize: 12.5, lineHeight: 1.5,
+            boxShadow: "0 6px 24px rgba(0,0,0,.5)", cursor: "pointer",
+            display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between",
+          }}
+        >
+          <span>{storageErr}</span>
+          <span style={{ opacity: 0.7, fontSize: 14, flexShrink: 0 }}>✕</span>
+        </div>
+      )}
 
       <header className="head">
         <div className="head-line" />
