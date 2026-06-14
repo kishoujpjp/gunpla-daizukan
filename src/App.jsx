@@ -2853,10 +2853,33 @@ export default function App() {
     await saveKey(key, JSON.stringify(map));
   }, [saveKey]);
 
+  /* 逐筆時間戳 LWW 合併:incoming 的 t 較大(或本地缺)才覆蓋,否則保留本地。永不刪除本地既有筆。 */
+  const mergeStamped = (prev, incoming) => {
+    if (!incoming) return prev;
+    const out = { ...prev };
+    for (const k of Object.keys(incoming)) {
+      const a = out[k], b = incoming[k];
+      const ta = (a && a.t) || "", tb = (b && b.t) || "";
+      if (!a || tb >= ta) out[k] = b;
+    }
+    return out;
+  };
+  const mergeArrStamped = (prevArr, incomingArr) => {
+    if (!incomingArr) return prevArr;
+    const map = {};
+    for (const c of prevArr || []) map[c.id] = c;
+    for (const c of incomingArr) {
+      const a = map[c.id];
+      const ta = (a && a.t) || "", tb = (c && c.t) || "";
+      if (!a || tb >= ta) map[c.id] = c;
+    }
+    return Object.values(map);
+  };
+
   const applyMeta = useCallback((d) => {
-    if (d.records) setRecords(d.records);
-    if (d.overrides) setOverrides(d.overrides);
-    if (d.customKits) setCustomKits(d.customKits);
+    if (d.records) setRecords((prev) => mergeStamped(prev, d.records));
+    if (d.overrides) setOverrides((prev) => mergeStamped(prev, d.overrides));
+    if (d.customKits) setCustomKits((prev) => mergeArrStamped(prev, d.customKits));
     if (d.settings) setSettings((s) => ({ ...s, ...d.settings }));
     if (d.sortKey) setSortKey(d.sortKey);
     if (d.sortDir) setSortDir(d.sortDir);
@@ -3041,9 +3064,11 @@ export default function App() {
     if (!f) return;
     try {
       const d = JSON.parse(await f.text());
-      if (d.records) setRecords(d.records);
-      if (d.overrides) setOverrides(d.overrides);
-      if (d.customKits) setCustomKits(d.customKits);
+      const now = new Date().toISOString();
+      const stampMap = (m) => { const o = {}; for (const k of Object.keys(m || {})) o[k] = { ...m[k], t: now }; return o; };
+      if (d.records) setRecords((prev) => mergeStamped(prev, stampMap(d.records)));
+      if (d.overrides) setOverrides((prev) => mergeStamped(prev, stampMap(d.overrides)));
+      if (d.customKits) setCustomKits((prev) => mergeArrStamped(prev, d.customKits.map((c) => ({ ...c, t: now }))));
       if (d.settings) setSettings((s) => ({ ...s, ...d.settings }));
       if (d.sortKey) setSortKey(d.sortKey);
       if (d.sortDir) setSortDir(d.sortDir);
@@ -3063,7 +3088,7 @@ export default function App() {
   /* ── 合成機體清單(基礎 + 覆寫 + 自訂) ── */
   const allKits = useMemo(() => {
     const merged = ALL_BASE.map((k) => (overrides[k.id] ? { ...k, ...overrides[k.id] } : k));
-    return merged.concat(customKits.map((c) => ({ line: "CUSTOM", no: "—", code: "", series: "", note: "", ...c })));
+    return merged.concat(customKits.filter((c) => !c.deleted).map((c) => ({ line: "CUSTOM", no: "—", code: "", series: "", note: "", ...c })));
   }, [overrides, customKits]);
 
   const seriesOptions = useMemo(
@@ -3071,7 +3096,7 @@ export default function App() {
     [allKits]);
 
   const getRec = useCallback((id) => records[id] || { owned: false, plan: false, purchaseDate: "", buildDate: "" }, [records]);
-  const setRec = (id, patch) => setRecords((r) => ({ ...r, [id]: { ...getRec(id), ...patch } }));
+  const setRec = (id, patch) => setRecords((r) => ({ ...r, [id]: { ...getRec(id), ...patch, t: new Date().toISOString() } }));
   /* 入手/予定互斥切換 */
   const toggleOwned = (id) => {
     const r = getRec(id);
@@ -3305,29 +3330,33 @@ export default function App() {
 
   /* ── 保存編輯 / 新增 ── */
   const saveEdit = (kit, values, imgVal) => {
+    const now = new Date().toISOString();
     const fields = { name: values.name, code: values.code, ym: values.ym, price: values.price, series: values.series, note: values.note, premium: !!values.premium, grade: values.grade || "MG" };
     if (kit.line === "CUSTOM") {
-      setCustomKits((cs) => cs.map((c) => (c.id === kit.id ? { ...c, ...fields } : c)));
+      setCustomKits((cs) => cs.map((c) => (c.id === kit.id ? { ...c, ...fields, t: now } : c)));
     } else {
-      setOverrides((o) => ({ ...o, [kit.id]: { ...(o[kit.id] || {}), ...fields } }));
+      setOverrides((o) => ({ ...o, [kit.id]: { ...(o[kit.id] || {}), ...fields, t: now } }));
     }
     if (imgVal !== undefined) setImage(kit.id, imgVal);
     setEditing(false);
   };
 
   const saveNew = (values, imgVal) => {
+    const now = new Date().toISOString();
     const id = "c" + Date.now().toString(36);
-    setCustomKits((cs) => [...cs, { id, no: "—", line: "CUSTOM", ...values }]);
-    if (adding === "owned") setRecords((r) => ({ ...r, [id]: { owned: true, plan: false, purchaseDate: "", buildDate: "" } }));
-    if (adding === "plan") setRecords((r) => ({ ...r, [id]: { owned: false, plan: true, purchaseDate: "", buildDate: "" } }));
+    setCustomKits((cs) => [...cs, { id, no: "—", line: "CUSTOM", ...values, t: now }]);
+    if (adding === "owned") setRecords((r) => ({ ...r, [id]: { owned: true, plan: false, purchaseDate: "", buildDate: "", t: now } }));
+    if (adding === "plan") setRecords((r) => ({ ...r, [id]: { owned: false, plan: true, purchaseDate: "", buildDate: "", t: now } }));
     if (imgVal !== undefined && imgVal !== null) setImage(id, imgVal);
     setAdding(false);
     setDetail(id);
   };
 
   const deleteCustom = (id) => {
-    setCustomKits((cs) => cs.filter((c) => c.id !== id));
-    setRecords((r) => { const n = { ...r }; delete n[id]; return n; });
+    const now = new Date().toISOString();
+    // 墓碑:保留 deleted 旗標並打新時戳,阻止雲端/別台用舊資料復活
+    setCustomKits((cs) => cs.map((c) => (c.id === id ? { ...c, deleted: true, t: now } : c)));
+    setRecords((r) => ({ ...r, [id]: { deleted: true, t: now } }));
     setImage(id, null);
     setDetail(null); setEditing(false);
   };
@@ -3849,7 +3878,6 @@ export default function App() {
                 <div className="tc-head">
                   <div className="tc-head-top">
                     <span className="tc-name">{detailKit.name}</span>
-                    <GradeChip grade={detailKit.grade} />
                   </div>
                   <span className="tc-head-rule" />
                   <div className="tc-head-sub">
@@ -3860,17 +3888,22 @@ export default function App() {
                 <div className={"tc-art square" + (images[detailKit.id] ? " zoomable" : "")}
                   onClick={() => { if (images[detailKit.id]) { haptic(); setViewer(images[detailKit.id]); } }}>
                   <KitImage kit={detailKit} img={images[detailKit.id]} owned={detailRec.owned} built={!!detailRec.buildDate} size={150} cls="tc" />
-                  <i className="tc-c c1" /><i className="tc-c c2" /><i className="tc-c c3" /><i className="tc-c c4" />
                   {images[detailKit.id] && <span className="zoom-hint">⤢</span>}
                 </div>
-                <div className="tc-info">
-                  <div className="tc-row"><span>型式番号</span><b className="mono">{detailKit.code || "—"}</b></div>
-                  <div className="tc-row"><span>発売年月</span><b>{detailKit.ym ? detailKit.ym.replace("-", ".") : "未設定"}</b></div>
-                  <div className="tc-row"><span>定価</span><b className="price">{fmtYen(detailKit.price)}</b></div>
+                <div className="tc-info tappable" onClick={() => { setDetail(null); setEditing(false); }}>
                   <div className="tc-row"><span>原作</span><b>{detailKit.series || "—"}</b></div>
-                  {(detailKit.line === "Ver.Ka" || detailKit.line === "MGEX" || detailKit.line === "CUSTOM" || detailKit.premium) && (
-                    <div className="tc-row"><span>区分</span><b>{lineBadge(detailKit)}</b></div>
-                  )}
+                  <div className="tc-row"><span>型式番号</span><b className="mono">{detailKit.code || "—"}</b></div>
+                  <div className="tc-row tc-row-split">
+                    <div className="tc-half"><span>発売</span><b className="tc-num">{detailKit.ym ? detailKit.ym.replace("-", ".") : "—"}</b></div>
+                    <div className="tc-half"><span>定価</span><b className="tc-num price">{fmtYen(detailKit.price)}</b></div>
+                  </div>
+                  <div className="tc-row tc-row-tag"><span>Tag</span>
+                    <div className="tc-tags">
+                      <GradeChip grade={detailKit.grade} />
+                      {detailKit.base && <span className="line-chip base">ベース</span>}
+                      {lineBadge(detailKit)}
+                    </div>
+                  </div>
                 </div>
                 {detailKit.note && <div className="note-box">{detailKit.note}</div>}
 
@@ -3885,7 +3918,6 @@ export default function App() {
                   </div>
                 )}
                 <button className="edit-link" onClick={() => setEditing(true)}>✎ 機体情報・画像を編集</button>
-                <button className="detail-close" onClick={() => { setDetail(null); setEditing(false); }} aria-label="閉じる">✕</button>
               </>
             ) : (
               <>
@@ -4171,50 +4203,55 @@ input,textarea{font-family:var(--sans)}
   animation:up .26s cubic-bezier(.2,.9,.3,1.1);max-height:88vh;overflow-y:auto}
 @keyframes up{from{transform:translateY(34px) scale(.97);opacity:0}to{transform:none;opacity:1}}
 /* ── 交換カード式詳細レイアウト ── */
-.tc-head{position:relative;margin-bottom:14px;padding:13px 15px 11px;border-radius:11px;
-  background:linear-gradient(135deg,rgba(217,179,106,.17),rgba(217,179,106,.04) 55%,rgba(217,179,106,.015));
-  border:1px solid rgba(217,179,106,.34);box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
-.tc-head::before,.tc-head::after{content:"";position:absolute;width:11px;height:11px;
-  border-color:var(--gold);border-style:solid;opacity:.65;pointer-events:none}
-.tc-head::before{top:5px;left:5px;border-width:1.5px 0 0 1.5px;border-top-left-radius:3px}
-.tc-head::after{bottom:5px;right:5px;border-width:0 1.5px 1.5px 0;border-bottom-right-radius:3px}
-.tc-head-top{display:flex;align-items:flex-start;gap:10px;justify-content:space-between}
+.tc-head{position:relative;overflow:hidden;margin-bottom:14px;padding:13px 15px 11px;border-radius:10px;
+  background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(0,0,0,.06)),var(--panel);
+  border:1px solid rgba(184,146,74,.32)}
+.tc-head-top{display:flex;align-items:flex-start;gap:10px}
 .tc-head .tc-name{font-family:var(--serif);font-weight:800;font-size:20px;line-height:1.26;
   color:var(--ink-strong);flex:1;min-width:0;letter-spacing:.01em;
-  text-shadow:0 1px 2px rgba(0,0,0,.25)}
-.tc-head-top .grade-chip{flex:none;margin-top:2px}
-.tc-head-rule{display:block;height:1.5px;margin:9px 0 7px;border-radius:1px;
-  background:linear-gradient(90deg,var(--gold),rgba(217,179,106,.35) 55%,transparent)}
+  text-shadow:0 1px 2px rgba(0,0,0,.3)}
+.tc-head-rule{display:block;height:1px;margin:9px 0 7px;
+  background:linear-gradient(90deg,rgba(184,146,74,.55),rgba(184,146,74,.12) 60%,transparent)}
 .tc-head-sub{display:flex;align-items:baseline;gap:11px;min-width:0}
 .tc-head .tc-no{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:15px;font-weight:800;color:var(--gold);
   letter-spacing:.05em;flex:none;line-height:1}
 .tc-head-series{font-size:11.5px;color:var(--ink-mid);letter-spacing:.04em;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.tc-art{position:relative;height:230px;border:1px solid rgba(217,179,106,.5);border-radius:6px;
-  margin:0 4px 12px;padding:10px;display:flex;align-items:center;justify-content:center;
+.tc-art{position:relative;overflow:hidden;height:230px;border:1px solid rgba(184,146,74,.32);border-radius:10px;
+  margin:0 4px 12px;padding:14px;display:flex;align-items:center;justify-content:center;
   background:
-    radial-gradient(ellipse at 50% 38%,rgba(111,211,199,.10),transparent 62%),
-    repeating-linear-gradient(0deg,transparent 0 23px,rgba(111,211,199,.05) 23px 24px),
-    linear-gradient(#10141d,#0b0e15);
-  box-shadow:inset 0 0 0 4px rgba(13,16,24,.92),inset 0 0 0 5px rgba(217,179,106,.22)}
+    radial-gradient(ellipse at 50% 42%,rgba(255,255,255,.045),transparent 60%),
+    linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.10)),
+    var(--bg2)}
 .tc-art.square{height:auto;aspect-ratio:1/1}
 .tc-art.zoomable{cursor:zoom-in}
 .tc-art.zoomable:active{filter:brightness(.93);transform:scale(.99)}
+/* 方向C:極淡灰階噪點質感(標題列與圖片框統一),內容置於其上 */
+.tc-head::after,.tc-art::after{content:"";position:absolute;inset:0;border-radius:inherit;
+  pointer-events:none;z-index:0;opacity:.05;background-size:120px 120px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.tc-head>*,.tc-art>*{position:relative;z-index:1}
 .zoom-hint{position:absolute;right:8px;bottom:7px;width:26px;height:26px;display:flex;
   align-items:center;justify-content:center;border-radius:6px;font-size:14px;
-  background:rgba(13,16,24,.78);border:1px solid rgba(217,179,106,.4);color:var(--gold)}
+  background:rgba(13,16,24,.78);border:1px solid rgba(184,146,74,.4);color:var(--gold)}
 .kit-img.tc{width:100%;height:100%;object-fit:contain;border:none;background:transparent;border-radius:0;box-shadow:none}
-.tc-c{position:absolute;width:14px;height:14px;border:1.5px solid var(--gold);opacity:.85;pointer-events:none}
-.tc-c.c1{top:-1px;left:-1px;border-right:none;border-bottom:none;border-radius:4px 0 0 0}
-.tc-c.c2{top:-1px;right:-1px;border-left:none;border-bottom:none;border-radius:0 4px 0 0}
-.tc-c.c3{bottom:-1px;left:-1px;border-right:none;border-top:none;border-radius:0 0 0 4px}
-.tc-c.c4{bottom:-1px;right:-1px;border-left:none;border-top:none;border-radius:0 0 4px 0}
 .tc-info{margin:0 4px 12px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:rgba(255,255,255,.015)}
+.tc-info.tappable:active{background:rgba(255,255,255,.04)}
 .tc-row{display:flex;align-items:baseline;gap:12px;padding:7px 12px;font-size:12px}
 .tc-row+.tc-row{border-top:1px dashed rgba(255,255,255,.07)}
 .tc-row>span{flex:none;width:62px;color:var(--ink-dim);font-size:10.5px;letter-spacing:.1em}
 .tc-row>b{font-weight:600;color:var(--ink);min-width:0}
 .tc-row>b.price{color:var(--gold)}
+/* 発売年月／定価 同列左右各半,數字加大 */
+.tc-row-split{gap:0;padding:0}
+.tc-half{flex:1;min-width:0;display:flex;align-items:baseline;gap:10px;padding:8px 12px}
+.tc-half+.tc-half{border-left:1px dashed rgba(255,255,255,.07)}
+.tc-half>span{flex:none;color:var(--ink-dim);font-size:10.5px;letter-spacing:.1em}
+.tc-num{font-weight:700;font-size:14.5px;color:var(--ink);letter-spacing:.01em}
+.tc-num.price{color:var(--gold)}
+/* Tag 列:Grade 排頭,其餘標籤同列 */
+.tc-row-tag{align-items:center}
+.tc-tags{display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-width:0}
 .modal-top{display:flex;gap:14px;align-items:flex-start;position:relative;margin-bottom:14px}
 .modal-img{flex:none}
 .modal-info{flex:1;min-width:0;padding-right:20px}
