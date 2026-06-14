@@ -2133,16 +2133,21 @@ function CRTPlaceholder({ scan = true }) {
   return (
     <div className={"crt-ph" + (scan ? " scan" : "")} aria-hidden="true">
       <div className="crt-scanlines" />
-      <svg className="crt-art" viewBox="0 0 100 110" width="124" height="136">
-        <g className="crt-reticle" fill="none" stroke="currentColor" strokeWidth="0.7">
-          <line x1="50" y1="3" x2="50" y2="14" /><line x1="50" y1="96" x2="50" y2="107" />
-          <line x1="3" y1="55" x2="14" y2="55" /><line x1="86" y1="55" x2="97" y2="55" />
-          <circle cx="50" cy="55" r="40" strokeDasharray="3 5" opacity="0.45" />
+      <div className="crt-data">
+        <div>UNIT&nbsp;&nbsp;: ////</div>
+        <div>SPEC&nbsp;&nbsp;: ////</div>
+        <div>CLASS&nbsp;: ////</div>
+        <div>AFFIL&nbsp;: ////</div>
+      </div>
+      <svg className="crt-art" viewBox="0 0 220 200" preserveAspectRatio="xMidYMid meet">
+        <g fill="none" stroke="currentColor" strokeWidth="0.8" opacity="0.4">
+          <circle cx="110" cy="80" r="58" strokeDasharray="3 6" />
+          <path d="M110 4 v12 M110 144 v12 M30 80 h12 M178 80 h12" />
         </g>
-        <g fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" opacity="0.85">
+        <g transform="translate(50,16) scale(1.2)" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.9">
           <rect x="40" y="14" width="20" height="16" rx="4" />
           <path d="M44 14 L36 3 M56 14 L64 3" />
-          <line x1="44" y1="22" x2="56" y2="22" strokeWidth="2.6" />
+          <line x1="44" y1="22" x2="56" y2="22" strokeWidth="2.4" />
           <path d="M42 32 H58 L62 50 H38 Z" /><path d="M46 38 H54" />
           <rect x="26" y="32" width="12" height="12" rx="2" /><rect x="62" y="32" width="12" height="12" rx="2" />
           <path d="M31 45 L29 62 M69 45 L71 62" />
@@ -2151,12 +2156,31 @@ function CRTPlaceholder({ scan = true }) {
           <path d="M44 58 L42 84 M56 58 L58 84" />
           <path d="M42 84 L36 88 H46 M58 84 L64 88 H54" />
         </g>
+        <g fill="none" stroke="currentColor" strokeWidth="0.7" opacity="0.55">
+          <path d="M110 43 L148 36 L162 36" /><path d="M131 62 L150 54 L162 54" />
+          <path d="M110 117 L148 126 L162 126" /><path d="M110 64 L74 74 L58 74" />
+        </g>
+        <g fill="currentColor" stroke="none" opacity="0.7">
+          <circle cx="110" cy="43" r="1.3" /><circle cx="131" cy="62" r="1.3" />
+          <circle cx="110" cy="117" r="1.3" /><circle cx="110" cy="64" r="1.3" />
+        </g>
+        <g className="crt-clabel" fill="currentColor" stroke="none" fontSize="6" fontFamily="ui-monospace, monospace" opacity="0.85">
+          <text x="165" y="38">SENSOR</text>
+          <text x="165" y="56">THRUSTER</text>
+          <text x="165" y="128">ACTUATOR</text>
+          <text x="55" y="77" textAnchor="end">ENERGY CORE</text>
+        </g>
       </svg>
       {scan && <div className="crt-beam" />}
-      <div className="crt-sub">UNIT&nbsp;: ////</div>
       <div className="crt-label">UNIDENTIFIED</div>
     </div>
   );
+}
+
+function GradeBracket({ grade }) {
+  const g = (grade || "MG").toUpperCase();
+  const cls = { MG: "mg", HG: "hg", RG: "rg", PG: "pg", HIRM: "hirm", RE: "re", FM: "fm", MGSD: "sd", EXTRA: "ex" }[g] || "ex";
+  return <span className={`tc-grade-tx g-${cls}`}>【{g}】</span>;
 }
 
 function KitImage({ kit, img, owned, built, size = 84, cls = "", scan = true }) {
@@ -3911,14 +3935,14 @@ export default function App() {
             {!editing ? (
               <>
                 <div className="tc-head">
-                  <div className="tc-head-top">
-                    <span className="tc-name">{detailKit.name}</span>
-                  </div>
-                  <span className="tc-head-rule" />
                   <div className="tc-head-sub">
-                    <GradeChip grade={detailKit.grade} />
+                    <GradeBracket grade={detailKit.grade} />
                     {detailKit.no !== "—" && <span className="tc-no">No.{detailKit.no}</span>}
                     <span className="tc-head-series">{detailKit.code || "—"}</span>
+                  </div>
+                  <span className="tc-head-rule" />
+                  <div className="tc-head-top">
+                    <span className="tc-name">{detailKit.name}</span>
                   </div>
                 </div>
                 <div className={"tc-art square" + (images[detailKit.id] ? " zoomable" : "")}
@@ -4246,20 +4270,20 @@ input,textarea{font-family:var(--sans)}
              inset 4px 0 0 -1px rgba(184,146,74,.6),
              inset 5px 0 0 -1px rgba(217,179,106,.22)}
 .tc-head-top{display:flex;align-items:flex-start;gap:10px}
-.tc-head .tc-name{font-family:var(--serif);font-weight:800;font-size:20px;line-height:1.26;
+.tc-head .tc-name{font-family:var(--serif);font-weight:800;font-size:24px;line-height:1.22;
   color:var(--ink-strong);flex:1;min-width:0;letter-spacing:.01em;
   text-shadow:0 1px 2px rgba(0,0,0,.3)}
 .tc-head-rule{display:block;height:1px;margin:9px 0 7px;
   background:linear-gradient(90deg,rgba(184,146,74,.55),rgba(184,146,74,.12) 60%,transparent)}
-.tc-head-sub{display:flex;align-items:center;gap:9px;min-width:0}
-.tc-head-sub .grade-chip{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:12.5px;font-weight:800;
-  margin-right:0;vertical-align:0;padding:0 6px;border-width:1px;border-radius:3px;line-height:1.5;flex:none}
+.tc-head-sub{display:flex;align-items:center;gap:8px;min-width:0}
+.tc-grade-tx{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:15px;font-weight:800;
+  letter-spacing:.01em;line-height:1;flex:none;background:none!important;border:none;padding:0}
 .tc-head .tc-no{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:15px;font-weight:800;color:var(--gold);
   letter-spacing:.05em;flex:none;line-height:1}
 .tc-head-series{font-size:11.5px;color:var(--ink-mid);letter-spacing:.04em;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .tc-art{position:relative;overflow:hidden;height:230px;border:1px solid rgba(184,146,74,.32);border-radius:10px;
-  margin:0 4px 12px;padding:14px;display:flex;align-items:center;justify-content:center;
+  margin:0 4px 12px;padding:0;display:flex;align-items:center;justify-content:center;
   background:
     radial-gradient(ellipse at 50% 42%,rgba(255,255,255,.045),transparent 60%),
     linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.10)),
@@ -4275,28 +4299,26 @@ input,textarea{font-family:var(--sans)}
 .zoom-hint{position:absolute;right:8px;bottom:7px;width:26px;height:26px;display:flex;
   align-items:center;justify-content:center;border-radius:6px;font-size:14px;
   background:rgba(13,16,24,.78);border:1px solid rgba(184,146,74,.4);color:var(--gold)}
-.kit-img.tc{width:100%;height:100%;object-fit:contain;border:none;background:transparent;border-radius:0;box-shadow:none}
+.kit-img.tc{width:100%;height:100%;object-fit:cover;border:none;background:transparent;border-radius:0;box-shadow:none}
 /* 未識別プレート(無圖時の CRT 画面) */
-.crt-ph{position:relative;z-index:1;width:100%;height:100%;min-height:200px;display:flex;align-items:center;justify-content:center;
-  color:var(--teal);overflow:hidden;border-radius:6px;
-  background:radial-gradient(ellipse at 50% 44%,rgba(111,211,199,.12),transparent 66%),#0a1014;
-  box-shadow:inset 0 0 44px 10px rgba(0,0,0,.6)}
+.crt-ph{position:relative;z-index:1;width:100%;height:100%;min-height:230px;display:flex;align-items:center;justify-content:center;
+  color:var(--teal);overflow:hidden;border-radius:9px;
+  background:radial-gradient(ellipse at 50% 42%,rgba(111,211,199,.12),transparent 66%),#0a1014;
+  box-shadow:inset 0 0 50px 12px rgba(0,0,0,.62)}
 .crt-scanlines{position:absolute;inset:0;pointer-events:none;z-index:2;
   background:repeating-linear-gradient(0deg,rgba(111,211,199,.06) 0 1px,transparent 1px 3px)}
-.crt-art{position:relative;z-index:1;opacity:.9;filter:drop-shadow(0 0 5px rgba(111,211,199,.5))}
-.crt-art .crt-reticle{opacity:.5}
-.crt-beam{position:absolute;left:0;right:0;top:-16px;height:16px;z-index:3;pointer-events:none;
-  background:linear-gradient(180deg,transparent,rgba(111,211,199,.22),transparent);
-  animation:crtbeam 3.4s linear infinite}
-@keyframes crtbeam{0%{top:-16px}100%{top:100%}}
-.crt-label{position:absolute;left:0;right:0;bottom:12px;z-index:4;text-align:center;
-  font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:12px;font-weight:700;letter-spacing:.3em;
-  color:var(--teal);text-shadow:0 0 7px rgba(111,211,199,.6);animation:crtblink 2.6s steps(1) infinite}
-.crt-sub{position:absolute;top:10px;left:13px;z-index:4;font-family:ui-monospace,"SF Mono",Menlo,monospace;
-  font-size:9px;letter-spacing:.22em;color:rgba(111,211,199,.55)}
-@keyframes crtblink{0%,72%{opacity:1}73%,100%{opacity:.42}}
+.crt-art{position:relative;z-index:1;width:90%;height:90%;filter:drop-shadow(0 0 5px rgba(111,211,199,.45))}
+.crt-clabel{letter-spacing:.4px}
+.crt-data{position:absolute;top:10px;left:12px;z-index:4;font-family:ui-monospace,"SF Mono",Menlo,monospace;
+  font-size:8.5px;line-height:1.75;letter-spacing:.1em;color:rgba(111,211,199,.62)}
+.crt-beam{position:absolute;left:0;right:0;top:-22px;height:22px;z-index:3;pointer-events:none;
+  background:linear-gradient(180deg,transparent,rgba(111,211,199,.32),transparent);
+  animation:crtbeam 3.2s linear infinite}
+@keyframes crtbeam{0%{top:-22px}100%{top:100%}}
 .crt-ph:not(.scan) .crt-beam{display:none}
-@media (prefers-reduced-motion:reduce){.crt-beam{display:none}.crt-label{animation:none}}
+.crt-label{position:absolute;left:0;right:0;top:73%;z-index:4;text-align:center;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:24px;font-weight:700;letter-spacing:.1em;
+  color:var(--teal);text-shadow:0 0 10px rgba(111,211,199,.6)}
 .tc-info{margin:0 4px 12px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:rgba(255,255,255,.015)}
 .tc-info.tappable:active{background:rgba(255,255,255,.04)}
 .tc-row{display:flex;align-items:baseline;gap:12px;padding:7px 12px;font-size:12px}
