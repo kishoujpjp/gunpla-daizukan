@@ -2129,8 +2129,39 @@ const HGWM_KITS = [
 
 const ALL_BASE = BASE_KITS.concat(MGP_KITS, KAP_KITS, HG_KITS, HGHP_KITS, HGSEED_KITS, HG00_KITS, HGBF_KITS, HGIBO_KITS, HGGBB_KITS, HGCDI_KITS, HGORG_KITS, HGGR_KITS, HGAGE_KITS, HGTB_KITS, HGGBD_KITS, HGGBM_KITS, HGGQ_KITS, HGWM_KITS, RG_KITS, RGP_KITS, PG_KITS, PGP_KITS, HIRM_KITS, RE100_KITS, REP_KITS, BASEMG_KITS, FM_KITS, BASERG_KITS, BASEHG_KITS, MGSD_KITS);
 
-function KitImage({ kit, img, owned, built, size = 84, cls = "" }) {
+function CRTPlaceholder({ scan = true }) {
+  return (
+    <div className={"crt-ph" + (scan ? " scan" : "")} aria-hidden="true">
+      <div className="crt-scanlines" />
+      <svg className="crt-art" viewBox="0 0 100 110" width="124" height="136">
+        <g className="crt-reticle" fill="none" stroke="currentColor" strokeWidth="0.7">
+          <line x1="50" y1="3" x2="50" y2="14" /><line x1="50" y1="96" x2="50" y2="107" />
+          <line x1="3" y1="55" x2="14" y2="55" /><line x1="86" y1="55" x2="97" y2="55" />
+          <circle cx="50" cy="55" r="40" strokeDasharray="3 5" opacity="0.45" />
+        </g>
+        <g fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" opacity="0.85">
+          <rect x="40" y="14" width="20" height="16" rx="4" />
+          <path d="M44 14 L36 3 M56 14 L64 3" />
+          <line x1="44" y1="22" x2="56" y2="22" strokeWidth="2.6" />
+          <path d="M42 32 H58 L62 50 H38 Z" /><path d="M46 38 H54" />
+          <rect x="26" y="32" width="12" height="12" rx="2" /><rect x="62" y="32" width="12" height="12" rx="2" />
+          <path d="M31 45 L29 62 M69 45 L71 62" />
+          <circle cx="29" cy="66" r="3.4" /><circle cx="71" cy="66" r="3.4" />
+          <path d="M41 50 L40 58 H60 L59 50" />
+          <path d="M44 58 L42 84 M56 58 L58 84" />
+          <path d="M42 84 L36 88 H46 M58 84 L64 88 H54" />
+        </g>
+      </svg>
+      {scan && <div className="crt-beam" />}
+      <div className="crt-sub">UNIT&nbsp;: ////</div>
+      <div className="crt-label">UNIDENTIFIED</div>
+    </div>
+  );
+}
+
+function KitImage({ kit, img, owned, built, size = 84, cls = "", scan = true }) {
   if (img) return <img src={img} alt={kit.name} className={`kit-img ${cls}`} loading="lazy" decoding="async" />;
+  if (cls.indexOf("tc") !== -1) return <CRTPlaceholder scan={scan} />;
   return <MechSketch seedKey={kit.id} owned={owned} built={built} size={size} />;
 }
 
@@ -2647,7 +2678,7 @@ export default function App() {
   const [overrides, setOverrides] = useState({});
   const [customKits, setCustomKits] = useState([]);
   const [images, setImages] = useState({});
-  const [settings, setSettings] = useState({ view: "grid", compact: false, dimUnowned: true, showCode: true, showSeries: false, showPrice: true, showNo: false, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "low", haptic: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", geminiModel: "gemini-2.5-flash-image" });
+  const [settings, setSettings] = useState({ view: "grid", compact: false, dimUnowned: true, showCode: true, showSeries: false, showPrice: true, showNo: false, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "low", haptic: true, crtScan: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", geminiModel: "gemini-2.5-flash-image" });
   const [sortKey, setSortKey] = useState("year");
   const [sortDir, setSortDir] = useState("asc");
   const [queries, setQueries] = useState({ z: "", c: "" });
@@ -3758,6 +3789,10 @@ export default function App() {
                 <span>未入手を淡色表示(共通)</span>
                 <i className={`switch ${settings.dimUnowned ? "on" : ""}`}><b /></i>
               </button>
+              <button className="opt toggle" onClick={() => setSettings((s) => ({ ...s, crtScan: s.crtScan === false ? true : false }))}>
+                <span>未識別プレートのスキャンライン</span>
+                <i className={`switch ${settings.crtScan !== false ? "on" : ""}`}><b /></i>
+              </button>
             </div>
             <h2 className="panel-title">プロフィール<span>BUILDER</span></h2>
             <div className="opt-group">
@@ -3881,22 +3916,17 @@ export default function App() {
                   </div>
                   <span className="tc-head-rule" />
                   <div className="tc-head-sub">
+                    <GradeChip grade={detailKit.grade} />
                     {detailKit.no !== "—" && <span className="tc-no">No.{detailKit.no}</span>}
-                    {detailKit.series && <span className="tc-head-series">{detailKit.series}</span>}
+                    <span className="tc-head-series">{detailKit.code || "—"}</span>
                   </div>
                 </div>
                 <div className={"tc-art square" + (images[detailKit.id] ? " zoomable" : "")}
                   onClick={() => { if (images[detailKit.id]) { haptic(); setViewer(images[detailKit.id]); } }}>
-                  <KitImage kit={detailKit} img={images[detailKit.id]} owned={detailRec.owned} built={!!detailRec.buildDate} size={150} cls="tc" />
+                  <KitImage kit={detailKit} img={images[detailKit.id]} owned={detailRec.owned} built={!!detailRec.buildDate} size={150} cls="tc" scan={settings.crtScan !== false} />
                   {images[detailKit.id] && <span className="zoom-hint">⤢</span>}
                 </div>
                 <div className="tc-info tappable" onClick={() => { setDetail(null); setEditing(false); }}>
-                  <div className="tc-row"><span>原作</span><b>{detailKit.series || "—"}</b></div>
-                  <div className="tc-row"><span>型式番号</span><b className="mono">{detailKit.code || "—"}</b></div>
-                  <div className="tc-row tc-row-split">
-                    <div className="tc-half"><span>発売</span><b className="tc-num">{detailKit.ym ? detailKit.ym.replace("-", ".") : "—"}</b></div>
-                    <div className="tc-half"><span>定価</span><b className="tc-num price">{fmtYen(detailKit.price)}</b></div>
-                  </div>
                   <div className="tc-row tc-row-tag"><span>Tag</span>
                     <div className="tc-tags">
                       <GradeChip grade={detailKit.grade} />
@@ -3904,6 +3934,11 @@ export default function App() {
                       {lineBadge(detailKit)}
                     </div>
                   </div>
+                  <div className="tc-row tc-row-split">
+                    <div className="tc-half"><span>発売</span><b className="tc-num">{detailKit.ym ? detailKit.ym.replace("-", ".") : "—"}</b></div>
+                    <div className="tc-half"><span>定価</span><b className="tc-num price">{fmtYen(detailKit.price)}</b></div>
+                  </div>
+                  <div className="tc-row"><span>原作</span><b>{detailKit.series || "—"}</b></div>
                 </div>
                 {detailKit.note && <div className="note-box">{detailKit.note}</div>}
 
@@ -4203,16 +4238,22 @@ input,textarea{font-family:var(--sans)}
   animation:up .26s cubic-bezier(.2,.9,.3,1.1);max-height:88vh;overflow-y:auto}
 @keyframes up{from{transform:translateY(34px) scale(.97);opacity:0}to{transform:none;opacity:1}}
 /* ── 交換カード式詳細レイアウト ── */
-.tc-head{position:relative;overflow:hidden;margin-bottom:14px;padding:13px 15px 11px;border-radius:10px;
+.tc-head{position:relative;overflow:hidden;margin-bottom:14px;padding:13px 15px 11px 18px;border-radius:10px;
   background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(0,0,0,.06)),var(--panel);
-  border:1px solid rgba(184,146,74,.32)}
+  border:1px solid rgba(184,146,74,.32);
+  box-shadow:inset 0 0 0 1px rgba(217,179,106,.10),
+             inset 0 1px 0 rgba(255,242,214,.12),
+             inset 4px 0 0 -1px rgba(184,146,74,.6),
+             inset 5px 0 0 -1px rgba(217,179,106,.22)}
 .tc-head-top{display:flex;align-items:flex-start;gap:10px}
 .tc-head .tc-name{font-family:var(--serif);font-weight:800;font-size:20px;line-height:1.26;
   color:var(--ink-strong);flex:1;min-width:0;letter-spacing:.01em;
   text-shadow:0 1px 2px rgba(0,0,0,.3)}
 .tc-head-rule{display:block;height:1px;margin:9px 0 7px;
   background:linear-gradient(90deg,rgba(184,146,74,.55),rgba(184,146,74,.12) 60%,transparent)}
-.tc-head-sub{display:flex;align-items:baseline;gap:11px;min-width:0}
+.tc-head-sub{display:flex;align-items:center;gap:9px;min-width:0}
+.tc-head-sub .grade-chip{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:12.5px;font-weight:800;
+  margin-right:0;vertical-align:0;padding:0 6px;border-width:1px;border-radius:3px;line-height:1.5;flex:none}
 .tc-head .tc-no{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:15px;font-weight:800;color:var(--gold);
   letter-spacing:.05em;flex:none;line-height:1}
 .tc-head-series{font-size:11.5px;color:var(--ink-mid);letter-spacing:.04em;
@@ -4235,6 +4276,27 @@ input,textarea{font-family:var(--sans)}
   align-items:center;justify-content:center;border-radius:6px;font-size:14px;
   background:rgba(13,16,24,.78);border:1px solid rgba(184,146,74,.4);color:var(--gold)}
 .kit-img.tc{width:100%;height:100%;object-fit:contain;border:none;background:transparent;border-radius:0;box-shadow:none}
+/* 未識別プレート(無圖時の CRT 画面) */
+.crt-ph{position:relative;z-index:1;width:100%;height:100%;min-height:200px;display:flex;align-items:center;justify-content:center;
+  color:var(--teal);overflow:hidden;border-radius:6px;
+  background:radial-gradient(ellipse at 50% 44%,rgba(111,211,199,.12),transparent 66%),#0a1014;
+  box-shadow:inset 0 0 44px 10px rgba(0,0,0,.6)}
+.crt-scanlines{position:absolute;inset:0;pointer-events:none;z-index:2;
+  background:repeating-linear-gradient(0deg,rgba(111,211,199,.06) 0 1px,transparent 1px 3px)}
+.crt-art{position:relative;z-index:1;opacity:.9;filter:drop-shadow(0 0 5px rgba(111,211,199,.5))}
+.crt-art .crt-reticle{opacity:.5}
+.crt-beam{position:absolute;left:0;right:0;top:-16px;height:16px;z-index:3;pointer-events:none;
+  background:linear-gradient(180deg,transparent,rgba(111,211,199,.22),transparent);
+  animation:crtbeam 3.4s linear infinite}
+@keyframes crtbeam{0%{top:-16px}100%{top:100%}}
+.crt-label{position:absolute;left:0;right:0;bottom:12px;z-index:4;text-align:center;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:12px;font-weight:700;letter-spacing:.3em;
+  color:var(--teal);text-shadow:0 0 7px rgba(111,211,199,.6);animation:crtblink 2.6s steps(1) infinite}
+.crt-sub{position:absolute;top:10px;left:13px;z-index:4;font-family:ui-monospace,"SF Mono",Menlo,monospace;
+  font-size:9px;letter-spacing:.22em;color:rgba(111,211,199,.55)}
+@keyframes crtblink{0%,72%{opacity:1}73%,100%{opacity:.42}}
+.crt-ph:not(.scan) .crt-beam{display:none}
+@media (prefers-reduced-motion:reduce){.crt-beam{display:none}.crt-label{animation:none}}
 .tc-info{margin:0 4px 12px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:rgba(255,255,255,.015)}
 .tc-info.tappable:active{background:rgba(255,255,255,.04)}
 .tc-row{display:flex;align-items:baseline;gap:12px;padding:7px 12px;font-size:12px}
@@ -4244,14 +4306,17 @@ input,textarea{font-family:var(--sans)}
 .tc-row>b.price{color:var(--gold)}
 /* 発売年月／定価 同列左右各半,數字加大 */
 .tc-row-split{gap:0;padding:0}
-.tc-half{flex:1;min-width:0;display:flex;align-items:baseline;gap:10px;padding:8px 12px}
+.tc-half{flex:1;min-width:0;display:flex;align-items:baseline;justify-content:center;gap:8px;padding:9px 12px}
 .tc-half+.tc-half{border-left:1px dashed rgba(255,255,255,.07)}
 .tc-half>span{flex:none;color:var(--ink-dim);font-size:10.5px;letter-spacing:.1em}
 .tc-num{font-weight:700;font-size:14.5px;color:var(--ink);letter-spacing:.01em}
 .tc-num.price{color:var(--gold)}
-/* Tag 列:Grade 排頭,其餘標籤同列 */
+/* Tag 列:Grade 排頭,其餘標籤同列,統一 GradeChip 規格、各自保留代表色 */
 .tc-row-tag{align-items:center}
 .tc-tags{display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-width:0}
+.tc-tags .grade-chip{margin-right:0;vertical-align:0}
+.tc-tags .line-chip{font-size:10px;font-weight:800;letter-spacing:.06em;
+  border-width:1.5px;border-radius:3px;padding:1px 6px;line-height:1.5;margin:0;vertical-align:0}
 .modal-top{display:flex;gap:14px;align-items:flex-start;position:relative;margin-bottom:14px}
 .modal-img{flex:none}
 .modal-info{flex:1;min-width:0;padding-right:20px}
