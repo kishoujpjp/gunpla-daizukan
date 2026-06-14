@@ -2611,6 +2611,36 @@ function LineChart({ years, series }) {
   );
 }
 
+/* 年代選択用の年リスト(降順) */
+const YEARS = Array.from({ length: 2027 - 1990 + 1 }, (_, i) => 2027 - i);
+
+/* 作品ピッカー:検索付きの一覧から選ぶ。Appの外で定義し再生成を防ぐ(入力フォーカスが飛ばない) */
+function SeriesPicker({ open, value, options, onPick, onClose }) {
+  const [q, setQ] = useState("");
+  useEffect(() => { if (open) setQ(""); }, [open]);
+  if (!open) return null;
+  const ql = q.trim().toLowerCase();
+  const filtered = ql ? options.filter((s) => s.toLowerCase().includes(ql)) : options;
+  return (
+    <div className="modal-bg sp-bg" onClick={onClose}>
+      <div className="sp-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="sp-head">
+          <input className="sp-search" autoFocus placeholder="作品名で絞り込み" value={q}
+            onChange={(e) => setQ(e.target.value)} />
+          <button className="sp-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="sp-list">
+          <button className={"sp-item" + (value === "" ? " on" : "")} onClick={() => onPick("")}>すべての作品</button>
+          {filtered.map((s) => (
+            <button key={s} className={"sp-item" + (value === s ? " on" : "")} onClick={() => onPick(s)}>{s}</button>
+          ))}
+          {filtered.length === 0 && <div className="sp-empty">該当する作品がありません</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [tab, setTab] = useState("zukan");
   const [records, setRecords] = useState({});
@@ -2628,6 +2658,7 @@ export default function App() {
   const [adding, setAdding] = useState(false);
   const [collMode, setCollMode] = useState("owned"); // owned=収蔵 / plan=予定
   const [advOpen, setAdvOpen] = useState(false);
+  const [seriesPickerOpen, setSeriesPickerOpen] = useState(false);
   const [adv, setAdv] = useState({ series: "", prem: "", stat: "", yFrom: "", yTo: "" }); // 進階篩選
   const [viewer, setViewer] = useState(null); // 圖片鑑賞模式 src
   const [planConfirm, setPlanConfirm] = useState(null); // 予定取消確認 kit
@@ -2921,6 +2952,27 @@ export default function App() {
     }
   };
 
+  /* ── 下滾自動收回搜尋列:完全滑過後才瞬間收合 + 補償捲動位置,內容零跳動 ── */
+  const drawerClosingRef = useRef(false);
+  const onBodyScroll = (e) => {
+    const el = e.currentTarget;
+    if (!searchOpen || drawerClosingRef.current) return;
+    const drawer = el.querySelector(".search-drawer.open");
+    const h = drawer ? drawer.offsetHeight : 0;
+    if (h === 0 || el.scrollTop <= h - 4) return; // 尚未完全滑過搜尋列就保留
+    drawerClosingRef.current = true;
+    drawer.style.transition = "none"; // 本次收合不走動畫
+    setSearchOpen(false);
+    setAdvOpen(false);
+    requestAnimationFrame(() => {
+      el.scrollTop = Math.max(0, el.scrollTop - h); // 扣掉收合高度,畫面內容不動
+      requestAnimationFrame(() => {
+        if (drawer) drawer.style.transition = ""; // 還原動畫供下次下拉開啟
+        drawerClosingRef.current = false;
+      });
+    });
+  };
+
   const setImage = (id, val) => {
     setImages((prev) => {
       const next = { ...prev };
@@ -3207,10 +3259,10 @@ export default function App() {
     <div className="adv-panel">
       <div className="adv-row">
         <span className="adv-lbl">作品</span>
-        <select className="adv-sel" value={adv.series} onChange={(e) => setAdv((a) => ({ ...a, series: e.target.value }))}>
-          <option value="">すべての作品</option>
-          {seriesList.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
+        <button className="adv-sel adv-series-btn" onClick={() => setSeriesPickerOpen(true)}>
+          <span className={adv.series ? "" : "ph"}>{adv.series || "すべての作品"}</span>
+          <span className="adv-series-caret">▾</span>
+        </button>
       </div>
       <div className="adv-row">
         <span className="adv-lbl">区分</span>
@@ -3233,11 +3285,15 @@ export default function App() {
       <div className="adv-row">
         <span className="adv-lbl">年代</span>
         <div className="adv-years">
-          <input className="adv-year" type="number" inputMode="numeric" placeholder="1999" value={adv.yFrom}
-            onChange={(e) => setAdv((a) => ({ ...a, yFrom: e.target.value }))} />
+          <select className="adv-sel adv-year-sel" value={adv.yFrom} onChange={(e) => setAdv((a) => ({ ...a, yFrom: e.target.value }))}>
+            <option value="">最古</option>
+            {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
           <span className="adv-tilde">〜</span>
-          <input className="adv-year" type="number" inputMode="numeric" placeholder="2026" value={adv.yTo}
-            onChange={(e) => setAdv((a) => ({ ...a, yTo: e.target.value }))} />
+          <select className="adv-sel adv-year-sel" value={adv.yTo} onChange={(e) => setAdv((a) => ({ ...a, yTo: e.target.value }))}>
+            <option value="">最新</option>
+            {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
         </div>
       </div>
       <div className="adv-foot">
@@ -3410,7 +3466,7 @@ export default function App() {
       </header>
 
       <main className="body" ref={bodyRef} onTouchStart={onBodyTouchStart} onTouchMove={onBodyTouchMove}
-        onScroll={(e) => { if (searchOpen && e.currentTarget.scrollTop > 90) { setSearchOpen(false); setAdvOpen(false); } }}>
+        onScroll={onBodyScroll}>
         <div key={tab} className="tab-page">
         {tab === "zukan" && (
           <>
@@ -3781,15 +3837,25 @@ export default function App() {
         </div>
       )}
 
+      <SeriesPicker open={seriesPickerOpen} value={adv.series} options={seriesList}
+        onPick={(v) => { setAdv((a) => ({ ...a, series: v })); setSeriesPickerOpen(false); }}
+        onClose={() => setSeriesPickerOpen(false)} />
+
       {detailKit && (
         <div className="modal-bg" onClick={() => { setDetail(null); setEditing(false); }}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             {!editing ? (
               <>
                 <div className="tc-head">
-                  <GradeChip grade={detailKit.grade} />
-                  {detailKit.no !== "—" && <span className="tc-no mono">No.{detailKit.no}</span>}
-                  <span className="tc-name">{detailKit.name}</span>
+                  <div className="tc-head-top">
+                    <span className="tc-name">{detailKit.name}</span>
+                    <GradeChip grade={detailKit.grade} />
+                  </div>
+                  <span className="tc-head-rule" />
+                  <div className="tc-head-sub">
+                    {detailKit.no !== "—" && <span className="tc-no">No.{detailKit.no}</span>}
+                    {detailKit.series && <span className="tc-head-series">{detailKit.series}</span>}
+                  </div>
                 </div>
                 <div className={"tc-art square" + (images[detailKit.id] ? " zoomable" : "")}
                   onClick={() => { if (images[detailKit.id]) { haptic(); setViewer(images[detailKit.id]); } }}>
@@ -3819,6 +3885,7 @@ export default function App() {
                   </div>
                 )}
                 <button className="edit-link" onClick={() => setEditing(true)}>✎ 機体情報・画像を編集</button>
+                <button className="detail-close" onClick={() => { setDetail(null); setEditing(false); }} aria-label="閉じる">✕</button>
               </>
             ) : (
               <>
@@ -3996,14 +4063,16 @@ input,textarea{font-family:var(--sans)}
 
 .body{padding:8px 14px 16px;max-width:920px;margin:0 auto}
 .section-note{font-size:11px;color:var(--ink-mid);letter-spacing:.1em;padding:6px 4px 10px}
-.cond-clear{margin-left:12px;font-size:11px;font-weight:700;color:var(--shu);letter-spacing:.04em;
-  border:1px solid var(--shu-deep);border-radius:5px;padding:2px 8px;background:rgba(177,58,40,.10)}
+.cond-clear{margin-left:12px;font-size:11.5px;color:var(--shu);border-bottom:1px dashed var(--shu);padding-bottom:1px}
 .footnote{font-size:10.5px;color:var(--ink-dim);line-height:1.7;padding:18px 4px 6px}
 
 .toolbar{display:flex;gap:8px;padding:4px 0 6px}
 .search{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:8px;
   color:var(--ink);padding:10px 12px;font-size:13px}
 .search::placeholder{color:var(--ink-dim)}
+.search:focus,.adv-sel:focus,.adv-year-sel:focus,.adv-series-btn:focus,.sp-search:focus{
+  outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(217,179,106,.14)}
+.search:focus-visible,.adv-sel:focus-visible{outline:none}
 .add-btn{flex:none;background:linear-gradient(160deg,rgba(232,85,61,.18),var(--panel));
   border:1px solid var(--shu);color:var(--shu);border-radius:8px;padding:0 14px;
   font-weight:700;font-size:12.5px;letter-spacing:.08em}
@@ -4102,10 +4171,25 @@ input,textarea{font-family:var(--sans)}
   animation:up .26s cubic-bezier(.2,.9,.3,1.1);max-height:88vh;overflow-y:auto}
 @keyframes up{from{transform:translateY(34px) scale(.97);opacity:0}to{transform:none;opacity:1}}
 /* ── 交換カード式詳細レイアウト ── */
-.tc-head{display:flex;align-items:center;gap:6px;padding:2px 2px 9px;margin-bottom:10px}
-.tc-head .tc-no{font-size:20px;font-weight:800;color:var(--gold);letter-spacing:.02em;flex:none;line-height:1}
-.tc-head .tc-name{font-family:var(--serif);font-weight:800;font-size:19px;color:var(--ink-strong);line-height:1.28;flex:1;min-width:0}
-.tc-head .modal-x.static{position:static;margin-left:auto;flex:none}
+.tc-head{position:relative;margin-bottom:14px;padding:13px 15px 11px;border-radius:11px;
+  background:linear-gradient(135deg,rgba(217,179,106,.17),rgba(217,179,106,.04) 55%,rgba(217,179,106,.015));
+  border:1px solid rgba(217,179,106,.34);box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+.tc-head::before,.tc-head::after{content:"";position:absolute;width:11px;height:11px;
+  border-color:var(--gold);border-style:solid;opacity:.65;pointer-events:none}
+.tc-head::before{top:5px;left:5px;border-width:1.5px 0 0 1.5px;border-top-left-radius:3px}
+.tc-head::after{bottom:5px;right:5px;border-width:0 1.5px 1.5px 0;border-bottom-right-radius:3px}
+.tc-head-top{display:flex;align-items:flex-start;gap:10px;justify-content:space-between}
+.tc-head .tc-name{font-family:var(--serif);font-weight:800;font-size:20px;line-height:1.26;
+  color:var(--ink-strong);flex:1;min-width:0;letter-spacing:.01em;
+  text-shadow:0 1px 2px rgba(0,0,0,.25)}
+.tc-head-top .grade-chip{flex:none;margin-top:2px}
+.tc-head-rule{display:block;height:1.5px;margin:9px 0 7px;border-radius:1px;
+  background:linear-gradient(90deg,var(--gold),rgba(217,179,106,.35) 55%,transparent)}
+.tc-head-sub{display:flex;align-items:baseline;gap:11px;min-width:0}
+.tc-head .tc-no{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:15px;font-weight:800;color:var(--gold);
+  letter-spacing:.05em;flex:none;line-height:1}
+.tc-head-series{font-size:11.5px;color:var(--ink-mid);letter-spacing:.04em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .tc-art{position:relative;height:230px;border:1px solid rgba(217,179,106,.5);border-radius:6px;
   margin:0 4px 12px;padding:10px;display:flex;align-items:center;justify-content:center;
   background:
@@ -4226,6 +4310,33 @@ input,textarea{font-family:var(--sans)}
   color:var(--ink);padding:9px 10px;font-size:13px;color-scheme:dark}
 .edit-link{display:block;margin:16px auto 0;color:var(--gold);font-size:12.5px;
   letter-spacing:.08em;border-bottom:1px dashed var(--gold);padding-bottom:2px}
+.detail-close{display:flex;align-items:center;justify-content:center;width:34px;height:34px;
+  margin:18px 0 0;border:1px solid var(--line);border-radius:50%;
+  color:var(--ink-dim);background:var(--panel);font-size:14px}
+.detail-close:active{background:var(--panel2)}
+
+/* 作品ピッカー */
+.adv-series-btn{flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:8px;
+  background:var(--bg2);border:1px solid var(--line);border-radius:7px;color:var(--ink);
+  padding:8px 10px;font-size:12.5px;text-align:left}
+.adv-series-btn .ph{color:var(--ink-dim)}
+.adv-series-btn>span:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.adv-series-caret{flex:none;color:var(--gold);font-size:11px}
+.sp-bg{align-items:center}
+.sp-modal{width:calc(100% - 36px);max-width:440px;max-height:74vh;margin:auto;display:flex;flex-direction:column;
+  background:var(--bg2);border:1px solid var(--line);border-radius:14px;overflow:hidden;
+  animation:up .26s cubic-bezier(.2,.9,.3,1.1)}
+.sp-head{display:flex;gap:8px;padding:12px 12px 10px;border-bottom:1px solid var(--line-soft)}
+.sp-search{flex:1;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:8px;
+  color:var(--ink);padding:10px 12px;font-size:14px}
+.sp-search::placeholder{color:var(--ink-dim)}
+.sp-close{flex:none;width:40px;border:1px solid var(--line);border-radius:8px;color:var(--ink-mid);background:var(--panel);font-size:13px}
+.sp-list{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:6px}
+.sp-item{display:block;width:100%;text-align:left;padding:11px 12px;border-radius:8px;
+  font-size:13.5px;color:var(--ink);letter-spacing:.02em}
+.sp-item:active{background:var(--panel)}
+.sp-item.on{color:var(--gold);background:rgba(217,179,106,.12);font-weight:700}
+.sp-empty{padding:24px 12px;text-align:center;color:var(--ink-dim);font-size:12.5px}
 
 .form{display:flex;flex-direction:column;gap:12px}
 .form-img-row{display:flex;gap:14px;align-items:flex-start}
@@ -4343,8 +4454,8 @@ input,textarea{font-family:var(--sans)}
   .modal-bg{align-items:center}
   .modal{max-width:660px;border-radius:16px;border-bottom:1px solid var(--line)}
   .modal-name{font-size:21px}
-  .tc-head .tc-no{font-size:22px}
-  .tc-head .tc-name{font-size:21px}
+  .tc-head .tc-no{font-size:16px}
+  .tc-head .tc-name{font-size:23px}
   .tc-art{height:300px}
   .tc-row{font-size:13.5px;padding:8px 14px}
   .tc-row>span{width:78px;font-size:11.5px}
@@ -4726,8 +4837,8 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .gf-btn{padding:4px 12px;font-size:11.5px;font-weight:700;letter-spacing:.05em;
   border:1px solid var(--line);border-radius:999px;color:var(--ink-mid);background:var(--panel)}
 .gf-btn.on{color:#fff;border-color:var(--shu);background:var(--shu);box-shadow:0 0 10px rgba(232,85,61,.35)}
-.search-x{flex:none;width:44px;border:1px solid var(--shu-deep);border-radius:8px;
-  color:var(--shu-deep);background:rgba(177,58,40,.12);font-size:13px;font-weight:700}
+.search-x{flex:none;width:44px;border:1px solid var(--line);border-radius:8px;
+  color:var(--ink-mid);background:var(--panel);font-size:13px}
 .cr-right{display:flex;gap:8px;align-items:stretch}
 .cr-right .add-btn{padding:0 13px;display:flex;align-items:center}
 
