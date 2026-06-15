@@ -2903,6 +2903,10 @@ export default function App() {
   const dirtyRef = useRef(new Set()); // 雲端へ未確定の変更キー(オフライン再送用)
   const [limit, setLimit] = useState(60);
   const [optimizing, setOptimizing] = useState(false);
+  const [manifestUrl, setManifestUrl] = useState("");   // 箱絵 manifest の公開URL
+  const [imgBusy, setImgBusy] = useState(false);
+  const [imgMsg, setImgMsg] = useState("");
+  const localImgRef = useRef(null);                     // ローカル画像一括取り込み用
   const moreRef = useRef(null);
   const scrollPosRef = useRef({});
   /* 分頁切換時保留各自捲動位置 */
@@ -3376,6 +3380,121 @@ export default function App() {
       alert(changed ? `${changed} 枚の画像を再圧縮しました` : "再圧縮が必要な画像はありませんでした");
     } finally { setOptimizing(false); }
   };
+
+  /* ── 箱絵 manifest の一括インポート(路徑B: URL 参照) ──
+     manifest = { kit_id: 公開URL }。既存機体に該当する URL だけを取り込み、
+     8 シャードを各1回だけ保存+推送(値は短いURLなので同期は軽量)。 */
+  const importManifest = async () => {
+    const u = (manifestUrl || "").trim();
+    if (!u) { setImgMsg("manifest の URL を入力してください"); return; }
+    setImgBusy(true); setImgMsg("取得中…");
+    try {
+      const res = await fetch(u, { cache: "no-store" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const map = await res.json();
+      if (!map || typeof map !== "object" || Array.isArray(map)) throw new Error("形式が不正です(オブジェクトでない)");
+      const valid = new Set(allKits.map((k) => k.id));
+      const next = { ...images };
+      let n = 0, skip = 0;
+      for (const [id, url] of Object.entries(map)) {
+        if (typeof url !== "string" || !url) continue;
+        if (!valid.has(id)) { skip++; continue; }
+        if (next[id] === url) continue;
+        next[id] = url; n++;
+      }
+      if (!n) { setImgMsg(`差分なし(取り込み 0 / 対象外 ${skip})`); setImgBusy(false); return; }
+      setImages(next);
+      for (let i = 0; i < IMG_SHARDS; i++) {
+        const m = {};
+        for (const [k, v] of Object.entries(next)) if (hashId(k) % IMG_SHARDS === i) m[k] = v;
+        await saveKey("mg_imgs_" + i, JSON.stringify(m));
+      }
+      setImgMsg(`取り込み完了: ${n} 件更新` + (skip ? ` / 対象外 ${skip}` : ""));
+    } catch (e) {
+      setImgMsg("失敗: " + ((e && e.message) || e));
+    }
+    setImgBusy(false);
+  };
+
+  /* ── URL 画像をオフライン用にプリキャッシュ ──
+     SW が制御中なら postMessage で一括(並列制御つき)。未制御なら Cache API へ直接(分割実行)。 */
+  const precacheImages = async () => {
+    const urls = Object.values(images).filter((v) => typeof v === "string" && /^https?:\/\//.test(v));
+    if (!urls.length) { setImgMsg("オフライン保存できる URL 画像がありません"); return; }
+    const ctrl = navigator.serviceWorker && navigator.serviceWorker.controller;
+    if (ctrl) {
+      setImgMsg(`オフライン保存中… (${urls.length} 件)`);
+      ctrl.postMessage({ type: "precache-images", urls });
+      return; // 完了は message リスナーで受信
+    }
+    if (!("caches" in window)) { setImgMsg("この端末は Cache API 非対応です"); return; }
+    setImgBusy(true); setImgMsg(`オフライン保存中… (${urls.length} 件)`);
+    try {
+      const cache = await caches.open("mg-kit-img-v1");
+      let done = 0, fail = 0, idx = 0;
+      const worker = async () => {
+        while (idx < urls.length) {
+          const url = urls[idx++];
+          try {
+            if (await cache.match(url, { ignoreVary: true })) { done++; continue; }
+            await cache.put(url, await fetch(url, { mode: "no-cors" }));
+            done++;
+          } catch (_) { fail++; }
+        }
+      };
+      await Promise.all([worker(), worker(), worker(), worker(), worker(), worker()]);
+      setImgMsg(`オフライン保存完了: ${done} 件` + (fail ? ` / 失敗 ${fail}` : ""));
+    } catch (e) { setImgMsg("失敗: " + ((e && e.message) || e)); }
+    setImgBusy(false);
+  };
+
+  /* ── ローカル画像をファイル名(=kit_id)で一括取り込み ──
+     例: b001.jpg → 機体 b001 に紐付け。画像は 480px JPEG へ圧縮(同期上限に安全)。
+     8 シャードを各1回だけ保存+推送。ファイル名が kit_id に一致しない物は未対応として一覧。 */
+  const importLocalImages = async (fileList) => {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    setImgBusy(true); setImgMsg(`取り込み中… 0/${files.length}`);
+    const valid = new Map(allKits.map((k) => [k.id.toLowerCase(), k.id]));
+    const next = { ...images };
+    let ok = 0; const bad = [];
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      const base = (f.name || "").replace(/\.[^.]+$/, "").trim();
+      const lead = base.split(/[ _\-(（\[]/)[0]; // 「b001_ガンダム.jpg」等にも対応(先頭トークン)
+      const id = valid.get(base.toLowerCase()) || valid.get(lead.toLowerCase());
+      if (!id) { bad.push(f.name); continue; }
+      try { next[id] = await fileToCompressedDataURL(f, 480, 0.74); ok++; }
+      catch (e) { bad.push(f.name + "(変換失敗)"); }
+      if (i % 4 === 0) setImgMsg(`取り込み中… ${i + 1}/${files.length}`);
+    }
+    if (ok) {
+      setImages(next);
+      for (let i = 0; i < IMG_SHARDS; i++) {
+        const m = {};
+        for (const [k, v] of Object.entries(next)) if (hashId(k) % IMG_SHARDS === i) m[k] = v;
+        await saveKey("mg_imgs_" + i, JSON.stringify(m));
+      }
+    }
+    setImgBusy(false);
+    setImgMsg(`取り込み完了: ${ok} 件` +
+      (bad.length ? ` / 未対応 ${bad.length}件: ${bad.slice(0, 3).join(", ")}${bad.length > 3 ? " …" : ""}` : ""));
+  };
+
+  /* Service Worker 登録(オフライン画像キャッシュ用)。/sw.js を配信ルートに置くこと。 */
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+    const onMsg = (e) => {
+      const d = (e && e.data) || {};
+      if (d.type === "precache-done") {
+        setImgBusy(false);
+        setImgMsg(`オフライン保存完了: ${d.done} 件` + (d.fail ? ` / 失敗 ${d.fail}` : ""));
+      }
+    };
+    navigator.serviceWorker.addEventListener("message", onMsg);
+    return () => navigator.serviceWorker.removeEventListener("message", onMsg);
+  }, []);
 
   /* ── 備份匯出 / 匯入 ── */
   const importRef = useRef(null);
@@ -4226,6 +4345,26 @@ export default function App() {
                   </div>
                 </div>
               )}
+            </div>
+            <h2 className="panel-title">箱絵の一括取り込み<span>IMAGES</span></h2>
+            <div className="opt-group">
+              <label className="fld" style={{ padding: "0 2px 4px" }}>
+                <span>manifest URL(kit_id → 画像URL の JSON)</span>
+                <input value={manifestUrl} placeholder="https://xxxx.supabase.co/storage/v1/object/public/kit-images/mg_images_manifest.json"
+                  onChange={(e) => setManifestUrl(e.target.value)} />
+              </label>
+              <button className="opt" disabled={imgBusy} onClick={importManifest}>
+                <span>{imgBusy ? "処理中…" : "画像を一括インポート(URL参照)"}</span><i>⬇</i>
+              </button>
+              <button className="opt" disabled={imgBusy} onClick={() => localImgRef.current && localImgRef.current.click()}>
+                <span>ローカル画像を一括取り込み(ファイル名=kit_id)</span><i>⊞</i>
+              </button>
+              <input ref={localImgRef} type="file" accept="image/*" multiple style={{ display: "none" }}
+                onChange={(e) => { importLocalImages(e.target.files); e.target.value = ""; }} />
+              <button className="opt" disabled={imgBusy} onClick={precacheImages}>
+                <span>オフライン用に画像を保存(プリキャッシュ)</span><i>⤓</i>
+              </button>
+              {imgMsg && <p className="setup-note" style={{ padding: "2px 2px 0" }}>{imgMsg}</p>}
             </div>
             <h2 className="panel-title">バックアップ<span>BACKUP</span></h2>
             <div className="opt-group">
