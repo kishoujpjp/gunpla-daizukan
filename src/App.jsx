@@ -2470,7 +2470,8 @@ function FramingEditor({ src, initial, onSave, onCancel }) {
       const rect = vpSize();
       const ddx = (e.clientX - drag.current.x) / rect.width * 100;
       const ddy = (e.clientY - drag.current.y) / rect.height * 100;
-      setFr((p) => clampNow({ ...p, x: drag.current.fx + ddx, y: drag.current.fy + ddy }));
+      const nx = drag.current.fx + ddx, ny = drag.current.fy + ddy;
+      setFr((p) => clampNow({ ...p, x: nx, y: ny }));
     }
   };
   const up = (e) => {
