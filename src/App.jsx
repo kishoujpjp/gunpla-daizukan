@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from "react";
 import { mergeRecMap, mergeArrStamped, stampRec, stampRecAll } from "./merge.js";
 import { ACHIEVEMENTS } from "./achievements-rules.js";
-import { evaluateAchievements } from "./achievements-engine.js";
+import { evaluateAchievements, explainAchievement } from "./achievements-engine.js";
 
 /* ─────────────────────────────────────────────────────────
    MG GUNPLA 図鑑・蒐集帖 v2
@@ -3110,6 +3110,7 @@ export default function App() {
   const prevUnlockedRef = useRef(null);
   const [toastQueue, setToastQueue] = useState([]);
   const [toast, setToast] = useState(null);
+  const [titleDetail, setTitleDetail] = useState(null);
   const [syncMsg, setSyncMsg] = useState("");
   const [storageErr, setStorageErr] = useState(""); // 端末保存失敗(容量不足等)の可視化
   const [setupOpen, setSetupOpen] = useState(false);
@@ -4359,7 +4360,7 @@ export default function App() {
   );
 
   return (
-    <div className={"app " + (settings.theme === "light" ? "light" : "") + (detailKit || adding || promptEdit || setupOpen ? " lock" : "")}>
+    <div className={"app " + (settings.theme === "light" ? "light" : "") + (detailKit || adding || promptEdit || setupOpen || titleDetail ? " lock" : "")}>
       <style>{CSS}</style>
 
       {storageErr && (
@@ -4604,8 +4605,7 @@ export default function App() {
                           <button key={t.id}
                             className={"title-card " + (t.unlocked ? "unlocked" : "locked")
                               + (isNew ? " new" : "") + (achvPop === "t:" + t.id ? " pop" : "")}
-                            onClick={() => { haptic(); setAchvPop("t:" + t.id);
-                              setTimeout(() => setAchvPop(null), 500); ackTitle(t.id); }}>
+                            onClick={() => { haptic(); ackTitle(t.id); setTitleDetail(t); }}>
                             {t.unlocked
                               ? <span className="title-seal">達成</span>
                               : <span className="title-chip crt"><span className="qm">？</span></span>}
@@ -5140,6 +5140,104 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* ── 称号 詳細モーダル ── */}
+      {titleDetail && (() => {
+        const t = titleDetail;
+        const ach = ACHIEVEMENTS.find((a) => a.id === t.id);
+        const ex = ach ? explainAchievement(ach, allKits, getRec) : null;
+        const jump = (id) => { setTitleDetail(null); setEditing(false); setDetail(id); };
+        return (
+          <div className="modal-bg" onClick={() => setTitleDetail(null)}>
+            <div className="modal title-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-form-head">
+                <span>{t.unlocked ? "達成した称号" : "称号の条件"}</span>
+                <button className="modal-x static" onClick={() => setTitleDetail(null)}>✕</button>
+              </div>
+              <div className="tm-head">
+                {t.unlocked
+                  ? <span className="title-seal big">達成</span>
+                  : <span className="title-chip crt big"><span className="qm">？</span></span>}
+                <div className="tm-headbody">
+                  <div className="tm-name">{t.name}</div>
+                  <div className="tm-sub">{t.sub}</div>
+                  {!t.unlocked && t.need > 1 && (
+                    <div className="title-foot" style={{ marginTop: 8 }}>
+                      <div className="hp-track"><i style={{ width: `${Math.round(t.cur / t.need * 100)}%` }} /></div>
+                      <span className="title-need">{t.cur}/{t.need}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {ex && ex.kind === "combo" && (
+                <div className="tm-cond">
+                  {ex.pieces.map((p, i) => (
+                    <div key={i} className={"tm-piece" + (p.satisfied ? " ok" : "")}>
+                      <i className="tm-mark">{p.satisfied ? "✓" : "✗"}</i>
+                      {p.satisfied
+                        ? <span className="tm-pname">{p.owned.name}<b className="tm-tag own">所持</b></span>
+                        : <div className="tm-cands">
+                            {p.candidates.slice(0, 4).map((c) => (
+                              <button key={c.id} className="tm-cand" onClick={() => jump(c.id)}>
+                                <span className="tm-cn">{c.name}</span>
+                                {c.owned ? <b className="tm-tag own">所持</b> : <b className="tm-tag">未所持</b>}
+                              </button>
+                            ))}
+                            {p.candidates.length > 4 && <span className="tm-more2">ほか{p.candidates.length - 4}機が該当</span>}
+                          </div>}
+                    </div>
+                  ))}
+                  {ex.countPieces.map((cp, i) => (
+                    <div key={"cp" + i} className={"tm-piece" + (cp.have.length >= cp.need ? " ok" : "")}>
+                      <i className="tm-mark">{cp.have.length >= cp.need ? "✓" : "✗"}</i>
+                      <span className="tm-pname">ミッションパック等 <b className="tm-cnt">{cp.have.length}/{cp.need}</b></span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {ex && ex.kind === "count" && (() => {
+                const remain = Math.max(0, ex.need - ex.have.length);
+                const more = ex.candidates.filter((c) => !c.owned).slice(0, 8);
+                return (
+                  <div className="tm-cond">
+                    <div className="tm-countbar"><b>{ex.have.length}</b> / {ex.need}{remain > 0 ? `\u3000あと${remain}` : "\u3000達成"}</div>
+                    {ex.have.slice(0, 30).map((c) => (
+                      <button key={c.id} className="tm-cand row ok" onClick={() => jump(c.id)}>
+                        <i className="tm-mark">✓</i><span className="tm-cn">{c.name}</span>
+                      </button>
+                    ))}
+                    {remain > 0 && more.length > 0 && (
+                      <>
+                        <div className="tm-hint">候補(未所持・一例):</div>
+                        {more.map((c) => (
+                          <button key={c.id} className="tm-cand row" onClick={() => jump(c.id)}>
+                            <i className="tm-mark dim">・</i><span className="tm-cn">{c.name}</span>
+                          </button>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {ex && ex.kind === "grades" && (
+                <div className="tm-cond">
+                  <div className="tm-grades">
+                    {ex.grades.map((g) => (
+                      <span key={g} className={"tm-grd" + (ex.best && ex.best.grades.includes(g) ? " on" : "")}>{g}</span>
+                    ))}
+                  </div>
+                  <p className="tm-hint">{ex.best
+                    ? `「${ex.best.names[0]}」系で ${ex.best.hit}/${ex.grades.length} グレード所持`
+                    : "対象になる同一機体がまだありません"}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── 底部分頁 ── */}
       <nav className={"tabbar pad-" + (settings.tabPad || "low")} style={{
@@ -6278,5 +6376,38 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .tt-name{font-family:var(--serif);font-weight:800;font-size:16px;color:var(--ink-strong);line-height:1.25;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tt-sub{font-size:10px;color:var(--ink-dim);line-height:1.4;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tt-more{flex:none;align-self:flex-start;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;font-weight:700;color:var(--gold);border:1px solid var(--gold);border-radius:10px;padding:1px 7px}
+/* ═══ 称号 詳細モーダル ═══ */
+.title-modal .tm-head{display:flex;gap:13px;align-items:flex-start;padding:4px 2px 14px;border-bottom:1px solid var(--line-soft);margin-bottom:12px}
+.title-seal.big,.title-chip.big{width:60px;height:60px;flex:none}
+.title-seal.big{font-size:15px}
+.title-chip.big .qm{font-size:25px}
+.tm-headbody{flex:1;min-width:0}
+.tm-name{font-family:var(--serif);font-size:19px;font-weight:800;color:var(--ink-strong);line-height:1.25}
+.tm-sub{font-size:11px;color:var(--ink-mid);line-height:1.55;margin-top:5px}
+.tm-cond{display:flex;flex-direction:column;gap:8px}
+.tm-piece{display:flex;gap:9px;align-items:flex-start;background:var(--panel);border:1px solid var(--line-soft);border-radius:8px;padding:9px 11px}
+.tm-piece.ok{border-color:rgba(111,211,199,.35);background:rgba(111,211,199,.05)}
+.tm-mark{flex:none;font-style:normal;font-size:13px;font-weight:800;color:var(--ink-dim);line-height:1.5;width:14px;text-align:center}
+.tm-piece.ok .tm-mark{color:var(--teal)}
+.tm-pname{font-size:12.5px;color:var(--ink-strong);line-height:1.5}
+.tm-cnt{color:var(--gold);font-family:ui-monospace,"SF Mono",Menlo,monospace}
+.tm-cands{display:flex;flex-direction:column;gap:5px;flex:1;min-width:0}
+.tm-cand{display:flex;align-items:center;gap:7px;text-align:left;width:100%;background:none;border:none;padding:1px 0;font-size:12px;color:var(--ink-mid);cursor:pointer}
+.tm-cand:active{opacity:.6}
+.tm-cn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-bottom:1px dashed transparent}
+.tm-cand:hover .tm-cn{border-bottom-color:var(--line)}
+.tm-cand.row{padding:6px 10px;background:var(--panel);border:1px solid var(--line-soft);border-radius:7px}
+.tm-cand.row.ok{border-color:rgba(111,211,199,.3)}
+.tm-cand.row.ok .tm-cn{color:var(--ink-strong)}
+.tm-mark.dim{color:var(--ink-dim)}
+.tm-tag{flex:none;font-size:8.5px;font-weight:700;letter-spacing:.08em;border:1px solid var(--ink-dim);color:var(--ink-dim);border-radius:3px;padding:0 5px;margin-left:7px}
+.tm-tag.own{border-color:var(--teal);color:var(--teal)}
+.tm-more2{font-size:10px;color:var(--ink-dim);padding-left:1px}
+.tm-countbar{font-family:var(--serif);font-size:14px;color:var(--ink-mid);margin-bottom:4px}
+.tm-countbar b{font-size:22px;color:var(--gold);font-family:ui-monospace,"SF Mono",Menlo,monospace}
+.tm-hint{font-size:10px;color:var(--ink-dim);letter-spacing:.06em;margin:6px 0 2px}
+.tm-grades{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px}
+.tm-grd{font-size:11px;font-weight:700;border:1px solid var(--line);color:var(--ink-dim);border-radius:5px;padding:3px 9px}
+.tm-grd.on{border-color:var(--teal);color:var(--teal);background:rgba(111,211,199,.08)}
 @media (prefers-reduced-motion:reduce){*:not(.crt-beam){animation:none!important;transition:none!important}}
 `;

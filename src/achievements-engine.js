@@ -131,3 +131,68 @@ export function evaluateAchievements(rules, allKits, getRec) {
 export function newlyUnlocked(prevUnlockedSet, evaluated) {
   return evaluated.filter((e) => e.unlocked && !prevUnlockedSet.has(e.id)).map((e) => e.id);
 }
+
+/* ── 称号の内訳(条件ごとの達成/不足)を返す。自動ラベル(候補機体名そのまま)。 ──
+   返値 kind: "combo" | "count" | "grades"
+   ・combo : pieces[]  各 { satisfied, owned:{id,name}|null, candidates:[{id,name,owned}] }
+             + countPieces[](F90 ミッションパック等のインライン計数)
+   ・count : { have:[{id,name}], need, candidates:[{id,name,owned}] }
+   ・grades: { grades:[…], best:{code,hit,grades:[…],names:[…]}|null } */
+export function explainAchievement(ach, allKits, getRec) {
+  const full = ach.scope === "full";
+  const isMG = (k) => gradeOf(k) === "MG";
+  const ownedAll = allKits.filter((k) =>
+    ach.state === "built" ? !!getRec(k.id).buildDate : getRec(k.id).owned);
+  const owned = full ? ownedAll : ownedAll.filter(isMG);
+  const cand = full ? allKits : allKits.filter(isMG);
+  const ownedSet = new Set(owned.map((k) => k.id));
+  const named = (k) => ({ id: k.id, name: k.name, code: k.code, owned: ownedSet.has(k.id) });
+  const rule = ach.rule;
+
+  if (rule.all || rule.match) {
+    const parts = rule.all || [{ match: rule.match }];
+    const sels = parts.filter((p) => p.match).map((p) => p.match);
+    const counts = parts.filter((p) => p.count);
+    // 異なる機体を割り当て(distinct)して、どの piece が満たされたか確定
+    const candIds = sels.map((s) => kitsMatching(s, owned).map((k) => k.id));
+    const order = candIds.map((_, i) => i).sort((a, b) => candIds[a].length - candIds[b].length);
+    const used = new Set(); const assign = new Array(sels.length).fill(null);
+    for (const i of order) {
+      const pick = candIds[i].find((id) => !used.has(id));
+      if (pick !== undefined) { used.add(pick); assign[i] = pick; }
+    }
+    const ownedById = new Map(owned.map((k) => [k.id, k]));
+    const pieces = sels.map((s, i) => ({
+      satisfied: assign[i] !== null,
+      owned: assign[i] !== null ? named(ownedById.get(assign[i])) : null,
+      candidates: kitsMatching(s, cand).map(named),
+    }));
+    const countPieces = counts.map((p) => ({
+      have: kitsMatching(p.count, owned).map(named),
+      need: p.gte,
+    }));
+    return { kind: "combo", pieces, countPieces };
+  }
+  if (rule.count) {
+    return { kind: "count",
+      have: kitsMatching(rule.count, owned).map(named),
+      need: rule.gte,
+      candidates: kitsMatching(rule.count, cand).map(named) };
+  }
+  if (rule.sameCodeAcrossGrades) {
+    const grades = rule.sameCodeAcrossGrades;
+    const byCode = new Map();
+    for (const k of ownedAll) {
+      if (!k.code || k.code === "\u2014") continue;
+      if (!byCode.has(k.code)) byCode.set(k.code, { grades: new Set(), names: [] });
+      const e = byCode.get(k.code); e.grades.add(gradeOf(k)); e.names.push(k.name);
+    }
+    let best = null;
+    for (const [code, info] of byCode) {
+      const hit = grades.filter((g) => info.grades.has(g)).length;
+      if (!best || hit > best.hit) best = { code, hit, grades: [...info.grades], names: info.names };
+    }
+    return { kind: "grades", grades, best };
+  }
+  return { kind: "unknown" };
+}
