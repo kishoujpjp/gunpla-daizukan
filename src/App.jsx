@@ -2248,43 +2248,19 @@ function CRTPlaceholder() {
 }
 
 /* 機体名の折返し(列表・詳細共通):
-   「本体＋(注釈)…」を括弧群ごとに分節し、各 top-level の開き括弧の「前」だけに
-   改行候補(<wbr>)を置く。CSS 側の line-break:strict(禁則処理)と併用することで——
-   ・片仮名/漢字の語は keep-all で途中で割らない
-   ・括弧群は塊で次行へ送る(開き括弧の直後・閉じ括弧の直前では切れない=禁則)
-   ・連続括弧 (A)(B)(C) も各群が独立して綺麗に折返す
-   ——を構造的に保証する。括弧群「単体」が行幅を超える稀な場合だけ、
-   overflow-wrap が群内を緊急折返しするが、それでも禁則で括弧は孤立しない。
-   旧実装の隠し量測+「最初の括弧前で1回だけ強制改行」は、第2括弧以降の禁則が
-   効かず連続括弧・括弧直後改行で崩れていたため廃止。 */
-const NAME_OPEN_BR = "(（[［〔｢「『【《〈{｛";
-const NAME_CLOSE_BR = ")）]］〕｣」』】》〉}｝";
-function splitNameAtBrackets(name) {
-  const out = [];
-  let buf = "", depth = 0;
-  for (const ch of name) {
-    const isOpen = NAME_OPEN_BR.indexOf(ch) !== -1;
-    const isClose = NAME_CLOSE_BR.indexOf(ch) !== -1;
-    if (isOpen && depth === 0 && buf) { out.push(buf); buf = ch; depth = 1; }
-    else {
-      if (isOpen) depth++;
-      else if (isClose && depth > 0) depth--;
-      buf += ch;
-    }
-  }
-  if (buf) out.push(buf);
-  return out;
-}
+   標準的な日本語の行分割に委ねる。CSS 側で
+   ・word-break:normal — CJK は字単位で折返し可(日本語では普通の挙動)
+   ・line-break:strict — 禁則処理(開き括弧の直後・閉じ括弧の直前で切らない、
+     小書き仮名 ァィゥ… や 長音 ー、句読点 。、 を行頭に置かない)
+   ・overflow-wrap:break-word — 長い英数字トークンの保険
+   を指定する(.kn 参照)。
+   これにより——
+   ・「(注釈)」が行幅を超えても括弧群の内部で綺麗に折返す(孤立括弧なし)
+   ・連続括弧 (A)(B)(C)、入れ子括弧『…』、本体＋括弧＋後続テキストも崩れない
+   ——を満たす。keep-all で括弧群を不可分にしていた旧実装は、群単体が
+   1行幅を超えると緊急折返しで崩れていたため撤廃。 */
 function KitName({ name }) {
-  const parts = useMemo(() => splitNameAtBrackets(name || ""), [name]);
-  if (parts.length <= 1) return <span className="kn">{name}</span>;
-  return (
-    <span className="kn">
-      {parts.map((p, i) => (
-        <React.Fragment key={i}>{i > 0 && <wbr />}{p}</React.Fragment>
-      ))}
-    </span>
-  );
+  return <span className="kn">{name}</span>;
 }
 
 function GradeBracket({ grade }) {
@@ -2828,6 +2804,7 @@ export default function App() {
   const [adv, setAdv] = useState({ series: "", prem: "", stat: "", yFrom: "", yTo: "" }); // 進階篩選
   const [viewer, setViewer] = useState(null); // 圖片鑑賞模式 src
   const [planConfirm, setPlanConfirm] = useState(null); // 予定取消確認 kit
+  const [ownConfirm, setOwnConfirm] = useState(null); // 入手取消確認 kit
   const [loaded, setLoaded] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [dispTarget, setDispTarget] = useState("card");
@@ -3429,24 +3406,26 @@ export default function App() {
       return d && d.slice(0, 4) === ty && Number(k.price) > 0 ? s + Number(k.price) : s;
     }, 0);
     const prem = owned.filter((k) => k.premium).length;
+    const sighted = owned.filter((k) => images[k.id]).length;
     const pcv = (v) => Math.round((v / owned.length) * 100);
     const list = [];
     list.push({ id: "total", label: "収蔵総数", value: `${owned.length}体`, sub: "" });
     list.push({ id: "prem", label: "プレバン限定", value: `${prem}体`, sub: `収蔵の ${pcv(prem)}%` });
     list.push({ id: "built", label: "完成", value: `${builtL.length}体`, sub: `完成率 ${pcv(builtL.length)}%` });
+    list.push({ id: "sighted", label: "目撃数", value: `${sighted}体`, sub: `撮影率 ${pcv(sighted)}%` });
     list.push({ id: "tsumi_n", label: "積み", value: `${tsumiN}体`, sub: `未制作 ${pcv(tsumiN)}%` });
     list.push({ id: "yspend", label: "年間消費", value: fmtYen(ySpend), sub: `${ty}年購入分・定価` });
     list.push({ id: "tprice", label: "定価合計", value: fmtYen(totalPrice), sub: `記録 ${priced.length} 体分` });
     if (exp) list.push({ id: "max", label: "最高額", value: fmtYen(exp.price), sub: exp.name });
     if (chp) list.push({ id: "min", label: "最安値", value: fmtYen(chp.price), sub: chp.name });
     if (tsumi) list.push({ id: "tsumi", label: "積み最長", value: `${tsumi.days}日`, sub: tsumi.k.name });
-    if (ln) list.push({ id: "lname", label: "名称最長のガンプラ", value: ln.name, sub: `${(ln.name || "").length}文字` });
+    if (ln) list.push({ id: "lname", label: "名称最長のガンプラ", value: ln.name, sub: `${(ln.name || "").length}文字`, nameVal: true });
     if (sn) list.push({ id: "sname", label: "名称最短のガンプラ", value: sn.name, sub: `${(sn.name || "").length}文字` });
     if (sArr.length) list.push({ id: "topser", label: "収蔵最多の作品", value: sArr[0][0], sub: `${sArr[0][1]}体` });
     if (sArr.length) list.push({ id: "lowser", label: "収蔵最少の作品", value: sArr[sArr.length - 1][0], sub: `${sArr[sArr.length - 1][1]}体` });
     if (yArr.length) list.push({ id: "topyear", label: "購入最多の年", value: `${yArr[0][0]}年`, sub: `${yArr[0][1]}体` });
     return list.map((x) => ({ ...x, key: x.value + "|" + x.sub }));
-  }, [allKits, records, getRec]);
+  }, [allKits, records, getRec, images]);
 
   useEffect(() => {
     if (!loaded || !achvSeen || achvSeen.__b) return;
@@ -3737,6 +3716,14 @@ export default function App() {
 
   const detailKit = detail ? allKits.find((k) => k.id === detail) : null;
   const detailRec = detailKit ? getRec(detailKit.id) : null;
+  /* 掃描線:開くたびに各ビームへランダムな負の animation-delay を与え、
+     開始位置(=出現タイミング)を毎回ばらけさせる。2本も同期しない。
+     負の遅延=その分だけ既に進んだ状態で開始するので、上縁から同時に
+     現れる固定挙動を解消する。detail(開いた機体)が変わるたびに再抽選。 */
+  const beamDelay = useMemo(() => [
+    -(Math.random() * 8.6).toFixed(2),  // 太線(周期8.6s)
+    -(Math.random() * 7).toFixed(2),    // 細線(周期7s)
+  ], [detail]);
 
   if (!loaded) return (
     <div className={"app " + (settings.theme === "light" ? "light" : "")}><style>{CSS}</style>
@@ -3927,12 +3914,12 @@ export default function App() {
 
           return (
             <>
-              {anaMode === "record" ? (
-              <>
               <div className="builder-line">
                 <span>BUILDER<b>{settings.builderName || "—"}</b></span>
                 <span>ガンプラ歴<b>{careerStr(settings.builderSince)}</b></span>
               </div>
+              {anaMode === "record" ? (
+              <>
               <section className="ana-sec">
                 <div className="year-head"><span className="year-num">記録</span><span className="year-rule" /><span className="year-count">RECORDS</span></div>
                 <div className="achv-grid">
@@ -3948,7 +3935,7 @@ export default function App() {
                           setAchvSeen((s) => ({ ...(s || {}), __b: 1, [x.id]: x.key }));
                         }}>
                         <span className="achv-label">{x.label}</span>
-                        <b className="achv-value">{x.value}</b>
+                        <b className="achv-value">{x.nameVal ? <KitName name={x.value} /> : x.value}</b>
                         {x.sub ? <small className="achv-sub">{x.sub}</small> : null}
                         {isNew && <i className="achv-dot" />}
                       </button>
@@ -4175,6 +4162,20 @@ export default function App() {
         </div>
       )}
 
+      {ownConfirm && (
+        <div className="modal-bg confirm-bg" onClick={() => setOwnConfirm(null)} style={{ zIndex: 90 }}>
+          <div className="confirm-card" onClick={(e) => e.stopPropagation()}>
+            <div className="confirm-icon" style={{ color: "var(--shu)" }}>✦</div>
+            <div className="confirm-title">入手記録を解除しますか?</div>
+            <div className="confirm-name">{ownConfirm.name}</div>
+            <div className="confirm-btns">
+              <button className="btn" onClick={() => setOwnConfirm(null)}>やめる</button>
+              <button className="btn primary" onClick={() => { toggleOwned(ownConfirm.id); setOwnConfirm(null); }}>解除する</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {viewer && (
         <div className="viewer-bg" onClick={() => setViewer(null)}>
           <img className="viewer-img" src={viewer} alt="" onClick={(e) => e.stopPropagation()} />
@@ -4206,7 +4207,10 @@ export default function App() {
                   onClick={() => { if (images[detailKit.id]) { haptic(); setViewer(images[detailKit.id]); } }}>
                   <KitImage kit={detailKit} img={images[detailKit.id]} owned={detailRec.owned} built={!!detailRec.buildDate} size={150} cls="tc" />
                   <div className="tc-scan" aria-hidden="true">
-                    {settings.crtScan !== false && <><span className="crt-beam" /><span className="crt-beam beam2" /></>}
+                    {settings.crtScan !== false && <>
+                      <span className="crt-beam" style={{ animationDelay: beamDelay[0] + "s" }} />
+                      <span className="crt-beam beam2" style={{ animationDelay: beamDelay[1] + "s" }} />
+                    </>}
                   </div>
                   {images[detailKit.id] && <span className="zoom-hint">⤢</span>}
                 </div>
@@ -4223,13 +4227,13 @@ export default function App() {
                     <div className="tc-half"><span>発売</span><b className="tc-num">{detailKit.ym ? detailKit.ym.replace("-", ".") : "—"}</b></div>
                     <div className="tc-half"><span>定価</span><b className="tc-num price">{fmtYen(detailKit.price)}</b></div>
                   </div>
+                  <div className="tc-row tc-row-memo"><span>メモ</span><b className="tc-memo">{detailKit.note || ""}</b></div>
                 </div>
-                {detailKit.note && <div className="note-box">{detailKit.note}</div>}
 
                 {detailRec.owned ? (
-                  <button className="own-btn owned" onClick={() => toggleOwned(detailKit.id)}>✦ 入手済み</button>
+                  <button className="own-btn owned" onClick={() => setOwnConfirm(detailKit)}>✦ 入手済み</button>
                 ) : detailRec.plan ? (
-                  <button className="own-btn planned" onClick={() => togglePlan(detailKit.id)}>◆ 購入予定</button>
+                  <button className="own-btn planned" onClick={() => setPlanConfirm(detailKit)}>◆ 購入予定</button>
                 ) : (
                   <div className="own-btn-row">
                     <button className="own-btn half" onClick={() => toggleOwned(detailKit.id)}>未入手 — 記録</button>
@@ -4350,7 +4354,8 @@ export default function App() {
             <button key={k}
               className={`tab ${tab === k ? "on" : ""} `
                 + (k === "collection" && collMode === "plan" ? "plan-tab " : "")
-                + (k === "analysis" && anaMode === "analysis" ? "ana-tab " : "")}
+                + (k === "analysis" && anaMode === "analysis" ? "ana-tab " : "")
+                + (k === "settings" ? "set-tab " : "")}
               onClick={() => {
                 if ((k === "collection" || k === "analysis") && consumeLP()) return;
                 if (k === "collection" && tab === "collection") { hapticStrong(); setCollMode((m) => (m === "plan" ? "owned" : "plan")); return; }
@@ -4392,7 +4397,8 @@ button,.tab,.card,.row,.gf-btn,.adv-seg-btn,.tab-label,.tab-icon{
 .card,.row,.tab,.gf-btn,.btn,.add-btn,.more-btn,.own-btn,.own-btn.half,.search-x,.adv-seg-btn,.view-toggle button,.sort-bar button,.edit-link{
   transition:transform .16s cubic-bezier(.34,1.56,.64,1), filter .12s ease, box-shadow .16s ease}
 .card:active,.row:active{transform:scale(.97);filter:brightness(.94)}
-.tab:active{transform:scale(.92)}
+.tab:active{transform:scale(.92);background:rgba(255,255,255,.07);border-radius:10px}
+.app.light .tab:active{background:rgba(0,0,0,.06)}
 .btn:active,.add-btn:active,.more-btn:active,.own-btn:active,.gf-btn:active,.adv-seg-btn:active,.view-toggle button:active,.sort-bar button:active,.search-x:active,.edit-link:active{
   transform:scale(.95);filter:brightness(.92)}
 .app{min-height:100vh;background:
@@ -4481,7 +4487,7 @@ input,textarea{font-family:var(--sans)}
 .row.dim{opacity:.45}
 .row-sketch{flex:none;width:46px;display:flex;justify-content:center}
 .row-main{flex:1;min-width:0}
-.row-name{font-size:13px;font-weight:700;color:var(--ink-strong);word-break:keep-all;overflow-wrap:anywhere}
+.row-name{font-size:13px;font-weight:700;color:var(--ink-strong);word-break:normal;line-break:strict;overflow-wrap:break-word}
 .row-sub{display:flex;gap:8px;align-items:center;margin-top:3px;flex-wrap:wrap}
 .row-seals{display:flex;gap:5px;flex:none}
 .date-tag{font-size:10px;color:var(--ink-mid);letter-spacing:.05em}
@@ -4533,9 +4539,9 @@ input,textarea{font-family:var(--sans)}
 .tc-head-top{display:flex;align-items:flex-start;gap:10px}
 .tc-head .tc-name{font-family:var(--serif);font-weight:800;font-size:24px;line-height:1.22;
   color:var(--ink-strong);flex:1;min-width:0;letter-spacing:.01em;
-  word-break:keep-all;overflow-wrap:anywhere;
+  word-break:normal;line-break:strict;overflow-wrap:break-word;
   text-shadow:0 1px 2px rgba(0,0,0,.3)}
-.kn{display:inline;word-break:keep-all;line-break:strict;overflow-wrap:anywhere}
+.kn{display:inline;word-break:normal;line-break:strict;overflow-wrap:break-word}
 .tc-head-rule{display:block;height:1px;margin:9px 0 7px;
   background:linear-gradient(90deg,rgba(184,146,74,.45),rgba(184,146,74,.1) 60%,transparent)}
 .tc-head-sub{display:flex;align-items:center;gap:6px;min-width:0}
@@ -4574,9 +4580,9 @@ input,textarea{font-family:var(--sans)}
 .tc-art>.tc-scan{z-index:2}
 .tc-scan .crt-beam{position:absolute;left:0;right:0;top:-22px;height:22px;
   background:linear-gradient(180deg,transparent,rgba(111,211,199,.3),transparent);
-  animation:crtbeam 6.4s linear infinite !important}
+  animation-name:crtbeam;animation-duration:8.6s;animation-timing-function:linear;animation-iteration-count:infinite}
 .tc-scan .crt-beam.beam2{height:14px;background:linear-gradient(180deg,transparent,rgba(111,211,199,.18),transparent);
-  animation:crtbeam 5.1s linear infinite !important;animation-delay:1.4s}
+  animation-duration:7s}
 @keyframes crtbeam{0%{top:-22px}100%{top:100%}}
 .crt-art{position:relative;z-index:1;width:84%;height:80%;filter:drop-shadow(0 0 5px rgba(111,211,199,.45))}
 .crt-clabel{letter-spacing:.4px}
@@ -4620,9 +4626,11 @@ input,textarea{font-family:var(--sans)}
 .modal-x.static{position:static}
 .modal-form-head{display:flex;justify-content:space-between;align-items:center;
   font-family:var(--serif);font-size:15px;font-weight:700;color:var(--ink-strong);margin-bottom:14px}
-.note-box{background:var(--panel);border:1px solid var(--line-soft);border-left:3px solid var(--gold);
-  border-radius:7px;padding:10px 12px;font-size:12px;line-height:1.7;color:var(--ink-mid);
-  margin-bottom:14px;white-space:pre-wrap}
+/* メモ:機体情報欄(tc-info)の最下段に1行として統合。空なら値は空欄のまま */
+.tc-row-memo{align-items:flex-start}
+.tc-row-memo>span{padding-top:1px}
+.tc-memo{font-weight:500;color:var(--ink-mid);font-size:11.5px;line-height:1.65;
+  white-space:pre-wrap;word-break:normal;line-break:strict;overflow-wrap:break-word;min-height:1.65em}
 .own-btn{width:100%;padding:13px;border-radius:9px;font-size:14px;font-weight:700;
   border:1.5px dashed var(--line);color:var(--ink-mid);transition:transform .16s cubic-bezier(.34,1.56,.64,1),filter .12s;letter-spacing:.08em}
 .own-btn.owned{border:1.5px solid var(--shu);color:var(--shu);
@@ -4689,6 +4697,11 @@ input,textarea{font-family:var(--sans)}
 .tab.ana-tab .tab-icon,.tab.ana-tab .tab-label{color:var(--blue)}
 .tab.ana-tab.on .tab-icon,.tab.ana-tab.on .tab-label{color:var(--blue);filter:brightness(1.12)}
 .tab.ana-tab .tab-bar{background:var(--blue)}
+/* 設定タブ:アクセント色を使わず、文字も図標と同じ灰白系で統一 */
+.tab.set-tab .tab-icon,.tab.set-tab .tab-label{color:var(--ink)}
+.tab.set-tab.on .tab-icon,.tab.set-tab.on .tab-label{color:var(--ink-strong)}
+.tab.set-tab.on{color:var(--ink-strong)}
+.tab.set-tab .tab-bar{background:var(--ink-strong)}
 .head-stats b.kin{color:var(--kin)}
 
 /* ── 画像鑑賞モード ── */
@@ -5249,7 +5262,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 
 /* 4. Builder行 */
 .builder-line{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
-  border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:8px;
+  border:1px solid var(--line);border-radius:8px;
   background:var(--panel);padding:10px 14px;margin-bottom:12px}
 .builder-line span{font-size:9.5px;color:var(--ink-mid);letter-spacing:.16em;
   display:flex;align-items:baseline;gap:9px}
