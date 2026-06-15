@@ -2275,6 +2275,84 @@ function KitImage({ kit, img, owned, built, size = 84, cls = "" }) {
   return <MechSketch seedKey={kit.id} owned={owned} built={built} size={size} />;
 }
 
+/* 指でのピンチズーム/パン。画像にのみ適用。タップ(移動なし)で onTap を発火。
+   Pointer Events で実装(iOS Safari 対応)。touch-action:none で既定のスクロールを抑止。 */
+function PinchZoom({ src, alt = "", className = "", imgClassName = "", imgStyle, onTap, resetKey, maxScale = 5 }) {
+  const box = useRef(null);
+  const cur = useRef({ scale: 1, x: 0, y: 0 });
+  const [view, setView] = useState({ scale: 1, x: 0, y: 0 });
+  const pts = useRef(new Map());
+  const g = useRef(null);
+  const moved = useRef(false);
+
+  useEffect(() => {
+    cur.current = { scale: 1, x: 0, y: 0 };
+    setView({ scale: 1, x: 0, y: 0 });
+  }, [resetKey, src]);
+
+  const clamp = (s, x, y) => {
+    s = Math.max(1, Math.min(maxScale, s));
+    const el = box.current;
+    if (el) {
+      const mx = (el.clientWidth * (s - 1)) / 2;
+      const my = (el.clientHeight * (s - 1)) / 2;
+      x = Math.max(-mx, Math.min(mx, x));
+      y = Math.max(-my, Math.min(my, y));
+    }
+    if (s <= 1.001) { x = 0; y = 0; }
+    return { scale: s, x, y };
+  };
+  const set = (r) => { cur.current = r; setView(r); };
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+  const down = (e) => {
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
+    pts.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    moved.current = false;
+    const arr = [...pts.current.values()];
+    if (arr.length >= 2) {
+      g.current = { mode: "pinch", d: dist(arr[0], arr[1]) || 1, s: cur.current.scale, x: cur.current.x, y: cur.current.y };
+    } else {
+      g.current = { mode: "pan", px: arr[0].x, py: arr[0].y, x: cur.current.x, y: cur.current.y };
+    }
+  };
+  const move = (e) => {
+    if (!pts.current.has(e.pointerId)) return;
+    pts.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const arr = [...pts.current.values()];
+    const gg = g.current;
+    if (!gg) return;
+    if (gg.mode === "pinch" && arr.length >= 2) {
+      moved.current = true;
+      set(clamp(gg.s * (dist(arr[0], arr[1]) / gg.d), gg.x, gg.y));
+    } else if (gg.mode === "pan" && arr.length === 1 && cur.current.scale > 1) {
+      const dx = arr[0].x - gg.px, dy = arr[0].y - gg.py;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved.current = true;
+      set(clamp(cur.current.scale, gg.x + dx, gg.y + dy));
+    }
+  };
+  const up = (e) => {
+    pts.current.delete(e.pointerId);
+    const arr = [...pts.current.values()];
+    if (arr.length === 1) {
+      g.current = { mode: "pan", px: arr[0].x, py: arr[0].y, x: cur.current.x, y: cur.current.y };
+    } else if (arr.length === 0) {
+      const wasMoved = moved.current;
+      g.current = null;
+      if (!wasMoved && onTap) onTap(e);
+    }
+  };
+
+  return (
+    <div ref={box} className={"pz " + className} style={{ touchAction: "none" }}
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
+      <img src={src} alt={alt} className={imgClassName} draggable={false}
+        style={{ ...imgStyle, transform: `translate(${view.x}px,${view.y}px) scale(${view.scale})`, transformOrigin: "center center", willChange: "transform", touchAction: "none" }} />
+    </div>
+  );
+}
+
 function GradeChip({ grade }) {
   const g = (grade || "MG").toUpperCase();
   const cls = { MG: "mg", HG: "hg", RG: "rg", PG: "pg", HIRM: "hirm", RE: "re", FM: "fm", MGSD: "sd", EXTRA: "ex" }[g] || "ex";
@@ -2788,7 +2866,7 @@ export default function App() {
   const [overrides, setOverrides] = useState({});
   const [customKits, setCustomKits] = useState([]);
   const [images, setImages] = useState({});
-  const [settings, setSettings] = useState({ view: "grid", compact: false, dimUnowned: true, showCode: true, showSeries: false, showPrice: true, showNo: false, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "low", haptic: true, crtScan: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", geminiModel: "gemini-2.5-flash-image" });
+  const [settings, setSettings] = useState({ view: "grid", compact: false, dimUnowned: true, showCode: true, showSeries: false, showPrice: true, showNo: false, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "low", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", geminiModel: "gemini-2.5-flash-image" });
   const [sortKey, setSortKey] = useState("year");
   const [sortDir, setSortDir] = useState("asc");
   const [queries, setQueries] = useState({ z: "", c: "" });
@@ -3655,13 +3733,17 @@ export default function App() {
       togglePlan(kit.id);
     });
     const onCardClick = () => { if (consumeLP()) return; setDetail(kit.id); setEditing(false); };
+    const sketchCrt = !rec.owned && !img; // 未入手かつ画像なし=ベクター→CRT風に
     if (settings.view === "list") {
       return (
-        <button className={`row ${dim ? "dim" : ""} ${rec.plan ? "planned" : ""}`} onClick={onCardClick} {...longPress}>
-          <div className="row-sketch"><KitImage kit={kit} img={img} owned={rec.owned} built={!!rec.buildDate} size={80} cls="sm" /></div>
+        <button className={`row ${dim ? "dim" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""}`} onClick={onCardClick} {...longPress}>
+          <div className={"row-sketch" + (sketchCrt ? " crt-mini" : "")}>
+            {rec.plan && <span className="plan-pin">予定</span>}
+            <KitImage kit={kit} img={img} owned={rec.owned} built={!!rec.buildDate} size={80} cls="sm" />
+          </div>
           <div className="row-main">
             {settings.listSeries && kit.series && <div className="row-series">{kit.series}</div>}
-            <div className="row-name"><KitName name={kit.name} />{rec.plan && <span className="plan-tag">予定</span>}</div>
+            <div className="row-name"><KitName name={kit.name} /></div>
             <div className="row-sub">
               <GradeChip grade={kit.grade} />
               {kit.premium && <span className="line-chip pb">プレバン</span>}
@@ -3687,13 +3769,13 @@ export default function App() {
       );
     }
     return (
-      <button className={`card ${dim ? "dim" : ""} ${settings.compact ? "compact" : ""} ${rec.plan ? "planned" : ""}`} onClick={onCardClick} {...longPress}>
+      <button className={`card ${dim ? "dim" : ""} ${settings.compact ? "compact" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""}`} onClick={onCardClick} {...longPress}>
         <div className="card-corner" />
         <div className="card-sketch">
           <KitImage kit={kit} img={img} owned={rec.owned} built={!!rec.buildDate} size={settings.compact ? 56 : 78} />
           {kit.premium && <span className="line-chip pb corner-pb">プレバン</span>}
           {kit.base && <span className="line-chip base corner-base">ベース</span>}
-          {rec.plan && <span className="plan-corner">予定</span>}
+          {rec.plan && <span className="plan-pin card-pin">予定</span>}
         </div>
         <div className="card-name"><GradeChip grade={kit.grade} />{kit.name}</div>
         <div className="card-meta">
@@ -3871,12 +3953,21 @@ export default function App() {
 
         {tab === "analysis" && (() => {
           const owned = allKits.filter((k) => getRec(k.id).owned);
-          if (owned.length === 0) return (
-            <div className="empty">
-              <MechSketch seedKey="ana" owned={false} built={false} size={70} />
-              <p>分析できる収蔵がまだありません。</p>
-              <p className="empty-sub">図鑑で「入手済み」を記録すると、ここに収蔵分析が表示されます。</p>
+          const builderRow = (
+            <div className="builder-line">
+              <span>BUILDER<b>{settings.builderName || "—"}</b></span>
+              <span>ガンプラ歴<b>{careerStr(settings.builderSince)}</b></span>
             </div>
+          );
+          if (owned.length === 0) return (
+            <>
+              {builderRow}
+              <div className="empty">
+                <MechSketch seedKey="ana" owned={false} built={false} size={70} />
+                <p>分析できる収蔵がまだありません。</p>
+                <p className="empty-sub">図鑑で「入手済み」を記録すると、ここに収蔵分析が表示されます。</p>
+              </div>
+            </>
           );
 
           const bySeries = {};
@@ -3914,10 +4005,7 @@ export default function App() {
 
           return (
             <>
-              <div className="builder-line">
-                <span>BUILDER<b>{settings.builderName || "—"}</b></span>
-                <span>ガンプラ歴<b>{careerStr(settings.builderSince)}</b></span>
-              </div>
+              {builderRow}
               {anaMode === "record" ? (
               <>
               <section className="ana-sec">
@@ -4061,6 +4149,10 @@ export default function App() {
                 <span>未識別プレートのスキャンライン</span>
                 <i className={`switch ${settings.crtScan !== false ? "on" : ""}`}><b /></i>
               </button>
+              <button className="opt toggle" onClick={() => setSettings((s) => ({ ...s, vfFilter: s.vfFilter === false ? true : false }))}>
+                <span>入手画像のビューファインダー風フィルター</span>
+                <i className={`switch ${settings.vfFilter !== false ? "on" : ""}`}><b /></i>
+              </button>
             </div>
             <h2 className="panel-title">プロフィール<span>BUILDER</span></h2>
             <div className="opt-group">
@@ -4178,7 +4270,7 @@ export default function App() {
 
       {viewer && (
         <div className="viewer-bg" onClick={() => setViewer(null)}>
-          <img className="viewer-img" src={viewer} alt="" onClick={(e) => e.stopPropagation()} />
+          <PinchZoom src={viewer} className="viewer-pz" imgClassName="viewer-img" resetKey={viewer} onTap={() => setViewer(null)} />
           <button className="viewer-x" onClick={() => setViewer(null)}>✕</button>
         </div>
       )}
@@ -4203,15 +4295,24 @@ export default function App() {
                     <span className="tc-name"><KitName name={detailKit.name} /></span>
                   </div>
                 </div>
-                <div className={"tc-art square" + (images[detailKit.id] ? " zoomable" : "")}
-                  onClick={() => { if (images[detailKit.id]) { haptic(); setViewer(images[detailKit.id]); } }}>
-                  <KitImage kit={detailKit} img={images[detailKit.id]} owned={detailRec.owned} built={!!detailRec.buildDate} size={150} cls="tc" />
+                <div className={"tc-art square" + (images[detailKit.id] ? " has-photo" : "")}>
+                  {images[detailKit.id]
+                    ? <PinchZoom src={images[detailKit.id]} alt={detailKit.name} className="tc-pz" imgClassName="kit-img tc"
+                        resetKey={detailKit.id} onTap={() => { haptic(); setViewer(images[detailKit.id]); }} />
+                    : <KitImage kit={detailKit} img={null} owned={detailRec.owned} built={!!detailRec.buildDate} size={150} cls="tc" />}
                   <div className="tc-scan" aria-hidden="true">
                     {settings.crtScan !== false && <>
                       <span className="crt-beam" style={{ animationDelay: beamDelay[0] + "s" }} />
                       <span className="crt-beam beam2" style={{ animationDelay: beamDelay[1] + "s" }} />
                     </>}
                   </div>
+                  {images[detailKit.id] && settings.vfFilter !== false && (
+                    <div className="vf-overlay" aria-hidden="true">
+                      <span className="vf-corner tl" /><span className="vf-corner tr" />
+                      <span className="vf-corner bl" /><span className="vf-corner br" />
+                      <span className="vf-focus" />
+                    </div>
+                  )}
                   {images[detailKit.id] && <span className="zoom-hint">⤢</span>}
                 </div>
                 <div className="tc-info tappable" onClick={() => { setDetail(null); setEditing(false); }}>
@@ -4485,7 +4586,16 @@ input,textarea{font-family:var(--sans)}
   border-radius:8px;padding:8px 12px;text-align:left;transition:border-color .12s}
 .row:hover{border-left-color:var(--shu)}
 .row.dim{opacity:.45}
-.row-sketch{flex:none;width:46px;display:flex;justify-content:center}
+.row-sketch{flex:none;width:46px;display:flex;justify-content:center;position:relative}
+/* 6. 未入手のベクター(リスト)を静的CRT画面風に:走査線+ノイズ+ビネット(アニメ無し) */
+.row-sketch.crt-mini{border-radius:6px;overflow:hidden;
+  background:radial-gradient(ellipse at 50% 45%,rgba(111,211,199,.08),transparent 70%),#0b1014;
+  box-shadow:inset 0 0 14px 3px rgba(0,0,0,.55)}
+.row-sketch.crt-mini svg{position:relative;z-index:1;filter:drop-shadow(0 0 1.4px rgba(111,211,199,.32))}
+.row-sketch.crt-mini::before{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.30) 0 1px,transparent 1px 3px)}
+.row-sketch.crt-mini::after{content:"";position:absolute;inset:0;z-index:3;pointer-events:none;opacity:.13;background-size:70px 70px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='70' height='70'%3E%3Cfilter id='r'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23r)'/%3E%3C/svg%3E")}
 .row-main{flex:1;min-width:0}
 .row-name{font-size:13px;font-weight:700;color:var(--ink-strong);word-break:normal;line-break:strict;overflow-wrap:break-word}
 .row-sub{display:flex;gap:8px;align-items:center;margin-top:3px;flex-wrap:wrap}
@@ -4560,12 +4670,33 @@ input,textarea{font-family:var(--sans)}
 .tc-art.square{height:auto;aspect-ratio:4/3}
 .tc-art.zoomable{cursor:zoom-in}
 .tc-art.zoomable:active{filter:brightness(.93);transform:scale(.99)}
+/* 8. tc-art 内のピンチズーム容器(画像にのみ適用)。
+   ※ .tc-art>* {position:relative;z-index:1} に負けないよう子結合子で特異度を上げる */
+.tc-art>.tc-pz{position:absolute;inset:0;z-index:1;overflow:hidden}
+.tc-pz img{width:100%;height:100%;object-fit:cover}
+/* 7. 観景窗(ビューファインダー)風オーバーレイ:四隅フレーム+中央フォーカス円+ビネット */
+.tc-art>.vf-overlay{position:absolute;inset:0;z-index:4;pointer-events:none;
+  background:radial-gradient(ellipse 80% 80% at 50% 50%,transparent 55%,rgba(0,0,0,.44) 100%)}
+.vf-corner{position:absolute;width:20px;height:20px;border:2px solid rgba(255,255,255,.82);
+  filter:drop-shadow(0 0 1px rgba(0,0,0,.6))}
+.vf-corner.tl{top:11px;left:11px;border-right:none;border-bottom:none}
+.vf-corner.tr{top:11px;right:11px;border-left:none;border-bottom:none}
+.vf-corner.bl{bottom:11px;left:11px;border-right:none;border-top:none}
+.vf-corner.br{bottom:11px;right:11px;border-left:none;border-top:none}
+.vf-focus{position:absolute;top:50%;left:50%;width:48px;height:48px;transform:translate(-50%,-50%);
+  border:1.5px solid rgba(255,255,255,.72);border-radius:50%;filter:drop-shadow(0 0 1px rgba(0,0,0,.6))}
+.vf-focus::before,.vf-focus::after{content:"";position:absolute;background:rgba(255,255,255,.7)}
+.vf-focus::before{left:50%;top:-6px;bottom:-6px;width:1px;transform:translateX(-50%)}
+.vf-focus::after{top:50%;left:-6px;right:-6px;height:1px;transform:translateY(-50%)}
+/* 8. ビューア(全画面)のピンチズーム容器。移動なしのタップで閉じ、ピンチ/パンは維持 */
+.viewer-pz{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  padding:20px;box-sizing:border-box;cursor:zoom-out}
 /* 方向C:極淡灰階噪點質感(標題列與圖片框統一),內容置於其上 */
 .tc-art::after{content:"";position:absolute;inset:0;border-radius:inherit;
   pointer-events:none;z-index:0;opacity:.05;background-size:120px 120px;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
 .tc-head>*,.tc-art>*{position:relative;z-index:1}
-.zoom-hint{position:absolute;right:8px;bottom:7px;width:26px;height:26px;display:flex;
+.zoom-hint{position:absolute;right:8px;bottom:7px;width:26px;height:26px;display:flex;z-index:5;
   align-items:center;justify-content:center;border-radius:6px;font-size:14px;
   background:rgba(13,16,24,.78);border:1px solid rgba(184,146,74,.4);color:var(--gold)}
 .kit-img.tc{width:100%;height:100%;object-fit:cover;border:none;background:transparent;border-radius:0;box-shadow:none}
@@ -4682,13 +4813,18 @@ input,textarea{font-family:var(--sans)}
 .adv-close{font-size:11.5px;color:var(--ink-mid);padding:4px 10px;border:1px solid var(--line);border-radius:6px}
 
 /* ── 予定マーク(カード・リスト) ── */
-.card.planned{border-color:rgba(217,179,106,.5)}
-.row.planned{border-color:rgba(217,179,106,.4)}
-.plan-corner{position:absolute;top:5px;left:5px;font-size:9px;font-weight:700;letter-spacing:.08em;
-  padding:2px 6px;border-radius:4px;background:rgba(217,179,106,.92);color:#1a1408}
-.plan-tag{display:inline-block;margin-left:7px;font-size:9.5px;font-weight:700;letter-spacing:.06em;
-  padding:1px 6px;border-radius:4px;background:rgba(217,179,106,.16);color:var(--kin);
-  border:1px solid rgba(217,179,106,.45);vertical-align:middle}
+/* 4. 予定の金色フチ(全周)は廃止 → 状態は左フチ色のみで表現 */
+/* 5. 入手=朱橙の左フチ(タップ時と同じ効果)/予定=金の左フチ */
+.row.owned{border-left-color:var(--shu)}
+.row.planned{border-left-color:var(--kin)}
+.card.owned{border-left:3px solid var(--shu)}
+.card.planned{border-left:3px solid var(--kin)}
+/* 3. 予定ピン:リスト/カード共通、画像の左上角。リスト予定タグ風(アウトライン金) */
+.plan-pin{position:absolute;top:3px;left:3px;z-index:5;font-size:8.5px;font-weight:700;letter-spacing:.06em;
+  padding:1px 5px;border-radius:4px;line-height:1.35;
+  background:rgba(217,179,106,.18);color:var(--kin);border:1px solid rgba(217,179,106,.55);
+  backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
+.plan-pin.card-pin{top:5px;left:5px;font-size:9px;padding:2px 6px}
 
 /* ── 予定タブ(金色) ── */
 .tab.plan-tab .tab-icon,.tab.plan-tab .tab-label{color:var(--kin)}
@@ -4762,6 +4898,9 @@ input,textarea{font-family:var(--sans)}
 .fld{display:flex;flex-direction:column;gap:5px;font-size:11px;color:var(--ink-mid);letter-spacing:.08em;flex:1}
 .fld input,.fld textarea{background:var(--panel);border:1px solid var(--line);border-radius:7px;
   color:var(--ink);padding:9px 10px;font-size:13px;color-scheme:dark;resize:vertical}
+.fld input:focus,.fld textarea:focus,.fld select:focus,.url-row input:focus{
+  outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(217,179,106,.14)}
+.fld input:focus-visible,.fld textarea:focus-visible,.fld select:focus-visible,.url-row input:focus-visible{outline:none}
 .fld-row{display:flex;gap:10px}
 .form-actions{display:flex;gap:8px;margin-top:4px}
 .btn{flex:1;padding:12px;border-radius:8px;border:1px solid var(--line);font-size:13px;font-weight:700;
