@@ -371,7 +371,6 @@ const xtraKey = (imgId) => "mg_xtra_" + (hashId(imgId) % XTRA_SHARDS);
    ・albumMeta[kitId]= { order:[ref…], thumb:ref, acquire:ref, framing:{ref:{x,y,scale}} }
                        ref は "primary" もしくは xid。META に同梱して同期。
    既存データは無改変(主画像はそのまま)。albumMeta/extras が空なら従来と同一挙動。 */
-const MAX_IMGS_PER_KIT = 6;
 function newXid(kitId) { return kitId + "~" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function kitExtraIds(kitId, extras) {
   const pre = kitId + "~";
