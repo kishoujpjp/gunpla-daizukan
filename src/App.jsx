@@ -282,6 +282,9 @@ K("ka30", "Ka-30", "FA-010S", "フルアーマーZZガンダム Ver.Ka", "2026-0
 
 const META_KEY = "mg_zukan_v2";
 const IMG_SHARDS = 8;
+// 追加画像(アルバムの2枚目以降)用シャード。サムネ(images)は触らず別系統で保持。
+const XTRA_SHARDS = 32;
+const MAX_IMGS_PER_KIT = 6; // サムネ含む1機体あたりの画像上限
 // クラウド同期 1 行あたりの上限(超える画像シャードは送らず本地保存のみ)。
 // Supabase/プロキシの行・リクエスト上限に余裕を持たせた保守値。必要なら調整可。
 const MAX_SYNC_BYTES = 4 * 1024 * 1024;
@@ -360,6 +363,54 @@ function hashId(s) {
   return Math.abs(h);
 }
 const shardKey = (id) => "mg_imgs_" + (hashId(id) % IMG_SHARDS);
+const xtraKey = (imgId) => "mg_xtra_" + (hashId(imgId) % XTRA_SHARDS);
+
+/* ── 複数画像(アルバム)モデル ──────────────────────────────
+   ・images[kitId]   = 主画像(従来通り。8シャード mg_imgs_*、kitId キー)
+   ・extras[xid]     = 追加画像(32シャード mg_xtra_*、xid キー)。xid は "kitId~乱数"。
+   ・albumMeta[kitId]= { order:[ref…], thumb:ref, acquire:ref, framing:{ref:{x,y,scale}} }
+                       ref は "primary" もしくは xid。META に同梱して同期。
+   既存データは無改変(主画像はそのまま)。albumMeta/extras が空なら従来と同一挙動。 */
+const MAX_IMGS_PER_KIT = 6;
+function newXid(kitId) { return kitId + "~" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function kitExtraIds(kitId, extras) {
+  const pre = kitId + "~";
+  return Object.keys(extras || {}).filter((k) => k.indexOf(pre) === 0).sort();
+}
+function albumRefs(kitId, images, extras, albumMeta) {
+  const have = [];
+  if (images && images[kitId]) have.push("primary");
+  for (const x of kitExtraIds(kitId, extras)) have.push(x);
+  const haveSet = new Set(have);
+  const meta = albumMeta && albumMeta[kitId];
+  const order = (meta && Array.isArray(meta.order)) ? meta.order.filter((r) => haveSet.has(r)) : [];
+  const rest = have.filter((r) => order.indexOf(r) < 0);
+  rest.sort((a, b) => (a === "primary" ? -1 : b === "primary" ? 1 : a < b ? -1 : 1));
+  return order.concat(rest);
+}
+function refSrc(ref, kitId, images, extras) {
+  if (!ref) return undefined;
+  return ref === "primary" ? (images ? images[kitId] : undefined) : (extras ? extras[ref] : undefined);
+}
+function pickRef(kind, kitId, images, extras, albumMeta) {
+  const refs = albumRefs(kitId, images, extras, albumMeta);
+  if (!refs.length) return null;
+  const meta = albumMeta && albumMeta[kitId];
+  const want = meta && meta[kind];
+  if (want && refs.indexOf(want) >= 0) return want;
+  return refs[0];
+}
+function thumbSrcOf(kitId, images, extras, albumMeta) {
+  return refSrc(pickRef("thumb", kitId, images, extras, albumMeta), kitId, images, extras);
+}
+function acquireSrcOf(kitId, images, extras, albumMeta) {
+  return refSrc(pickRef("acquire", kitId, images, extras, albumMeta), kitId, images, extras);
+}
+function hasAnyImage(kitId, images, extras) {
+  return !!(images && images[kitId]) || kitExtraIds(kitId, extras).length > 0;
+}
+// 追加画像のID。機体IDを接頭にし、衝突しにくい短い乱数を付す。
+const newImgId = (kitId) => kitId + "~" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
 /* ── 圖像不存在時的抽象簡筆畫(種子化變化) ── */
 function MechSketch({ seedKey, owned, built, size = 84 }) {
@@ -2277,13 +2328,14 @@ function KitImage({ kit, img, owned, built, size = 84, cls = "" }) {
 
 /* 指でのピンチズーム/パン。画像にのみ適用。タップ(移動なし)で onTap を発火。
    Pointer Events で実装(iOS Safari 対応)。touch-action:none で既定のスクロールを抑止。 */
-function PinchZoom({ src, alt = "", className = "", imgClassName = "", imgStyle, onTap, resetKey, maxScale = 5 }) {
+function PinchZoom({ src, alt = "", className = "", imgClassName = "", imgStyle, onTap, onSwipe, resetKey, maxScale = 5 }) {
   const box = useRef(null);
   const cur = useRef({ scale: 1, x: 0, y: 0 });
   const [view, setView] = useState({ scale: 1, x: 0, y: 0 });
   const pts = useRef(new Map());
   const g = useRef(null);
   const moved = useRef(false);
+  const startPt = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     cur.current = { scale: 1, x: 0, y: 0 };
@@ -2314,6 +2366,7 @@ function PinchZoom({ src, alt = "", className = "", imgClassName = "", imgStyle,
       g.current = { mode: "pinch", d: dist(arr[0], arr[1]) || 1, s: cur.current.scale, x: cur.current.x, y: cur.current.y };
     } else {
       g.current = { mode: "pan", px: arr[0].x, py: arr[0].y, x: cur.current.x, y: cur.current.y };
+      startPt.current = { x: e.clientX, y: e.clientY };
     }
   };
   const move = (e) => {
@@ -2339,7 +2392,12 @@ function PinchZoom({ src, alt = "", className = "", imgClassName = "", imgStyle,
     } else if (arr.length === 0) {
       const wasMoved = moved.current;
       g.current = null;
-      if (!wasMoved && onTap) onTap(e);
+      const dx = e.clientX - startPt.current.x, dy = e.clientY - startPt.current.y;
+      if (onSwipe && cur.current.scale <= 1.01 && Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.3) {
+        onSwipe(dx < 0 ? 1 : -1);
+      } else if (!wasMoved && onTap) {
+        onTap(e);
+      }
     }
   };
 
@@ -2655,20 +2713,27 @@ function CropModal({ src, onDone, onCancel }) {
 }
 
 /* ── 機體編輯表單(新增/編輯共用) ── */
-function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, seriesOptions = [], ai, recInitial = null, onSaveRec }) {
+function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, seriesOptions = [], ai, recInitial = null, onSaveRec,
+  album, onAddImage, onRemoveImage, onSetRole, thumbRef, acqRef, maxImgs = 6 }) {
+  const albumMode = typeof onAddImage === "function";
   const [f, setF] = useState({
     name: initial.name || "", code: initial.code || "", ym: initial.ym || "",
     price: initial.price || "", series: initial.series || "", note: initial.note || "", premium: !!initial.premium, grade: initial.grade || "MG",
   });
   const [dates, setDates] = useState({ purchaseDate: (recInitial && recInitial.purchaseDate) || "", buildDate: (recInitial && recInitial.buildDate) || "" });
-  const [imgVal, setImgVal] = useState(undefined); // undefined=不變 null=刪除 string=新圖
+  const [imgVal, setImgVal] = useState(undefined); // undefined=不變 null=刪除 string=新圖(新規機体用)
   const [urlInput, setUrlInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [cropSrc, setCropSrc] = useState(null);
   const [aiOpen, setAiOpen] = useState(false);
+  const [aiSrc, setAiSrc] = useState(null);  // AI変換の元画像(アルバム時)
+  const [sel, setSel] = useState(null);       // 選択中のアルバム画像 ref
   const fileRef = useRef(null);
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
   const previewImg = imgVal === undefined ? currentImg : imgVal;
+  const atCap = albumMode && (album || []).length >= maxImgs;
+  // 新画像を反映: アルバム時は追加、新規機体時は単一スロットへ
+  const applyNewImage = (src) => { if (!src) return; if (albumMode) onAddImage(src); else setImgVal(src); };
 
   const pickFile = async (e) => {
     const file = e.target.files && e.target.files[0];
@@ -2688,6 +2753,46 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
 
   return (
     <div className="form">
+      {albumMode ? (
+        <div className="form-album">
+          <div className="form-album-strip">
+            {(album || []).map((a) => (
+              <button type="button" key={a.ref} className={"fa-thumb" + (sel === a.ref ? " sel" : "")}
+                onClick={() => setSel(sel === a.ref ? null : a.ref)}>
+                <img src={a.src} alt="" />
+                {a.ref === thumbRef && <i className="fa-badge t">★</i>}
+                {a.ref === acqRef && <i className="fa-badge a">◎</i>}
+              </button>
+            ))}
+            {!atCap && (
+              <button type="button" className="fa-add" onClick={() => fileRef.current && fileRef.current.click()} disabled={busy}>
+                {busy ? "…" : "＋"}
+              </button>
+            )}
+          </div>
+          {sel && (album || []).some((a) => a.ref === sel) && (
+            <div className="fa-actions">
+              <button type="button" className="mini-btn" onClick={() => onSetRole(sel, "thumb")}>★ 一覧サムネに</button>
+              <button type="button" className="mini-btn" onClick={() => onSetRole(sel, "acquire")}>◎ 入手画像に</button>
+              {!atCap && <button type="button" className="mini-btn" onClick={() => setCropSrc((album.find((a) => a.ref === sel) || {}).src)}>✂ 切り抜き(新規)</button>}
+              {!atCap && <button type="button" className="mini-btn ai" onClick={() => {
+                if (!ai || !ai.key) { alert("設定タブで Gemini APIキーを入力してください"); return; }
+                setAiSrc((album.find((a) => a.ref === sel) || {}).src); setAiOpen(true);
+              }}>✨ AI変換(新規)</button>}
+              <button type="button" className="mini-btn ghost" onClick={() => {
+                if (window.confirm("この画像を削除しますか?")) { onRemoveImage(sel); setSel(null); }
+              }}>この画像を削除</button>
+            </div>
+          )}
+          <div className="fa-add-row">
+            <input placeholder="画像URLを追加" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} disabled={atCap} />
+            <button type="button" className="mini-btn" disabled={atCap}
+              onClick={() => { if (urlInput.trim()) { applyNewImage(urlInput.trim()); setUrlInput(""); } }}>追加</button>
+          </div>
+          <div className="fa-count">{(album || []).length} / {maxImgs} 枚{atCap ? "(上限)" : ""}</div>
+          <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={pickFile} />
+        </div>
+      ) : (
       <div className="form-img-row">
         <div className="form-img-box">
           {previewImg
@@ -2712,6 +2817,7 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
           <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={pickFile} />
         </div>
       </div>
+      )}
 
       <div className="fld-row name-row">
         <label className="fld grow2"><span>機体名 *</span><input value={f.name} onChange={set("name")} placeholder="例: νガンダム Ver.Ka" /></label>
@@ -2768,11 +2874,11 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
         {isCustom && onDelete && <button className="btn danger" onClick={onDelete}>この機体を削除</button>}
       </div>
       {cropSrc && <CropModal src={cropSrc} onCancel={() => setCropSrc(null)}
-        onDone={(out) => { setImgVal(out); setCropSrc(null); }} />}
-      {aiOpen && previewImg && (
-        <AIRestyleModal src={previewImg} apiKey={ai && ai.key} model={(ai && ai.model) || "gemini-2.5-flash-image"}
+        onDone={(out) => { applyNewImage(out); setCropSrc(null); }} />}
+      {aiOpen && (albumMode ? aiSrc : previewImg) && (
+        <AIRestyleModal src={albumMode ? aiSrc : previewImg} apiKey={ai && ai.key} model={(ai && ai.model) || "gemini-2.5-flash-image"}
           prompts={ai && ai.prompts}
-          onAdopt={(out) => { setImgVal(out); setAiOpen(false); }}
+          onAdopt={(out) => { applyNewImage(out); setAiOpen(false); }}
           onClose={() => setAiOpen(false)} />
       )}
     </div>
@@ -2866,6 +2972,8 @@ export default function App() {
   const [overrides, setOverrides] = useState({});
   const [customKits, setCustomKits] = useState([]);
   const [images, setImages] = useState({});
+  const [extras, setExtras] = useState({});       // 追加画像 {xid: src}
+  const [albumMeta, setAlbumMeta] = useState({});  // {kitId:{order,thumb,acquire,framing}}
   const [settings, setSettings] = useState({ view: "grid", compact: false, dimUnowned: true, showCode: true, showSeries: false, showPrice: true, showNo: false, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "low", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", geminiModel: "gemini-2.5-flash-image" });
   const [sortKey, setSortKey] = useState("year");
   const [sortDir, setSortDir] = useState("asc");
@@ -2880,7 +2988,8 @@ export default function App() {
   const [advOpen, setAdvOpen] = useState(false);
   const [seriesPickerOpen, setSeriesPickerOpen] = useState(false);
   const [adv, setAdv] = useState({ series: "", prem: "", stat: "", yFrom: "", yTo: "" }); // 進階篩選
-  const [viewer, setViewer] = useState(null); // 圖片鑑賞模式 src
+  const [viewer, setViewer] = useState(null); // 画像鑑賞: {kitId, idx} | null
+  const [viewerDel, setViewerDel] = useState(false); // 鑑賞内の削除確認
   const [planConfirm, setPlanConfirm] = useState(null); // 予定取消確認 kit
   const [ownConfirm, setOwnConfirm] = useState(null); // 入手取消確認 kit
   const [loaded, setLoaded] = useState(false);
@@ -2970,6 +3079,7 @@ export default function App() {
           if (d.sortKey) setSortKey(d.sortKey);
           if (d.sortDir) setSortDir(d.sortDir);
           if (d.achvSeen) setAchvSeen(d.achvSeen);
+          if (d.albumMeta) setAlbumMeta(d.albumMeta);
         }
       } catch (e) { /* 初次使用 */ }
       setAchvSeen((s) => (s === null ? {} : s));
@@ -2989,6 +3099,16 @@ export default function App() {
             if (r && r.value) {
               const m = JSON.parse(r.value);
               setImages((prev) => ({ ...m, ...prev }));
+            }
+          })
+          .catch(() => {});
+      }
+      for (let i = 0; i < XTRA_SHARDS; i++) {
+        window.storage.get("mg_xtra_" + i)
+          .then((r) => {
+            if (r && r.value) {
+              const m = JSON.parse(r.value);
+              setExtras((prev) => ({ ...m, ...prev }));
             }
           })
           .catch(() => {});
@@ -3051,7 +3171,7 @@ export default function App() {
     // 画像シャードが大きすぎるとクラウドの行/リクエスト上限を超え、永久に
     // 失敗→再送ループになり、しかも flushDirty の queue を塞ぐ。事前にサイズ確認し、
     // 超過分は本地保存のみとして dirty を外し、最適化を促す(圧縮後の保存で再送される)。
-    if (k.indexOf("mg_imgs_") === 0) {
+    if (k.indexOf("mg_imgs_") === 0 || k.indexOf("mg_xtra_") === 0) {
       let bytes;
       try { bytes = new Blob([pushVal]).size; } catch (e) { bytes = pushVal.length; }
       if (bytes > MAX_SYNC_BYTES) {
@@ -3160,11 +3280,11 @@ export default function App() {
   const latestMetaRef = useRef("");
   useEffect(() => {
     if (!loaded) return;
-    const payload = JSON.stringify({ schemaVersion: SCHEMA_VERSION, records, overrides, customKits, settings, sortKey, sortDir, achvSeen });
+    const payload = JSON.stringify({ schemaVersion: SCHEMA_VERSION, records, overrides, customKits, settings, sortKey, sortDir, achvSeen, albumMeta });
     latestMetaRef.current = payload; // 背景化/終了時に debounce を待たず即落とすための最新版
     const t = setTimeout(() => { saveKey(META_KEY, payload); }, 350);
     return () => clearTimeout(t);
-  }, [records, overrides, customKits, settings, sortKey, sortDir, achvSeen, loaded, saveKey]);
+  }, [records, overrides, customKits, settings, sortKey, sortDir, achvSeen, albumMeta, loaded, saveKey]);
 
   /* ── 背景化/終了の直前に未保存の META を即時 flush(debounce 350ms の取りこぼし防止)──
      visibilitychange→hidden は freeze 前に発火するため非同期書き込みも概ね間に合う。
@@ -3211,6 +3331,14 @@ export default function App() {
     await saveKey(key, JSON.stringify(map));
   }, [saveKey]);
 
+  /* 追加画像(extras)の保存。変更のあった xid が属するシャードのみ書き戻す。 */
+  const persistXtraShard = useCallback(async (allExtras, xid) => {
+    const key = xtraKey(xid);
+    const map = {};
+    for (const [k, v] of Object.entries(allExtras)) if (xtraKey(k) === key) map[k] = v;
+    await saveKey(key, JSON.stringify(map));
+  }, [saveKey]);
+
   const applyMeta = useCallback((raw) => {
     const d = migrateMeta(raw);
     if (!d || typeof d !== "object") return;
@@ -3221,6 +3349,7 @@ export default function App() {
     if (d.sortKey) setSortKey(d.sortKey);
     if (d.sortDir) setSortDir(d.sortDir);
     if (d.achvSeen) setAchvSeen(d.achvSeen);
+    if (d.albumMeta) setAlbumMeta((prev) => ({ ...prev, ...d.albumMeta }));
   }, []);
 
   const pullCloud = useCallback(async (cfg, force) => {
@@ -3251,6 +3380,15 @@ export default function App() {
             return { ...next, ...m };
           });
         } catch (e) { continue; }
+      } else if (row.key.indexOf("mg_xtra_") === 0) {
+        try {
+          const m = JSON.parse(row.value);
+          setExtras((prev) => {
+            const next = {};
+            for (const [ik, iv] of Object.entries(prev)) if (xtraKey(ik) !== row.key) next[ik] = iv;
+            return { ...next, ...m };
+          });
+        } catch (e) { continue; }
       } else continue;
       // 本地へ確実に落ちた時だけ時戳を進める。失敗時は時戳を据え置き、
       // 次回 pull で再適用させる(古い本地値に新時戳が付くのを防ぐ)。
@@ -3269,11 +3407,16 @@ export default function App() {
     setSyncMsg("同期中…");
     try {
       const nn = await pullCloud(cfg);
-      await saveKey(META_KEY, JSON.stringify({ schemaVersion: SCHEMA_VERSION, records, overrides, customKits, settings, sortKey, sortDir, achvSeen }));
+      await saveKey(META_KEY, JSON.stringify({ schemaVersion: SCHEMA_VERSION, records, overrides, customKits, settings, sortKey, sortDir, achvSeen, albumMeta }));
       for (let i = 0; i < IMG_SHARDS; i++) {
         const map = {};
         for (const [ik, iv] of Object.entries(images)) if (hashId(ik) % IMG_SHARDS === i) map[ik] = iv;
         await saveKey("mg_imgs_" + i, JSON.stringify(map));
+      }
+      for (let i = 0; i < XTRA_SHARDS; i++) {
+        const map = {};
+        for (const [ik, iv] of Object.entries(extras)) if (hashId(ik) % XTRA_SHARDS === i) map[ik] = iv;
+        await saveKey("mg_xtra_" + i, JSON.stringify(map));
       }
       setSyncMsg(`同期完了(受信 ${nn} 件)` + new Date().toLocaleTimeString());
     } catch (e) { setSyncMsg("同期エラー:" + ((e && e.message) || e)); }
@@ -3345,6 +3488,57 @@ export default function App() {
     });
   };
 
+  /* ── アルバム(複数画像)操作 ── */
+  // 新規画像を追加(extras へ)。上限チェック。成功で true。
+  const addAlbumImage = useCallback((kitId, src) => {
+    if (!src) return false;
+    if (albumRefs(kitId, images, extras, albumMeta).length >= MAX_IMGS_PER_KIT) {
+      alert(`画像は1機体あたり最大 ${MAX_IMGS_PER_KIT} 枚までです。`);
+      return false;
+    }
+    const xid = newXid(kitId);
+    setExtras((prev) => { const next = { ...prev, [xid]: src }; persistXtraShard(next, xid); return next; });
+    setAlbumMeta((prev) => {
+      const m = prev[kitId] || {};
+      const base = (m.order && m.order.length) ? m.order.slice() : albumRefs(kitId, images, extras, prev);
+      return { ...prev, [kitId]: { ...m, order: base.filter((r) => r !== xid).concat([xid]) } };
+    });
+    return true;
+  }, [images, extras, albumMeta, persistXtraShard]);
+
+  // アルバムから1枚削除(primary か extra)。役割/順序/構図も掃除。
+  const removeAlbumImage = useCallback((kitId, ref) => {
+    if (ref === "primary") {
+      setImages((prev) => { const next = { ...prev }; delete next[kitId]; persistShard(next, kitId); return next; });
+    } else {
+      setExtras((prev) => { const next = { ...prev }; delete next[ref]; persistXtraShard(next, ref); return next; });
+    }
+    setAlbumMeta((prev) => {
+      const m = prev[kitId] || {};
+      const clean = { ...m, order: (m.order || []).filter((r) => r !== ref) };
+      if (clean.thumb === ref) delete clean.thumb;
+      if (clean.acquire === ref) delete clean.acquire;
+      if (clean.framing && clean.framing[ref]) { clean.framing = { ...clean.framing }; delete clean.framing[ref]; }
+      return { ...prev, [kitId]: clean };
+    });
+  }, [persistShard, persistXtraShard]);
+
+  // 役割割り当て: role='thumb'|'acquire'
+  const setAlbumRole = useCallback((kitId, ref, role) => {
+    setAlbumMeta((prev) => { const m = prev[kitId] || {}; return { ...prev, [kitId]: { ...m, [role]: ref } }; });
+  }, []);
+
+  // 鑑賞モードを開く(入手指定の画像から)
+  const openViewer = useCallback((kitId) => {
+    const album = albumRefs(kitId, images, extras, albumMeta).map((ref) => ({ ref, src: refSrc(ref, kitId, images, extras) })).filter((e) => e.src);
+    if (!album.length) return;
+    const acqRef = pickRef("acquire", kitId, images, extras, albumMeta);
+    const i = album.findIndex((a) => a.ref === acqRef);
+    haptic();
+    setViewerDel(false);
+    setViewer({ kitId, idx: i < 0 ? 0 : i });
+  }, [images, extras, albumMeta]);
+
   /* ── 画像最適化:既存の大きな画像を480pxへ再圧縮 ── */
   const optimizeImages = async () => {
     if (optimizing) return;
@@ -3377,7 +3571,35 @@ export default function App() {
           await saveKey("mg_imgs_" + i, JSON.stringify(map));
         }
       }
-      alert(changed ? `${changed} 枚の画像を再圧縮しました` : "再圧縮が必要な画像はありませんでした");
+      // 追加画像(extras)も同様に再圧縮
+      const nextX = { ...extras };
+      let changedX = 0;
+      for (const [id, url] of Object.entries(extras)) {
+        if (typeof url !== "string" || !url.startsWith("data:")) continue;
+        const out = await new Promise((res) => {
+          const im = new Image();
+          im.onload = () => {
+            if (im.width <= 480) return res(null);
+            const c = document.createElement("canvas");
+            c.width = 480; c.height = Math.round(im.height * (480 / im.width));
+            c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
+            res(c.toDataURL("image/jpeg", 0.74));
+          };
+          im.onerror = () => res(null);
+          im.src = url;
+        });
+        if (out && out.length < url.length) { nextX[id] = out; changedX++; }
+      }
+      if (changedX) {
+        setExtras(nextX);
+        for (let i = 0; i < XTRA_SHARDS; i++) {
+          const map = {};
+          for (const [k, v] of Object.entries(nextX)) if (hashId(k) % XTRA_SHARDS === i) map[k] = v;
+          await saveKey("mg_xtra_" + i, JSON.stringify(map));
+        }
+      }
+      const total = changed + changedX;
+      alert(total ? `${total} 枚の画像を再圧縮しました` : "再圧縮が必要な画像はありませんでした");
     } finally { setOptimizing(false); }
   };
 
@@ -3500,7 +3722,7 @@ export default function App() {
   const importRef = useRef(null);
   const exportData = async () => {
     // バックアップにも機密キーは含めない(端末ローカルにのみ残す)
-    const data = { schemaVersion: SCHEMA_VERSION, exportedAt: new Date().toISOString(), records, overrides, customKits, settings: stripSecrets(settings), sortKey, sortDir, images };
+    const data = { schemaVersion: SCHEMA_VERSION, exportedAt: new Date().toISOString(), records, overrides, customKits, settings: stripSecrets(settings), sortKey, sortDir, images, extras, albumMeta };
     const json = JSON.stringify(data);
     const name = `mg_zukan_backup_${new Date().toISOString().slice(0, 10)}.json`;
     const file = new File([json], name, { type: "application/json" });
@@ -3540,6 +3762,15 @@ export default function App() {
           await saveKey("mg_imgs_" + i, JSON.stringify(map));
         }
       }
+      if (d.extras && isPlainObj(d.extras)) {
+        setExtras(d.extras);
+        for (let i = 0; i < XTRA_SHARDS; i++) {
+          const map = {};
+          for (const [k, v] of Object.entries(d.extras)) if (hashId(k) % XTRA_SHARDS === i) map[k] = v;
+          await saveKey("mg_xtra_" + i, JSON.stringify(map));
+        }
+      }
+      if (d.albumMeta && isPlainObj(d.albumMeta)) setAlbumMeta(d.albumMeta);
       alert("バックアップの読み込みが完了しました");
     } catch (err) { console.error(err); alert("読み込みに失敗しました(ファイル形式を確認してください)"); }
     e.target.value = "";
@@ -3556,6 +3787,12 @@ export default function App() {
     [allKits]);
 
   const getRec = useCallback((id) => records[id] || { owned: false, plan: false, purchaseDate: "", buildDate: "" }, [records]);
+
+  /* アルバム解決の薄いラッパ(現在の state を閉じ込め) */
+  const thumbSrc = useCallback((id) => thumbSrcOf(id, images, extras, albumMeta), [images, extras, albumMeta]);
+  const acquireSrc = useCallback((id) => acquireSrcOf(id, images, extras, albumMeta), [images, extras, albumMeta]);
+  const kitAlbum = useCallback((id) => albumRefs(id, images, extras, albumMeta)
+    .map((ref) => ({ ref, src: refSrc(ref, id, images, extras) })).filter((e) => e.src), [images, extras, albumMeta]);
   const setRec = (id, patch) => setRecords((r) => {
     const cur = r[id] || { owned: false, plan: false, purchaseDate: "", buildDate: "" };
     return { ...r, [id]: stampRec(cur, patch, new Date().toISOString()) };
@@ -3603,7 +3840,7 @@ export default function App() {
       return d && d.slice(0, 4) === ty && Number(k.price) > 0 ? s + Number(k.price) : s;
     }, 0);
     const prem = owned.filter((k) => k.premium).length;
-    const sighted = owned.filter((k) => images[k.id]).length;
+    const sighted = owned.filter((k) => hasAnyImage(k.id, images, extras)).length;
     const pcv = (v) => Math.round((v / owned.length) * 100);
     const list = [];
     list.push({ id: "total", label: "収蔵総数", value: `${owned.length}体`, sub: "" });
@@ -3622,7 +3859,7 @@ export default function App() {
     if (sArr.length) list.push({ id: "lowser", label: "収蔵最少の作品", value: sArr[sArr.length - 1][0], sub: `${sArr[sArr.length - 1][1]}体` });
     if (yArr.length) list.push({ id: "topyear", label: "購入最多の年", value: `${yArr[0][0]}年`, sub: `${yArr[0][1]}体` });
     return list.map((x) => ({ ...x, key: x.value + "|" + x.sub }));
-  }, [allKits, records, getRec, images]);
+  }, [allKits, records, getRec, images, extras]);
 
   useEffect(() => {
     if (!loaded || !achvSeen || achvSeen.__b) return;
@@ -3839,7 +4076,7 @@ export default function App() {
   const Card = ({ kit }) => {
     const rec = getRec(kit.id);
     const dim = settings.dimUnowned && !rec.owned && !rec.plan;
-    const img = images[kit.id];
+    const img = thumbSrc(kit.id);
     const longPress = makeLongPress(() => {
       if (rec.owned) { haptic(); return; } // 已入手:無效輕震
       if (rec.plan && collMode === "plan" && tab === "collection") {
@@ -4407,12 +4644,52 @@ export default function App() {
         </div>
       )}
 
-      {viewer && (
-        <div className="viewer-bg" onClick={() => setViewer(null)}>
-          <PinchZoom src={viewer} className="viewer-pz" imgClassName="viewer-img" resetKey={viewer} onTap={() => setViewer(null)} />
-          <button className="viewer-x" onClick={() => setViewer(null)}>✕</button>
-        </div>
-      )}
+      {viewer && (() => {
+        const album = kitAlbum(viewer.kitId);
+        if (!album.length) { setTimeout(() => { setViewer(null); setViewerDel(false); }, 0); return null; }
+        const close = () => { setViewer(null); setViewerDel(false); };
+        const idx = Math.min(viewer.idx, album.length - 1);
+        const cur = album[idx];
+        const thumbRef = pickRef("thumb", viewer.kitId, images, extras, albumMeta);
+        const acqRef = pickRef("acquire", viewer.kitId, images, extras, albumMeta);
+        const go = (d) => { setViewerDel(false); setViewer((v) => ({ ...v, idx: (idx + d + album.length) % album.length })); };
+        return (
+          <div className="viewer-bg" onClick={close}>
+            <PinchZoom src={cur.src} className="viewer-pz" imgClassName="viewer-img" resetKey={cur.ref}
+              onTap={close} onSwipe={album.length > 1 ? go : undefined} />
+            {album.length > 1 && <>
+              <button className="viewer-nav prev" onClick={(e) => { e.stopPropagation(); go(-1); }}>‹</button>
+              <button className="viewer-nav next" onClick={(e) => { e.stopPropagation(); go(1); }}>›</button>
+              <div className="viewer-dots" onClick={(e) => e.stopPropagation()}>
+                {album.map((a, i) => <span key={a.ref} className={"vd" + (i === idx ? " on" : "")}
+                  onClick={() => { setViewerDel(false); setViewer((v) => ({ ...v, idx: i })); }} />)}
+              </div>
+            </>}
+            <button className="viewer-x" onClick={(e) => { e.stopPropagation(); close(); }}>✕</button>
+            <div className="viewer-bar" onClick={(e) => e.stopPropagation()}>
+              <span className="vb-count">{idx + 1} / {album.length}</span>
+              <button className={"vb-btn" + (cur.ref === thumbRef ? " on" : "")}
+                onClick={() => setAlbumRole(viewer.kitId, cur.ref, "thumb")}>★ 一覧</button>
+              <button className={"vb-btn" + (cur.ref === acqRef ? " on" : "")}
+                onClick={() => setAlbumRole(viewer.kitId, cur.ref, "acquire")}>◎ 入手</button>
+              <button className="vb-btn del" onClick={() => setViewerDel(true)}>削除</button>
+            </div>
+            {viewerDel && (
+              <div className="viewer-confirm" onClick={(e) => e.stopPropagation()}>
+                <span>この画像を削除しますか?</span>
+                <div className="vc-btns">
+                  <button className="btn danger solid" onClick={() => {
+                    removeAlbumImage(viewer.kitId, cur.ref);
+                    setViewerDel(false);
+                    setViewer((v) => (album.length - 1 <= 0 ? null : { ...v, idx: Math.min(v.idx, album.length - 2) }));
+                  }}>削除する</button>
+                  <button className="btn" onClick={() => setViewerDel(false)}>やめる</button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       <SeriesPicker open={seriesPickerOpen} value={adv.series} options={seriesList}
         onPick={(v) => { setAdv((a) => ({ ...a, series: v })); setSeriesPickerOpen(false); }}
@@ -4434,10 +4711,10 @@ export default function App() {
                     <span className="tc-name"><KitName name={detailKit.name} /></span>
                   </div>
                 </div>
-                <div className={"tc-art square" + (images[detailKit.id] ? " has-photo" : "")}>
-                  {images[detailKit.id]
-                    ? <PinchZoom src={images[detailKit.id]} alt={detailKit.name} className="tc-pz" imgClassName="kit-img tc"
-                        resetKey={detailKit.id} onTap={() => { haptic(); setViewer(images[detailKit.id]); }} />
+                <div className={"tc-art square" + (acquireSrc(detailKit.id) ? " has-photo" : "")}>
+                  {acquireSrc(detailKit.id)
+                    ? <PinchZoom src={acquireSrc(detailKit.id)} alt={detailKit.name} className="tc-pz" imgClassName="kit-img tc"
+                        resetKey={detailKit.id} onTap={() => { openViewer(detailKit.id); }} />
                     : <KitImage kit={detailKit} img={null} owned={detailRec.owned} built={!!detailRec.buildDate} size={150} cls="tc" />}
                   <div className="tc-scan" aria-hidden="true">
                     {settings.crtScan !== false && <>
@@ -4445,14 +4722,13 @@ export default function App() {
                       <span className="crt-beam beam2" style={{ animationDelay: beamDelay[1] + "s" }} />
                     </>}
                   </div>
-                  {images[detailKit.id] && settings.vfFilter !== false && (
+                  {acquireSrc(detailKit.id) && settings.vfFilter !== false && (
                     <div className="vf-overlay" aria-hidden="true">
                       <span className="vf-corner tl" /><span className="vf-corner tr" />
                       <span className="vf-corner bl" /><span className="vf-corner br" />
                       <span className="vf-focus" />
                     </div>
                   )}
-                  {images[detailKit.id] && <span className="zoom-hint">⤢</span>}
                 </div>
                 <div className="tc-info tappable" onClick={() => { setDetail(null); setEditing(false); }}>
                   <div className="tc-row"><span>原作</span><b>{detailKit.series || "—"}</b></div>
@@ -4493,6 +4769,13 @@ export default function App() {
                   ai={{ key: settings.geminiKey, model: settings.geminiModel, prompts: settings.aiPrompts }}
                   initial={detailKit}
                   currentImg={images[detailKit.id]}
+                  album={kitAlbum(detailKit.id)}
+                  onAddImage={(src) => addAlbumImage(detailKit.id, src)}
+                  onRemoveImage={(ref) => removeAlbumImage(detailKit.id, ref)}
+                  onSetRole={(ref, role) => setAlbumRole(detailKit.id, ref, role)}
+                  thumbRef={pickRef("thumb", detailKit.id, images, extras, albumMeta)}
+                  acqRef={pickRef("acquire", detailKit.id, images, extras, albumMeta)}
+                  maxImgs={MAX_IMGS_PER_KIT}
                   isCustom={detailKit.line === "CUSTOM"}
                   recInitial={detailRec.owned ? detailRec : null}
                   onSaveRec={(dates) => setRec(detailKit.id, dates)}
@@ -4624,6 +4907,7 @@ const CSS = `
   --ink:#e7e2d6; --ink-strong:#f2ede1; --ink-mid:#9aa0ae; --ink-dim:#565d6e;
   --shu:#e8553d; --shu-deep:#b13a28; --gold:#d9b36a; --teal:#6fd3c7;
   --kin:#d9b36a; --kin-deep:#b8924a; --blue:#6f9fe0;
+  --crt-line:#5f9c92;
   --serif:'Shippori Mincho',serif; --sans:'Zen Kaku Gothic New',sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -4725,12 +5009,15 @@ input,textarea{font-family:var(--sans)}
   border-radius:8px;padding:8px 12px;text-align:left;transition:border-color .12s}
 .row:hover{border-left-color:var(--shu)}
 .row.dim{opacity:.45}
-.row-sketch{flex:none;width:46px;display:flex;justify-content:center;position:relative}
+.row-sketch{flex:none;width:44px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;position:relative}
+.row-sketch svg{width:100%;height:100%;display:block}
 /* 6. 未入手のベクター(リスト)を静的CRT画面風に:走査線+ノイズ+ビネット(アニメ無し) */
 .row-sketch.crt-mini{border-radius:6px;overflow:hidden;
   background:radial-gradient(ellipse at 50% 45%,rgba(111,211,199,.08),transparent 70%),#0b1014;
   box-shadow:inset 0 0 14px 3px rgba(0,0,0,.55)}
-.row-sketch.crt-mini svg{position:relative;z-index:1;filter:drop-shadow(0 0 1.4px rgba(111,211,199,.32))}
+.row-sketch.crt-mini svg{position:relative;z-index:1;filter:drop-shadow(0 0 1.4px rgba(111,211,199,.3))}
+.row-sketch.crt-mini svg [stroke]{stroke:var(--crt-line)}
+.row-sketch.crt-mini svg [fill]:not([fill="none"]){fill:var(--crt-line)}
 .row-sketch.crt-mini::before{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;
   background:repeating-linear-gradient(0deg,rgba(0,0,0,.30) 0 1px,transparent 1px 3px)}
 .row-sketch.crt-mini::after{content:"";position:absolute;inset:0;z-index:3;pointer-events:none;opacity:.13;background-size:70px 70px;
@@ -4816,15 +5103,16 @@ input,textarea{font-family:var(--sans)}
 /* 7. 観景窗(ビューファインダー)風オーバーレイ:四隅フレーム+中央フォーカス円+ビネット */
 .tc-art>.vf-overlay{position:absolute;inset:0;z-index:4;pointer-events:none;
   background:radial-gradient(ellipse 80% 80% at 50% 50%,transparent 55%,rgba(0,0,0,.44) 100%)}
-.vf-corner{position:absolute;width:20px;height:20px;border:2px solid rgba(255,255,255,.82);
-  filter:drop-shadow(0 0 1px rgba(0,0,0,.6))}
+.vf-corner{position:absolute;width:19px;height:19px;border:1.5px solid rgba(111,211,199,.5);
+  filter:drop-shadow(0 0 2.5px rgba(111,211,199,.5)) drop-shadow(0 0 1px rgba(0,0,0,.45))}
 .vf-corner.tl{top:11px;left:11px;border-right:none;border-bottom:none}
 .vf-corner.tr{top:11px;right:11px;border-left:none;border-bottom:none}
 .vf-corner.bl{bottom:11px;left:11px;border-right:none;border-top:none}
 .vf-corner.br{bottom:11px;right:11px;border-left:none;border-top:none}
 .vf-focus{position:absolute;top:50%;left:50%;width:48px;height:48px;transform:translate(-50%,-50%);
-  border:1.5px solid rgba(255,255,255,.72);border-radius:50%;filter:drop-shadow(0 0 1px rgba(0,0,0,.6))}
-.vf-focus::before,.vf-focus::after{content:"";position:absolute;background:rgba(255,255,255,.7)}
+  border:1.5px solid rgba(111,211,199,.42);border-radius:50%;
+  filter:drop-shadow(0 0 2.5px rgba(111,211,199,.42)) drop-shadow(0 0 1px rgba(0,0,0,.45))}
+.vf-focus::before,.vf-focus::after{content:"";position:absolute;background:rgba(111,211,199,.5)}
 .vf-focus::before{left:50%;top:-6px;bottom:-6px;width:1px;transform:translateX(-50%)}
 .vf-focus::after{top:50%;left:-6px;right:-6px;height:1px;transform:translateY(-50%)}
 /* 8. ビューア(全画面)のピンチズーム容器。移動なしのタップで閉じ、ピンチ/パンは維持 */
@@ -4987,6 +5275,28 @@ input,textarea{font-family:var(--sans)}
 .viewer-x{position:fixed;top:calc(14px + env(safe-area-inset-top));right:16px;
   width:38px;height:38px;border-radius:50%;background:rgba(20,24,32,.85);
   border:1px solid var(--line);color:var(--ink);font-size:16px}
+.viewer-nav{position:fixed;top:50%;transform:translateY(-50%);z-index:122;width:44px;height:64px;
+  display:flex;align-items:center;justify-content:center;font-size:30px;line-height:1;
+  background:rgba(20,24,32,.5);border:1px solid var(--line);color:var(--ink);border-radius:10px}
+.viewer-nav.prev{left:10px}
+.viewer-nav.next{right:10px}
+.viewer-dots{position:fixed;left:0;right:0;bottom:calc(86px + env(safe-area-inset-bottom));z-index:122;
+  display:flex;gap:7px;justify-content:center}
+.viewer-dots .vd{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.32);transition:all .15s}
+.viewer-dots .vd.on{background:var(--teal);transform:scale(1.25)}
+.viewer-bar{position:fixed;left:50%;transform:translateX(-50%);z-index:122;
+  bottom:calc(26px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:8px;
+  background:rgba(20,24,32,.92);border:1px solid var(--line);border-radius:12px;padding:7px 10px;backdrop-filter:blur(6px)}
+.vb-count{font-variant-numeric:tabular-nums;font-size:12px;color:var(--ink-mid);padding:0 4px;letter-spacing:.05em}
+.vb-btn{font-size:12px;font-weight:700;color:var(--ink);background:var(--panel);
+  border:1px solid var(--line);border-radius:8px;padding:7px 11px}
+.vb-btn.on{border-color:var(--teal);color:var(--teal);background:rgba(111,211,199,.12)}
+.vb-btn.del{color:var(--shu);border-color:rgba(232,85,61,.4)}
+.viewer-confirm{position:fixed;left:50%;transform:translateX(-50%);z-index:123;
+  bottom:calc(86px + env(safe-area-inset-bottom));background:var(--panel);border:1px solid var(--line);
+  border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;align-items:center;
+  font-size:13px;color:var(--ink);box-shadow:0 12px 40px rgba(0,0,0,.5)}
+.viewer-confirm .vc-btns{display:flex;gap:8px}
 
 .date-fields{display:flex;gap:10px;margin-top:14px}
 .date-fields label{flex:1;display:flex;flex-direction:column;gap:6px;font-size:11px;
@@ -5025,6 +5335,24 @@ input,textarea{font-family:var(--sans)}
 
 .form{display:flex;flex-direction:column;gap:12px}
 .form-img-row{display:flex;gap:14px;align-items:flex-start}
+.form-album{display:flex;flex-direction:column;gap:9px}
+.form-album-strip{display:flex;gap:8px;flex-wrap:wrap}
+.fa-thumb{position:relative;width:72px;height:72px;border-radius:8px;overflow:hidden;
+  border:1px solid var(--line);background:var(--panel);padding:0}
+.fa-thumb.sel{border-color:var(--shu);box-shadow:0 0 0 2px rgba(232,85,61,.35)}
+.fa-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.fa-badge{position:absolute;top:2px;font-size:10px;font-weight:700;line-height:1;padding:2px 4px;border-radius:5px;
+  background:rgba(13,16,24,.82)}
+.fa-badge.t{left:2px;color:var(--teal)}
+.fa-badge.a{right:2px;color:var(--gold)}
+.fa-add{width:72px;height:72px;border-radius:8px;border:1px dashed var(--line);background:var(--panel);
+  color:var(--ink-mid);font-size:22px;display:flex;align-items:center;justify-content:center}
+.fa-actions{display:flex;flex-wrap:wrap;gap:6px}
+.fa-actions .mini-btn{flex:none;padding:7px 9px}
+.fa-add-row{display:flex;gap:6px}
+.fa-add-row input{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:7px;
+  padding:8px 10px;font-size:12px;color:var(--ink)}
+.fa-count{font-size:11px;color:var(--ink-dim);letter-spacing:.04em}
 .form-img-box{flex:none;width:96px;height:96px;display:flex;align-items:center;justify-content:center;
   background:var(--panel);border:1px dashed var(--line);border-radius:8px;overflow:hidden}
 .form-img-btns{flex:1;display:flex;flex-direction:column;gap:7px}
