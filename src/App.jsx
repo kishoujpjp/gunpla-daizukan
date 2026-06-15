@@ -2247,45 +2247,42 @@ function CRTPlaceholder() {
   );
 }
 
-/* 機体名:長い場合は最初の括弧前で1回だけ改行候補を入れ、空白・括弧優先で折り返す */
-/* 機体名:第一個括號「前」換行(keep-all,空白/括號優先,行數不會被多撐)。
-   單一連續長字串(無空白/括號可斷)真的溢出時,才由 JS 退回任意斷行避免溢框。 */
-/* 機体名:量測後決定是否在「第一個括號前」強制換行。
-   規則 — 只有當「括號前強制換行」不會讓總行數增加時才採用,
-   因此括號一定落到下一行行首、且絕不多撐一行。括號後過長則在其內部折行。 */
+/* 機体名の折返し(列表・詳細共通):
+   「本体＋(注釈)…」を括弧群ごとに分節し、各 top-level の開き括弧の「前」だけに
+   改行候補(<wbr>)を置く。CSS 側の line-break:strict(禁則処理)と併用することで——
+   ・片仮名/漢字の語は keep-all で途中で割らない
+   ・括弧群は塊で次行へ送る(開き括弧の直後・閉じ括弧の直前では切れない=禁則)
+   ・連続括弧 (A)(B)(C) も各群が独立して綺麗に折返す
+   ——を構造的に保証する。括弧群「単体」が行幅を超える稀な場合だけ、
+   overflow-wrap が群内を緊急折返しするが、それでも禁則で括弧は孤立しない。
+   旧実装の隠し量測+「最初の括弧前で1回だけ強制改行」は、第2括弧以降の禁則が
+   効かず連続括弧・括弧直後改行で崩れていたため廃止。 */
+const NAME_OPEN_BR = "(（[［〔｢「『【《〈{｛";
+const NAME_CLOSE_BR = ")）]］〕｣」』】》〉}｝";
+function splitNameAtBrackets(name) {
+  const out = [];
+  let buf = "", depth = 0;
+  for (const ch of name) {
+    const isOpen = NAME_OPEN_BR.indexOf(ch) !== -1;
+    const isClose = NAME_CLOSE_BR.indexOf(ch) !== -1;
+    if (isOpen && depth === 0 && buf) { out.push(buf); buf = ch; depth = 1; }
+    else {
+      if (isOpen) depth++;
+      else if (isClose && depth > 0) depth--;
+      buf += ch;
+    }
+  }
+  if (buf) out.push(buf);
+  return out;
+}
 function KitName({ name }) {
-  const ref = useRef(null);
-  const [broken, setBroken] = useState(false);
-  const bi = useMemo(() => {
-    const c = ["(", "（"].map((x) => name.indexOf(x)).filter((x) => x > 0);
-    return c.length ? Math.min(...c) : -1;
-  }, [name]);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    const par = el && el.parentElement;
-    if (!par || bi <= 0) { setBroken(false); return; }
-    const w = par.clientWidth;
-    if (!w) return;
-    const cs = getComputedStyle(par);
-    const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.35;
-    const m = document.createElement("div");
-    m.style.cssText = "position:absolute;left:-99999px;top:0;visibility:hidden;white-space:normal;"
-      + "word-break:keep-all;overflow-wrap:anywhere;width:" + w + "px";
-    m.style.fontFamily = cs.fontFamily; m.style.fontSize = cs.fontSize;
-    m.style.fontWeight = cs.fontWeight; m.style.letterSpacing = cs.letterSpacing;
-    m.style.lineHeight = cs.lineHeight;
-    document.body.appendChild(m);
-    const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    m.innerHTML = esc(name);
-    const linesPlain = Math.round(m.offsetHeight / lh);
-    m.innerHTML = esc(name.slice(0, bi)) + "<br>" + esc(name.slice(bi));
-    const linesForced = Math.round(m.offsetHeight / lh);
-    document.body.removeChild(m);
-    setBroken(linesForced <= linesPlain);
-  }, [name, bi]);
+  const parts = useMemo(() => splitNameAtBrackets(name || ""), [name]);
+  if (parts.length <= 1) return <span className="kn">{name}</span>;
   return (
-    <span ref={ref} className="kn">
-      {broken ? (<>{name.slice(0, bi)}<br />{name.slice(bi)}</>) : name}
+    <span className="kn">
+      {parts.map((p, i) => (
+        <React.Fragment key={i}>{i > 0 && <wbr />}{p}</React.Fragment>
+      ))}
     </span>
   );
 }
@@ -2825,6 +2822,7 @@ export default function App() {
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
   const [collMode, setCollMode] = useState("owned"); // owned=収蔵 / plan=予定
+  const [anaMode, setAnaMode] = useState("record");  // record=記録(記錄) / analysis=分析
   const [advOpen, setAdvOpen] = useState(false);
   const [seriesPickerOpen, setSeriesPickerOpen] = useState(false);
   const [adv, setAdv] = useState({ series: "", prem: "", stat: "", yFrom: "", yTo: "" }); // 進階篩選
@@ -3929,6 +3927,8 @@ export default function App() {
 
           return (
             <>
+              {anaMode === "record" ? (
+              <>
               <div className="builder-line">
                 <span>BUILDER<b>{settings.builderName || "—"}</b></span>
                 <span>ガンプラ歴<b>{careerStr(settings.builderSince)}</b></span>
@@ -3956,7 +3956,9 @@ export default function App() {
                   })}
                 </div>
               </section>
-
+              </>
+              ) : (
+              <>
               <section className="ana-sec">
                 <div className="year-head"><span className="year-num">構成比</span><span className="year-rule" /><span className="year-count">作品別・Grade別</span></div>
                 <div className="pie-wrap">
@@ -4009,6 +4011,8 @@ export default function App() {
                 </div>
               </section>
               <p className="footnote">※ 金額は税込定価ベースの集計です(実購入額ではありません)。発売数推移のみ図鑑収録データ全体、その他は「入手済み」記録のみから算出。</p>
+              </>
+              )}
             </>
           );
         })()}
@@ -4333,21 +4337,27 @@ export default function App() {
         {[
           ["zukan", "図鑑", "▦"],
           ["collection", collMode === "plan" ? "予定" : "収蔵", collMode === "plan" ? "◆" : "✦"],
-          ["analysis", "分析", "◔"],
+          ["analysis", anaMode === "analysis" ? "分析" : "紀錄", anaMode === "analysis" ? "▥" : "◔"],
           ["settings", "設定", "⚙"],
         ].map(([k, label, icon]) => {
-          const collLP = k === "collection"
+          // 収蔵タブ:長押しで 収蔵↔予定 / 分析タブ:長押しで 紀錄↔分析(どちらも該当タブへ移動)
+          const lp = k === "collection"
             ? makeLongPress(() => { hapticStrong(); setCollMode((m) => (m === "plan" ? "owned" : "plan")); changeTab("collection"); })
+            : k === "analysis"
+            ? makeLongPress(() => { hapticStrong(); setAnaMode((m) => (m === "analysis" ? "record" : "analysis")); changeTab("analysis"); })
             : {};
           return (
             <button key={k}
-              className={`tab ${tab === k ? "on" : ""} ${k === "collection" && collMode === "plan" ? "plan-tab" : ""}`}
+              className={`tab ${tab === k ? "on" : ""} `
+                + (k === "collection" && collMode === "plan" ? "plan-tab " : "")
+                + (k === "analysis" && anaMode === "analysis" ? "ana-tab " : "")}
               onClick={() => {
-                if (k === "collection" && consumeLP()) return;
+                if ((k === "collection" || k === "analysis") && consumeLP()) return;
                 if (k === "collection" && tab === "collection") { hapticStrong(); setCollMode((m) => (m === "plan" ? "owned" : "plan")); return; }
+                if (k === "analysis" && tab === "analysis") { hapticStrong(); setAnaMode((m) => (m === "analysis" ? "record" : "analysis")); return; }
                 changeTab(k); setConfirmReset(false);
               }}
-              {...collLP}>
+              {...lp}>
               <span className="tab-icon">{icon}</span>
               <span className="tab-label">{label}</span>
               {tab === k && <i className="tab-bar" />}
@@ -4368,7 +4378,7 @@ const CSS = `
   --line:#2a3042; --line-soft:#222837;
   --ink:#e7e2d6; --ink-strong:#f2ede1; --ink-mid:#9aa0ae; --ink-dim:#565d6e;
   --shu:#e8553d; --shu-deep:#b13a28; --gold:#d9b36a; --teal:#6fd3c7;
-  --kin:#d9b36a; --kin-deep:#b8924a;
+  --kin:#d9b36a; --kin-deep:#b8924a; --blue:#6f9fe0;
   --serif:'Shippori Mincho',serif; --sans:'Zen Kaku Gothic New',sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -4525,7 +4535,7 @@ input,textarea{font-family:var(--sans)}
   color:var(--ink-strong);flex:1;min-width:0;letter-spacing:.01em;
   word-break:keep-all;overflow-wrap:anywhere;
   text-shadow:0 1px 2px rgba(0,0,0,.3)}
-.kn{display:inline}
+.kn{display:inline;word-break:keep-all;line-break:strict;overflow-wrap:anywhere}
 .tc-head-rule{display:block;height:1px;margin:9px 0 7px;
   background:linear-gradient(90deg,rgba(184,146,74,.45),rgba(184,146,74,.1) 60%,transparent)}
 .tc-head-sub{display:flex;align-items:center;gap:6px;min-width:0}
@@ -4564,7 +4574,7 @@ input,textarea{font-family:var(--sans)}
 .tc-art>.tc-scan{z-index:2}
 .tc-scan .crt-beam{position:absolute;left:0;right:0;top:-22px;height:22px;
   background:linear-gradient(180deg,transparent,rgba(111,211,199,.3),transparent);
-  animation:crtbeam 3.2s linear infinite !important}
+  animation:crtbeam 6.4s linear infinite !important}
 .tc-scan .crt-beam.beam2{height:14px;background:linear-gradient(180deg,transparent,rgba(111,211,199,.18),transparent);
   animation:crtbeam 5.1s linear infinite !important;animation-delay:1.4s}
 @keyframes crtbeam{0%{top:-22px}100%{top:100%}}
@@ -4676,6 +4686,9 @@ input,textarea{font-family:var(--sans)}
 .tab.plan-tab .tab-icon,.tab.plan-tab .tab-label{color:var(--kin)}
 .tab.plan-tab.on .tab-icon,.tab.plan-tab.on .tab-label{color:var(--kin);filter:brightness(1.1)}
 .tab.plan-tab .tab-bar{background:var(--kin)}
+.tab.ana-tab .tab-icon,.tab.ana-tab .tab-label{color:var(--blue)}
+.tab.ana-tab.on .tab-icon,.tab.ana-tab.on .tab-label{color:var(--blue);filter:brightness(1.12)}
+.tab.ana-tab .tab-bar{background:var(--blue)}
 .head-stats b.kin{color:var(--kin)}
 
 /* ── 画像鑑賞モード ── */
@@ -4968,7 +4981,7 @@ input,textarea{font-family:var(--sans)}
   --bg:#efe9dc; --bg2:#f6f1e6; --panel:#fdfaf3; --panel2:#f3eee1;
   --line:#d6cdba; --line-soft:#e2dac8;
   --ink:#3b362e; --ink-strong:#241f18; --ink-mid:#7a7263; --ink-dim:#a89f8d;
-  --shu:#c2402a; --shu-deep:#9e3220; --gold:#9c763a; --teal:#1f8d81;
+  --shu:#c2402a; --shu-deep:#9e3220; --gold:#9c763a; --teal:#1f8d81; --blue:#3a6db0;
   background:
     radial-gradient(1100px 500px at 80% -10%, rgba(194,64,42,.06), transparent 60%),
     radial-gradient(800px 400px at -10% 30%, rgba(31,141,129,.05), transparent 60%),
