@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from "react";
 import { mergeRecMap, mergeArrStamped, stampRec, stampRecAll } from "./merge.js";
+import { ACHIEVEMENTS } from "./achievements-rules.js";
+import { evaluateAchievements } from "./achievements-engine.js";
 
 /* ─────────────────────────────────────────────────────────
    MG GUNPLA 図鑑・蒐集帖 v2
@@ -3104,6 +3106,10 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [achvSeen, setAchvSeen] = useState(null);
   const [achvPop, setAchvPop] = useState(null);
+  const [titleSeg, setTitleSeg] = useState("all");
+  const prevUnlockedRef = useRef(null);
+  const [toastQueue, setToastQueue] = useState([]);
+  const [toast, setToast] = useState(null);
   const [syncMsg, setSyncMsg] = useState("");
   const [storageErr, setStorageErr] = useState(""); // 端末保存失敗(容量不足等)の可視化
   const [setupOpen, setSetupOpen] = useState(false);
@@ -3985,12 +3991,71 @@ export default function App() {
     return list.map((x) => ({ ...x, key: x.value + "|" + x.sub }));
   }, [allKits, records, getRec, images, extras]);
 
+  /* ── 称号(成就)評価 ── */
+  const titles = useMemo(
+    () => evaluateAchievements(ACHIEVEMENTS, allKits, getRec),
+    [allKits, records]
+  );
+  const titleIsNew = useCallback(
+    (t) => !!achvSeen && achvSeen.__a === 1 && t.unlocked && !achvSeen["t:" + t.id],
+    [achvSeen]
+  );
+  const ackTitle = useCallback((id) => {
+    setAchvSeen((s) => ({ ...(s || {}), ["t:" + id]: 1 }));
+  }, []);
+
+  // 統計カード(殿堂)の初回ベースライン:既存値を保持してマージ
   useEffect(() => {
     if (!loaded || !achvSeen || achvSeen.__b) return;
-    const base = { __b: 1 };
-    achievements.forEach((x) => { base[x.id] = x.key; });
-    setAchvSeen(base);
+    setAchvSeen((s) => {
+      const base = { ...(s || {}), __b: 1 };
+      achievements.forEach((x) => { base[x.id] = x.key; });
+      return base;
+    });
   }, [loaded, achvSeen, achievements]);
+
+  // 称号の初回サイレント・ベースライン:既達成を静かに「確認済み」化(初回トースト抑止)
+  useEffect(() => {
+    if (!loaded || !achvSeen || achvSeen.__a) return;
+    setAchvSeen((s) => {
+      const base = { ...(s || {}), __a: 1 };
+      titles.forEach((t) => { if (t.unlocked) base["t:" + t.id] = 1; });
+      return base;
+    });
+  }, [loaded, achvSeen, titles]);
+
+  // 称号の新規解錠を検知 → トーストキューへ(初回 seed 前は基準のみ)
+  useEffect(() => {
+    if (!loaded) return;
+    const curSet = new Set(titles.filter((t) => t.unlocked).map((t) => t.id));
+    const prev = prevUnlockedRef.current;
+    if (prev === null || !achvSeen || !achvSeen.__a) {
+      prevUnlockedRef.current = curSet;
+      return;
+    }
+    const newly = titles.filter((t) => t.unlocked && !prev.has(t.id)).map((t) => t.id);
+    prevUnlockedRef.current = curSet;
+    if (newly.length) setToastQueue((q) => [...q, ...newly]);
+  }, [titles, loaded, achvSeen]);
+
+  // キューを1件ずつ表示
+  useEffect(() => {
+    if (toast || !toastQueue.length) return;
+    const id = toastQueue[0];
+    const t = titles.find((x) => x.id === id);
+    setToastQueue((q) => q.slice(1));
+    if (!t) return;
+    hapticStrong();
+    setAchvPop("t:" + id);
+    setToast(t);
+  }, [toast, toastQueue, titles]);
+
+  // 3.2 秒で自動的に次へ(タップでも次へ)
+  useEffect(() => {
+    if (!toast) return;
+    const tm = setTimeout(() => { setToast(null); setAchvPop(null); }, 3200);
+    return () => clearTimeout(tm);
+  }, [toast]);
 
   const searchIndex = useMemo(() => {
     const m = {};
@@ -4314,6 +4379,20 @@ export default function App() {
         </div>
       )}
 
+      {/* 称号 解錠トースト */}
+      {toast && (
+        <button className="title-toast"
+          onClick={() => { setToast(null); setAchvPop(null); }}>
+          <span className="tt-seal">達成</span>
+          <div className="tt-body">
+            <div className="tt-kicker">称号獲得</div>
+            <div className="tt-name">{toast.name}</div>
+            <div className="tt-sub">{toast.sub}</div>
+          </div>
+          {toastQueue.length > 0 && <span className="tt-more">+{toastQueue.length}</span>}
+        </button>
+      )}
+
       <header className="head">
         <div className="head-line" />
         <div className="head-row">
@@ -4488,6 +4567,69 @@ export default function App() {
               {builderRow}
               {anaMode === "record" ? (
               <>
+              {(() => {
+                const segs = [["all", "すべて"], ["combo", "組合せ"], ["count", "収集"], ["meta", "メタ"]];
+                const inSeg = (t) => titleSeg === "all" ? true
+                  : titleSeg === "combo" ? (t.group === "combo" || t.group === "single")
+                  : t.group === titleSeg;
+                const rank = (t) => (t.unlocked ? 2 : (t.cur > 0 ? 0 : 1));
+                const list = titles.filter(inSeg).slice().sort((a, b) => {
+                  const r = rank(a) - rank(b);
+                  if (r !== 0) return r;
+                  if (rank(a) === 0) return (b.cur / b.need) - (a.cur / a.need);
+                  return 0;
+                });
+                const got = titles.filter((t) => t.unlocked).length;
+                const newN = titles.filter(titleIsNew).length;
+                const pct = Math.round(got / Math.max(1, titles.length) * 100);
+                return (
+                  <section className="ana-sec">
+                    <div className="year-head">
+                      <span className="year-num">称号</span><span className="year-rule" />
+                      <span className="year-count">{got} / {titles.length}{newN > 0 ? `\u3000NEW ${newN}` : ""}</span>
+                    </div>
+                    <div className="title-prog"><div className="hp-track"><i style={{ width: `${pct}%` }} /></div></div>
+                    <div className="adv-seg title-seg">
+                      {segs.map(([v, l]) => (
+                        <button key={v} className={"adv-seg-btn" + (titleSeg === v ? " on" : "")}
+                          onClick={() => { haptic(); setTitleSeg(v); }}>{l}</button>
+                      ))}
+                    </div>
+                    <div className="title-grid">
+                      {list.map((t) => {
+                        const isNew = titleIsNew(t);
+                        const hiddenLocked = t.hidden && !t.unlocked;
+                        const remain = Math.max(0, t.need - t.cur);
+                        return (
+                          <button key={t.id}
+                            className={"title-card " + (t.unlocked ? "unlocked" : "locked")
+                              + (isNew ? " new" : "") + (achvPop === "t:" + t.id ? " pop" : "")}
+                            onClick={() => { haptic(); setAchvPop("t:" + t.id);
+                              setTimeout(() => setAchvPop(null), 500); ackTitle(t.id); }}>
+                            {t.unlocked
+                              ? <span className="title-seal">達成</span>
+                              : <span className="title-chip crt"><span className="qm">？</span></span>}
+                            <div className="title-body">
+                              <div className="title-name">{hiddenLocked ? "？？？" : t.name}</div>
+                              {!hiddenLocked && <div className="title-sub">{t.sub}</div>}
+                              {!t.unlocked && t.need > 1 && (
+                                <div className="title-foot">
+                                  <div className="hp-track"><i style={{ width: `${Math.round(t.cur / t.need * 100)}%` }} /></div>
+                                  <span className="title-need">あと{remain}</span>
+                                </div>
+                              )}
+                              {!t.unlocked && t.need === 1 && (
+                                <div className="title-foot"><span className="title-need locked-tag">未達成</span></div>
+                              )}
+                            </div>
+                            {isNew && <i className="achv-dot title-dot" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+                );
+              })()}
               <section className="ana-sec">
                 <div className="year-head"><span className="year-num">記録</span><span className="year-rule" /><span className="year-count">RECORDS</span></div>
                 <div className="achv-grid">
@@ -6088,5 +6230,53 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 }
 /* ═══ v3.8:初期復元 ═══ */
 .setup-note{font-size:12px;color:var(--ink-mid);line-height:1.8;margin-bottom:12px}
+/* ═══ 称号(成就)システム ═══ */
+.title-prog{margin:2px 2px 10px}
+.title-seg{margin-bottom:12px}
+.title-grid{display:flex;flex-direction:column;gap:9px}
+.title-card{position:relative;display:flex;gap:12px;align-items:center;
+  background:linear-gradient(160deg,var(--panel2),var(--panel));
+  border:1px solid var(--line);border-radius:10px;padding:11px 12px;text-align:left;overflow:hidden;
+  clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,0 100%);
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1),border-color .12s}
+.title-card:active{transform:scale(.985);filter:brightness(.95)}
+.title-card.unlocked{border-color:rgba(217,179,106,.5)}
+.title-chip{flex:none;width:52px;height:52px;border-radius:8px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.title-chip.crt{color:var(--teal);background:radial-gradient(ellipse at 50% 42%,rgba(111,211,199,.13),transparent 66%),#0a1014;box-shadow:inset 0 0 18px 4px rgba(0,0,0,.62)}
+.title-chip.crt::before{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(111,211,199,.06) 0 1px,transparent 1px 3px)}
+.title-chip .qm{position:relative;z-index:1;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:21px;font-weight:700;color:var(--teal);text-shadow:0 0 9px rgba(111,211,199,.6)}
+.title-seal{flex:none;width:52px;height:52px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+  border:1.5px solid var(--shu);color:var(--shu);background:rgba(232,85,61,.09);
+  font-family:var(--serif);font-weight:800;font-size:13px;letter-spacing:.14em;writing-mode:vertical-rl;
+  transform:rotate(-3deg);box-shadow:0 0 0 3px rgba(232,85,61,.06)}
+.title-body{flex:1;min-width:0}
+.title-name{font-family:var(--serif);font-size:15px;font-weight:700;color:var(--ink-strong);line-height:1.32}
+.title-card.locked .title-name{color:var(--ink-mid)}
+.title-sub{font-size:10.5px;color:var(--ink-dim);line-height:1.55;margin-top:3px}
+.title-foot{display:flex;align-items:center;gap:9px;margin-top:8px}
+.title-card.locked .hp-track i{background:linear-gradient(90deg,var(--teal),var(--gold));box-shadow:0 0 6px rgba(111,211,199,.4)}
+.title-need{flex:none;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9.5px;letter-spacing:.08em;color:var(--teal)}
+.title-need.locked-tag{color:var(--ink-dim)}
+.title-card.new{border-color:var(--gold)}
+.title-card.new::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 30%,rgba(217,179,106,.20) 50%,transparent 70%);transform:translateX(-100%);animation:shine 2.4s ease-in-out infinite}
+.title-dot{top:8px;right:8px}
+.title-card.pop{animation:achvPop .45s ease}
+@media (min-width:768px){.title-grid{display:grid;grid-template-columns:repeat(2,1fr)}}
+/* ═══ 称号 解錠トースト ═══ */
+.title-toast{position:fixed;left:10px;right:10px;top:calc(env(safe-area-inset-top) + 10px);z-index:99997;
+  max-width:520px;margin:0 auto;display:flex;gap:12px;align-items:center;text-align:left;
+  background:linear-gradient(160deg,#1f2433,#171c28);border:1px solid var(--gold);border-radius:12px;padding:12px 14px;overflow:hidden;
+  box-shadow:0 10px 34px rgba(0,0,0,.55),0 0 0 1px rgba(217,179,106,.15);animation:ttIn .42s cubic-bezier(.2,.9,.3,1.15)}
+.title-toast::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(115deg,transparent 30%,rgba(217,179,106,.22) 50%,transparent 70%);transform:translateX(-100%);animation:shine 2.2s ease-in-out .25s infinite}
+@keyframes ttIn{from{transform:translateY(-130%);opacity:0}to{transform:none;opacity:1}}
+.tt-seal{flex:none;width:46px;height:46px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+  border:1.5px solid var(--shu);color:var(--shu);background:rgba(232,85,61,.1);
+  font-family:var(--serif);font-weight:800;font-size:12px;letter-spacing:.12em;writing-mode:vertical-rl;transform:rotate(-3deg)}
+.tt-body{flex:1;min-width:0;position:relative;z-index:1}
+.tt-kicker{font-size:9px;letter-spacing:.34em;color:var(--gold);font-family:ui-monospace,"SF Mono",Menlo,monospace}
+.tt-name{font-family:var(--serif);font-weight:800;font-size:16px;color:var(--ink-strong);line-height:1.25;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tt-sub{font-size:10px;color:var(--ink-dim);line-height:1.4;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tt-more{flex:none;align-self:flex-start;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;font-weight:700;color:var(--gold);border:1px solid var(--gold);border-radius:10px;padding:1px 7px}
 @media (prefers-reduced-motion:reduce){*:not(.crt-beam){animation:none!important;transition:none!important}}
 `;
