@@ -3075,6 +3075,8 @@ function SeriesPicker({ open, value, options, onPick, onClose }) {
 export default function App() {
   const [tab, setTab] = useState("zukan");
   const [records, setRecords] = useState({});
+  const [kitTags, setKitTags] = useState({});
+  const [tagInput, setTagInput] = useState("");
   const [overrides, setOverrides] = useState({});
   const [customKits, setCustomKits] = useState([]);
   const [images, setImages] = useState({});
@@ -3393,11 +3395,11 @@ export default function App() {
   const latestMetaRef = useRef("");
   useEffect(() => {
     if (!loaded) return;
-    const payload = JSON.stringify({ schemaVersion: SCHEMA_VERSION, records, overrides, customKits, settings, sortKey, sortDir, achvSeen, albumMeta });
+    const payload = JSON.stringify({ schemaVersion: SCHEMA_VERSION, records, overrides, customKits, settings, sortKey, sortDir, achvSeen, albumMeta, kitTags });
     latestMetaRef.current = payload; // 背景化/終了時に debounce を待たず即落とすための最新版
     const t = setTimeout(() => { saveKey(META_KEY, payload); }, 350);
     return () => clearTimeout(t);
-  }, [records, overrides, customKits, settings, sortKey, sortDir, achvSeen, albumMeta, loaded, saveKey]);
+  }, [records, overrides, customKits, settings, sortKey, sortDir, achvSeen, albumMeta, kitTags, loaded, saveKey]);
 
   /* ── 背景化/終了の直前に未保存の META を即時 flush(debounce 350ms の取りこぼし防止)──
      visibilitychange→hidden は freeze 前に発火するため非同期書き込みも概ね間に合う。
@@ -3458,6 +3460,7 @@ export default function App() {
     if (d.records) setRecords((prev) => mergeRecMap(prev, d.records));
     if (d.overrides) setOverrides((prev) => mergeRecMap(prev, d.overrides));
     if (d.customKits) setCustomKits((prev) => mergeArrStamped(prev, d.customKits));
+    if (d.kitTags) setKitTags((prev) => mergeRecMap(prev, d.kitTags));
     if (d.settings) setSettings((s) => ({ ...s, ...d.settings }));
     if (d.sortKey) setSortKey(d.sortKey);
     if (d.sortDir) setSortDir(d.sortDir);
@@ -3520,7 +3523,7 @@ export default function App() {
     setSyncMsg("同期中…");
     try {
       const nn = await pullCloud(cfg);
-      await saveKey(META_KEY, JSON.stringify({ schemaVersion: SCHEMA_VERSION, records, overrides, customKits, settings, sortKey, sortDir, achvSeen, albumMeta }));
+      await saveKey(META_KEY, JSON.stringify({ schemaVersion: SCHEMA_VERSION, records, overrides, customKits, settings, sortKey, sortDir, achvSeen, albumMeta, kitTags }));
       for (let i = 0; i < IMG_SHARDS; i++) {
         const map = {};
         for (const [ik, iv] of Object.entries(images)) if (hashId(ik) % IMG_SHARDS === i) map[ik] = iv;
@@ -3854,7 +3857,7 @@ export default function App() {
   const importRef = useRef(null);
   const exportData = async () => {
     // バックアップにも機密キーは含めない(端末ローカルにのみ残す)
-    const data = { schemaVersion: SCHEMA_VERSION, exportedAt: new Date().toISOString(), records, overrides, customKits, settings: stripSecrets(settings), sortKey, sortDir, images, extras, albumMeta };
+    const data = { schemaVersion: SCHEMA_VERSION, exportedAt: new Date().toISOString(), records, overrides, customKits, settings: stripSecrets(settings), sortKey, sortDir, images, extras, albumMeta, kitTags };
     const json = JSON.stringify(data);
     const name = `mg_zukan_backup_${new Date().toISOString().slice(0, 10)}.json`;
     const file = new File([json], name, { type: "application/json" });
@@ -3883,6 +3886,7 @@ export default function App() {
       if (d.records) setRecords((prev) => mergeRecMap(prev, stampMap(d.records)));
       if (d.overrides) setOverrides((prev) => mergeRecMap(prev, stampMap(d.overrides)));
       if (d.customKits) setCustomKits((prev) => mergeArrStamped(prev, d.customKits.map((c) => ({ ...c, t: now }))));
+      if (d.kitTags) setKitTags((prev) => mergeRecMap(prev, stampMap(d.kitTags)));
       if (d.settings) setSettings((s) => ({ ...s, ...d.settings }));
       if (d.sortKey && SORT_KEYS.includes(d.sortKey)) setSortKey(d.sortKey);
       if (d.sortDir === "asc" || d.sortDir === "desc") setSortDir(d.sortDir);
@@ -3929,6 +3933,25 @@ export default function App() {
     const cur = r[id] || { owned: false, plan: false, purchaseDate: "", buildDate: "" };
     return { ...r, [id]: stampRec(cur, patch, new Date().toISOString()) };
   });
+  /* ── カスタムタグ(機体ごとの自由タグ。records と同じ stamped LWW で同期) ── */
+  const getTags = useCallback((id) => (kitTags[id] && kitTags[id].tags) || [], [kitTags]);
+  const setTags = (id, tags) => setKitTags((m) => {
+    const cur = m[id] || { tags: [] };
+    return { ...m, [id]: stampRec(cur, { tags }, new Date().toISOString()) };
+  });
+  const addTag = (id, raw) => {
+    const t = (raw || "").trim().replace(/\s+/g, " ");
+    if (!t) return;
+    const cur = (kitTags[id] && kitTags[id].tags) || [];
+    if (cur.includes(t)) return;
+    setTags(id, [...cur, t]);
+  };
+  const removeTag = (id, t) => setTags(id, ((kitTags[id] && kitTags[id].tags) || []).filter((x) => x !== t));
+  const allTags = useMemo(() => {
+    const set = new Set();
+    for (const id in kitTags) for (const t of ((kitTags[id] && kitTags[id].tags) || [])) set.add(t);
+    return [...set].sort((a, b) => a.localeCompare(b, "ja"));
+  }, [kitTags]);
   /* 入手/予定互斥切換 */
   const toggleOwned = (id) => {
     const r = getRec(id);
@@ -4996,7 +5019,7 @@ export default function App() {
         onClose={() => setSeriesPickerOpen(false)} />
 
       {detailKit && (
-        <div className="modal-bg" onClick={() => { setDetail(null); setEditing(false); }}>
+        <div className="modal-bg" onClick={() => { setDetail(null); setEditing(false); setTagInput(""); }}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             {!editing ? (
               <>
@@ -5052,6 +5075,32 @@ export default function App() {
                     <div className="tc-half"><span>定価</span><b className="tc-num price">{fmtYen(detailKit.price)}</b></div>
                   </div>
                   <div className="tc-row tc-row-memo"><span>メモ</span><b className="tc-memo">{detailKit.note || ""}</b></div>
+                </div>
+
+                <div className="kt-tags">
+                  <div className="kt-tags-head">タグ</div>
+                  <div className="kt-chiprow">
+                    {getTags(detailKit.id).map((t) => (
+                      <span key={t} className="kt-chip">{t}
+                        <button className="kt-x" onClick={() => removeTag(detailKit.id, t)} aria-label="削除">✕</button>
+                      </span>
+                    ))}
+                    {getTags(detailKit.id).length === 0 && <span className="kt-empty">タグなし</span>}
+                  </div>
+                  <div className="kt-add">
+                    <input className="kt-input" value={tagInput} placeholder="タグを追加…" list="kt-suggest"
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(detailKit.id, tagInput); setTagInput(""); } }} />
+                    <datalist id="kt-suggest">{allTags.map((t) => <option key={t} value={t} />)}</datalist>
+                    <button className="kt-addbtn" onClick={() => { addTag(detailKit.id, tagInput); setTagInput(""); }}>追加</button>
+                  </div>
+                  {allTags.filter((t) => !getTags(detailKit.id).includes(t)).length > 0 && (
+                    <div className="kt-quick">
+                      {allTags.filter((t) => !getTags(detailKit.id).includes(t)).slice(0, 10).map((t) => (
+                        <button key={t} className="kt-qchip" onClick={() => addTag(detailKit.id, t)}>＋{t}</button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {detailRec.owned ? (
@@ -6420,13 +6469,13 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .tt-sub{font-size:10px;color:var(--ink-dim);line-height:1.4;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tt-more{flex:none;align-self:flex-start;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;font-weight:700;color:var(--gold);border:1px solid var(--gold);border-radius:10px;padding:1px 7px}
 /* ═══ 称号 詳細モーダル ═══ */
-.title-modal .tm-head{display:flex;gap:13px;align-items:flex-start;padding:4px 2px 14px;border-bottom:1px solid var(--line-soft);margin-bottom:12px}
+.title-modal .tm-head{display:flex;gap:14px;align-items:center;padding:4px 2px 15px;border-bottom:1px solid var(--line-soft);margin-bottom:13px}
 .title-seal.big,.title-chip.big{width:60px;height:60px;flex:none}
 .title-seal.big{font-size:15px}
 .title-chip.big .qm{font-size:25px}
 .tm-headbody{flex:1;min-width:0}
-.tm-name{font-family:var(--serif);font-size:19px;font-weight:800;color:var(--ink-strong);line-height:1.25}
-.tm-sub{font-size:11px;color:var(--ink-mid);line-height:1.55;margin-top:5px}
+.tm-name{font-family:var(--serif);font-size:25px;font-weight:800;color:var(--ink-strong);line-height:1.22}
+.tm-sub{font-size:13.5px;color:var(--ink-mid);line-height:1.6;margin-top:6px}
 .tm-cond{display:flex;flex-direction:column;gap:8px}
 .tm-piece{display:flex;gap:9px;align-items:flex-start;background:var(--panel);border:1px solid var(--line-soft);border-radius:8px;padding:9px 11px}
 .tm-piece.ok{border-color:rgba(111,211,199,.35);background:rgba(111,211,199,.05)}
@@ -6455,9 +6504,9 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 /* ═══ 称号 リデザイン(青磷光・C賞盃・2x) ═══ */
 .title-chip.on{background:radial-gradient(ellipse at 50% 40%,rgba(111,211,199,.18),transparent 70%),#0a1417;box-shadow:inset 0 0 16px 3px rgba(0,0,0,.55),0 0 0 1px rgba(111,211,199,.18)}
 .title-chip .emb{position:relative;z-index:1;width:46px;height:46px;animation:pulseGlow 2.6s ease-in-out infinite}
-.title-chip.big{width:100px;height:100px}
-.title-chip.big .qm{font-size:54px}
-.title-chip.big .emb{width:66px;height:66px}
+.title-chip.big{width:76px;height:76px}
+.title-chip.big .qm{font-size:42px}
+.title-chip.big .emb{width:50px;height:50px}
 @keyframes pulseGlow{0%,100%{filter:drop-shadow(0 0 4px rgba(111,211,199,.55))}50%{filter:drop-shadow(0 0 9px rgba(111,211,199,.95))}}
 .title-card.todo{border-color:rgba(111,211,199,.22)}
 .title-foot .ttag.todo{flex:none;font-size:10px;font-weight:700;letter-spacing:.06em;border:1px dashed var(--teal);color:var(--teal);background:rgba(111,211,199,.05);border-radius:5px;padding:5px 11px}
@@ -6471,7 +6520,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .th-chev{flex:none;font-style:normal;font-size:15px;line-height:1;color:var(--ink-dim);transition:transform .3s ease,color .2s;margin-left:2px}
 .th-chev.open{transform:rotate(180deg);color:var(--teal)}
 .seg-drop{display:grid;grid-template-rows:0fr;opacity:0;margin-top:0;transition:grid-template-rows .32s cubic-bezier(.4,0,.2,1),opacity .24s ease,margin-top .32s}
-.seg-drop.open{grid-template-rows:1fr;opacity:1;margin-top:10px}
+.seg-drop.open{grid-template-rows:1fr;opacity:1;margin-top:10px;margin-bottom:12px}
 .seg-drop-inner{overflow:hidden;min-height:0}
 .uni-seg{display:grid;grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:6px}
 .uni-seg .adv-seg-btn{position:relative;display:flex;align-items:center;justify-content:center;gap:5px}
@@ -6481,5 +6530,21 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .title-uni{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9.5px;letter-spacing:.12em;color:var(--ink-dim);margin-bottom:3px}
 .title-card.unlocked .title-uni{color:var(--teal)}
 .title-empty{grid-column:1/-1;text-align:center;color:var(--ink-dim);font-size:12px;font-family:var(--serif);padding:30px 0;letter-spacing:.08em}
+/* ═══ 機体カスタムタグ ═══ */
+.kt-tags{margin-top:14px;padding-top:13px;border-top:1px solid var(--line-soft)}
+.kt-tags-head{font-size:10px;letter-spacing:.2em;color:var(--ink-dim);margin-bottom:9px}
+.kt-chiprow{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:9px}
+.kt-chip{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;color:var(--ink-strong);background:rgba(111,211,199,.08);border:1px solid rgba(111,211,199,.35);border-radius:13px;padding:4px 7px 4px 12px}
+.kt-x{border:none;background:none;color:var(--teal);font-size:11px;cursor:pointer;padding:0 2px;line-height:1}
+.kt-x:active{opacity:.5}
+.kt-empty{font-size:11px;color:var(--ink-dim);font-style:italic}
+.kt-add{display:flex;gap:7px}
+.kt-input{flex:1;min-width:0;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:9px 12px;color:var(--ink);font-family:inherit;font-size:13px}
+.kt-input:focus{outline:none;border-color:rgba(111,211,199,.5)}
+.kt-addbtn{flex:none;background:rgba(111,211,199,.1);border:1px solid rgba(111,211,199,.4);color:var(--teal);border-radius:8px;padding:0 15px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit}
+.kt-addbtn:active{opacity:.7}
+.kt-quick{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+.kt-qchip{font-size:11.5px;color:var(--ink-mid);background:var(--panel);border:1px dashed var(--line);border-radius:11px;padding:3px 11px;cursor:pointer;font-family:inherit}
+.kt-qchip:active{color:var(--teal);border-color:var(--teal)}
 @media (prefers-reduced-motion:reduce){*:not(.crt-beam){animation:none!important;transition:none!important}}
 `;
