@@ -4306,56 +4306,45 @@ export default function App() {
     const sketchCrt = !rec.owned && !img; // 未入手かつ画像なし=ベクター→CRT風に
     if (settings.view === "list") {
       return (
-        <button className={`row ${dim ? "dim" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""}`} onClick={onCardClick} {...longPress}>
-          <div className={"row-sketch" + (sketchCrt ? " crt-mini" : "")}>
-            {rec.plan && <span className="plan-pin">予定</span>}
+        <button className={`kz-row ${dim ? "dim" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""} ${rec.buildDate ? "built" : ""}`} onClick={onCardClick} {...longPress}>
+          <div className={"kz-rframe" + (sketchCrt ? " crt" : "")}>
             <KitImage kit={kit} img={img} owned={rec.owned} built={!!rec.buildDate} size={80} cls="sm" frame={thumbFrameStyle(kit.id)} />
           </div>
-          <div className="row-main">
-            {settings.listSeries && kit.series && <div className="row-series">{kit.series}</div>}
-            <div className="row-name"><KitName name={kit.name} /></div>
-            <div className="row-sub">
-              <GradeChip grade={kit.grade} />
+          <div className="kz-rmain">
+            <div className="kz-rno">{kit.grade}{settings.listNo && kit.no && kit.no !== "—" ? ` · No.${kit.no}` : ""}{settings.listCode && kit.code ? ` · ${kit.code}` : ""}</div>
+            {settings.listSeries && kit.series && <div className="kz-rseries">{kit.series}</div>}
+            <div className="kz-rname"><KitName name={kit.name} /></div>
+            <div className="kz-rmeta">
               {kit.premium && <span className="line-chip pb">プレバン</span>}
               {kit.base && <span className="line-chip base">ベース</span>}
               {lineBadge(kit, false)}
-              {settings.listPrice && kit.price ? <span className="price">{fmtYen(kit.price)}</span> : null}
-              <span className="year-chip">{kit.ym ? kit.ym.replace("-", ".") : "—"}</span>
+              <span className="kz-year">{kit.ym ? kit.ym.replace("-", ".") : "—"}</span>
+              {settings.listPrice && kit.price ? <span className="kz-price">{fmtYen(kit.price)}</span> : null}
+              {settings.listPurchase && rec.purchaseDate && <span className="kz-date">購入 {fmtDate(rec.purchaseDate)}</span>}
+              {settings.listBuild && rec.buildDate && <span className="kz-date done">完成 {fmtDate(rec.buildDate)}</span>}
             </div>
-            {((settings.listNo && kit.no && kit.no !== "—") || (settings.listCode && kit.code)) && (
-              <div className="row-sub">
-                {settings.listNo && kit.no && kit.no !== "—" && <span className="mono">No.{kit.no}</span>}
-                {settings.listCode && kit.code && <span className="mono">{kit.code}</span>}
-              </div>
-            )}
-            {rec.owned && ((settings.listPurchase && rec.purchaseDate) || (settings.listBuild && rec.buildDate)) && (
-              <div className="row-sub">
-                {settings.listPurchase && rec.purchaseDate && <span className="date-tag">購入 {fmtDate(rec.purchaseDate)}</span>}
-                {settings.listBuild && rec.buildDate && <span className="date-tag teal">完成 {fmtDate(rec.buildDate)}</span>}
-              </div>
-            )}
           </div>
+          {rec.buildDate ? <span className="kz-rseal">済</span> : rec.plan ? <span className="kz-rplan">予</span> : null}
         </button>
       );
     }
     return (
-      <button className={`card ${dim ? "dim" : ""} ${settings.compact ? "compact" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""}`} onClick={onCardClick} {...longPress}>
-        <div className="card-corner" />
-        <div className="card-sketch">
+      <button className={`kz-card ${dim ? "dim" : ""} ${settings.compact ? "compact" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""} ${rec.buildDate ? "built" : ""}`} onClick={onCardClick} {...longPress}>
+        <div className="kz-no">{kit.grade}{settings.showNo && kit.no && kit.no !== "—" ? ` · No.${kit.no}` : ""}{settings.showCode && kit.code ? ` · ${kit.code}` : ""}</div>
+        {rec.buildDate ? <span className="kz-seal">済</span> : rec.plan ? <span className="kz-plan">予</span> : null}
+        <div className="kz-frame">
           <KitImage kit={kit} img={img} owned={rec.owned} built={!!rec.buildDate} size={settings.compact ? 56 : 78} frame={thumbFrameStyle(kit.id)} />
           {kit.premium && <span className="line-chip pb corner-pb">プレバン</span>}
           {kit.base && <span className="line-chip base corner-base">ベース</span>}
-          {rec.plan && <span className="plan-pin card-pin">予定</span>}
         </div>
-        <div className="card-name"><GradeChip grade={kit.grade} />{kit.name}</div>
-        <div className="card-meta">
-          {settings.showNo && kit.no && kit.no !== "—" && <span className="mono">No.{kit.no}</span>}
-          {settings.showCode && kit.code && <span className="mono">{kit.code}</span>}
-          <span className="year-chip">{yearOf(kit.ym)}</span>
-          {settings.showPrice && kit.price ? <span className="price">{fmtYen(kit.price)}</span> : null}
+        <div className="kz-name"><KitName name={kit.name} /></div>
+        <div className="kz-hair" />
+        <div className="kz-meta">
+          <span className="kz-year">{yearOf(kit.ym)}</span>
+          {settings.showPrice && kit.price ? <span className="kz-price">{fmtYen(kit.price)}</span> : null}
           {lineBadge(kit, false)}
         </div>
-        {settings.showSeries && !settings.compact && kit.series && <div className="card-series">{kit.series}</div>}
+        {settings.showSeries && !settings.compact && kit.series && <div className="kz-series">{kit.series}</div>}
       </button>
     );
   };
@@ -4404,17 +4393,15 @@ export default function App() {
         </div>
       )}
 
-      {/* 称号 解錠トースト */}
+      {/* 称号 叙勲トースト */}
       {toast && (
-        <button className="title-toast"
-          onClick={() => { setToast(null); setAchvPop(null); }}>
-          <span className="tt-seal">達成</span>
-          <div className="tt-body">
-            <div className="tt-kicker">称号獲得</div>
-            <div className="tt-name">{toast.name}</div>
-            <div className="tt-sub">{toast.sub}</div>
+        <button className="av-toast" onClick={() => { setToast(null); setAchvPop(null); }}>
+          <span className="av-toast-medal"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="avGoldT" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#f2dca0" /><stop offset="1" stopColor="#9c7838" /></linearGradient></defs><polygon points="32,7 49,16 49,40 32,57 15,40 15,16" fill="none" stroke="url(#avGoldT)" strokeWidth="2" /><polygon points="32,12 44,19 44,38 32,50 20,38 20,19" fill="rgba(217,179,106,.12)" stroke="url(#avGoldT)" strokeWidth="2.4" /><text x="32" y="39" textAnchor="middle" fontFamily="Shippori Mincho,serif" fontWeight="800" fontSize="20" fill="url(#avGoldT)">章</text></svg></span>
+          <div className="av-toast-body">
+            <div className="av-toast-kick">DECORATED · 叙勲</div>
+            <div className="av-toast-name">{toast.name}</div>
           </div>
-          {toastQueue.length > 0 && <span className="tt-more">+{toastQueue.length}</span>}
+          {toastQueue.length > 0 && <span className="av-toast-more">+{toastQueue.length}</span>}
         </button>
       )}
 
@@ -4608,71 +4595,77 @@ export default function App() {
                 const newN = pool.filter(titleIsNew).length;
                 const pct = Math.round(got / Math.max(1, pool.length) * 100);
                 const curUni = UNIVERSES.find(([v]) => v === titleUniverse);
+                const medal = (cls) => cls === "earned" ? (
+                  <svg viewBox="0 0 64 64" aria-hidden="true">
+                    <polygon points="32,7 49,16 49,40 32,57 15,40 15,16" fill="none" stroke="url(#avGold)" strokeWidth="2" />
+                    <polygon points="32,12 44,19 44,38 32,50 20,38 20,19" fill="rgba(217,179,106,.12)" stroke="url(#avGold)" strokeWidth="2.4" />
+                    <text x="32" y="39" textAnchor="middle" fontFamily="Shippori Mincho,serif" fontWeight="800" fontSize="20" fill="url(#avGold)">章</text>
+                  </svg>
+                ) : cls === "todo" ? (
+                  <svg viewBox="0 0 64 64" aria-hidden="true">
+                    <polygon points="32,12 44,19 44,38 32,50 20,38 20,19" fill="none" stroke="#d9b36a" strokeWidth="1.6" strokeDasharray="3 3" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 64 64" aria-hidden="true">
+                    <polygon points="32,7 49,16 49,40 32,57 15,40 15,16" fill="none" stroke="#404a5e" strokeWidth="1" />
+                    <polygon points="32,12 44,19 44,38 32,50 20,38 20,19" fill="none" stroke="#2f3848" strokeWidth="2" />
+                  </svg>
+                );
                 return (
-                  <section className="ana-sec title-sec">
-                    <button className="title-head" onClick={() => { haptic(); setSegOpen((o) => !o); }}>
-                      <span className="year-num">称号</span>
-                      <span className="th-uni">{curUni ? curUni[1] : "すべて"}</span>
-                      <span className="year-rule" />
-                      <span className="year-count">{got} / {pool.length}{newN > 0 ? `\u3000NEW ${newN}` : ""}</span>
-                      <i className={"th-chev" + (segOpen ? " open" : "")}>⌄</i>
+                  <section className="ana-sec av-sec">
+                    <svg className="av-defs" width="0" height="0" aria-hidden="true"><defs>
+                      <linearGradient id="avGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#f2dca0" /><stop offset="1" stopColor="#9c7838" /></linearGradient>
+                    </defs></svg>
+                    <button className="av-head" onClick={() => { haptic(); setSegOpen((o) => !o); }}>
+                      <span className="av-head-l">
+                        <span className="av-eyebrow">{(curUni && curUni[0] !== "all" ? (UNI_PREFIX[curUni[0]] || curUni[1]) + " " : "") + "DECORATIONS · 称号録"}</span>
+                        <span className="av-title">叙<em>勲</em>録</span>
+                      </span>
+                      <span className="av-head-r">
+                        <span className="av-count"><b>{got}</b> / {pool.length} 叙勲{newN > 0 ? ` · NEW ${newN}` : ""}</span>
+                        <i className={"av-chev" + (segOpen ? " open" : "")}>⌄</i>
+                      </span>
                     </button>
-                    <div className="title-prog"><div className="hp-track"><i style={{ width: `${pct}%` }} /></div></div>
-                    <div className={"seg-drop" + (segOpen ? " open" : "")}>
-                      <div className="seg-drop-inner adv-seg uni-seg">
+                    <div className="av-rule" />
+                    <div className="av-prog"><i style={{ width: `${pct}%` }} /></div>
+                    <div className={"av-drop" + (segOpen ? " open" : "")}>
+                      <div className="av-drop-inner av-unitabs">
                         {UNIVERSES.map(([v, l]) => {
                           const n = v === "all" ? titles.length : titles.filter((t) => (t.universe || "UC") === v).length;
+                          const label = v === "all" ? "ALL" : (UNI_PREFIX[v] || l);
                           return (
-                            <button key={v} className={"adv-seg-btn" + (titleUniverse === v ? " on" : "") + (n === 0 ? " empty" : "")}
-                              onClick={() => { haptic(); setTitleUniverse(v); setSegOpen(false); }}>
-                              {l}{n > 0 ? <b className="us-n">{n}</b> : null}
-                            </button>
+                            <button key={v} className={"av-unitab" + (titleUniverse === v ? " on" : "") + (n === 0 ? " empty" : "")}
+                              onClick={() => { haptic(); setTitleUniverse(v); setSegOpen(false); }}>{label}</button>
                           );
                         })}
                       </div>
                     </div>
-                    <div className="title-grid">
+                    <div className="av-reg">
                       {list.map((t) => {
                         const isNew = titleIsNew(t);
                         const hiddenLocked = t.hidden && !t.unlocked;
                         const remain = Math.max(0, t.need - t.cur);
+                        const cls = t.unlocked ? "earned" : (t.needBuild ? "todo" : "locked");
                         return (
-                          <button key={t.id}
-                            className={"title-card " + (t.unlocked ? "unlocked" : (t.needBuild ? "todo" : "locked"))
-                              + (isNew ? " new" : "") + (achvPop === "t:" + t.id ? " pop" : "")}
+                          <button key={t.id} className={"av-entry " + cls + (isNew ? " new" : "") + (achvPop === "t:" + t.id ? " pop" : "")}
                             onClick={() => { haptic(); ackTitle(t.id); setTitleDetail(t); }}>
-                            {t.unlocked
-                              ? <span className="title-chip on"><svg className="emb" viewBox="0 0 48 48" aria-hidden="true">
-                                  <path d="M16 9 H32 V15 A8 8 0 0 1 16 15 Z" fill="none" stroke="#6fd3c7" strokeWidth="2" strokeLinejoin="round" />
-                                  <path d="M16 11 H11 A4 4 0 0 0 15 17.5" fill="none" stroke="#6fd3c7" strokeWidth="1.5" />
-                                  <path d="M32 11 H37 A4 4 0 0 1 33 17.5" fill="none" stroke="#6fd3c7" strokeWidth="1.5" />
-                                  <path d="M24 23 V30" stroke="#6fd3c7" strokeWidth="2" strokeLinecap="round" />
-                                  <path d="M17 38 H31 M19 30 H29 L31 38 H17 Z" fill="none" stroke="#6fd3c7" strokeWidth="2" strokeLinejoin="round" />
-                                  <path d="M20.5 12.5 l2.5 2.5 l4.5 -4.5" fill="none" stroke="#6fd3c7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg></span>
-                              : <span className="title-chip crt"><span className="qm">？</span></span>}
-                            <div className="title-body">
-                              <div className="title-uni">{(UNI_PREFIX[t.universe] || "")} {String(t.no || 0).padStart(3, "0")}</div>
-                              <div className="title-name">{hiddenLocked ? "？？？" : t.name}</div>
-                              {t.unlocked && <div className="title-sub">{t.sub}</div>}
-                              {!t.unlocked && t.needBuild && (
-                                <div className="title-foot"><span className="ttag todo">要完成 ・ 1体制作で解放</span></div>
-                              )}
+                            <span className={"av-medal " + cls}>{medal(cls)}</span>
+                            <span className="av-ebody">
+                              <span className="av-eno">{(UNI_PREFIX[t.universe] || t.universe || "U.C.")} · No.{String(t.no || 0).padStart(3, "0")}</span>
+                              <span className="av-ename">{hiddenLocked ? "？？？" : t.name}</span>
+                              {t.unlocked && <span className="av-ehair" />}
+                              {t.unlocked && <span className="av-eflavor">{t.sub}</span>}
+                              {!t.unlocked && t.needBuild && <span className="av-etag">要完成 · 1体制作で叙勲</span>}
                               {!t.unlocked && !t.needBuild && t.need > 1 && (
-                                <div className="title-foot">
-                                  <div className="hp-track"><i style={{ width: `${Math.round(t.cur / t.need * 100)}%` }} /></div>
-                                  <span className="title-need">あと{remain}</span>
-                                </div>
+                                <span className="av-eprog"><span className="av-ebar"><i style={{ width: `${Math.round(t.cur / t.need * 100)}%` }} /></span><span className="av-erem">あと {remain}</span></span>
                               )}
-                              {!t.unlocked && !t.needBuild && t.need === 1 && (
-                                <div className="title-foot"><span className="title-need locked-tag">未達成</span></div>
-                              )}
-                            </div>
-                            {isNew && <i className="achv-dot title-dot" />}
+                              {!t.unlocked && !t.needBuild && t.need === 1 && <span className="av-etag locked">未叙勲</span>}
+                            </span>
+                            {isNew && <i className="av-dot" />}
                           </button>
                         );
                       })}
-                      {list.length === 0 && <div className="title-empty">この世界の称号は準備中…</div>}
+                      {list.length === 0 && <div className="av-empty">この世界の称号は準備中…</div>}
                     </div>
                   </section>
                 );
@@ -5229,15 +5222,8 @@ export default function App() {
               </div>
               <div className="tm-head">
                 {t.unlocked
-                  ? <span className="title-chip on big"><svg className="emb" viewBox="0 0 48 48" aria-hidden="true">
-                                  <path d="M16 9 H32 V15 A8 8 0 0 1 16 15 Z" fill="none" stroke="#6fd3c7" strokeWidth="2" strokeLinejoin="round" />
-                                  <path d="M16 11 H11 A4 4 0 0 0 15 17.5" fill="none" stroke="#6fd3c7" strokeWidth="1.5" />
-                                  <path d="M32 11 H37 A4 4 0 0 1 33 17.5" fill="none" stroke="#6fd3c7" strokeWidth="1.5" />
-                                  <path d="M24 23 V30" stroke="#6fd3c7" strokeWidth="2" strokeLinecap="round" />
-                                  <path d="M17 38 H31 M19 30 H29 L31 38 H17 Z" fill="none" stroke="#6fd3c7" strokeWidth="2" strokeLinejoin="round" />
-                                  <path d="M20.5 12.5 l2.5 2.5 l4.5 -4.5" fill="none" stroke="#6fd3c7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg></span>
-                  : <span className="title-chip crt big"><span className="qm">？</span></span>}
+                  ? <span className="av-medal earned big"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="avGoldM" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#f2dca0" /><stop offset="1" stopColor="#9c7838" /></linearGradient></defs><polygon points="32,7 49,16 49,40 32,57 15,40 15,16" fill="none" stroke="url(#avGoldM)" strokeWidth="2" /><polygon points="32,12 44,19 44,38 32,50 20,38 20,19" fill="rgba(217,179,106,.12)" stroke="url(#avGoldM)" strokeWidth="2.4" /><text x="32" y="39" textAnchor="middle" fontFamily="Shippori Mincho,serif" fontWeight="800" fontSize="20" fill="url(#avGoldM)">章</text></svg></span>
+                  : <span className="av-medal locked big"><svg viewBox="0 0 64 64" aria-hidden="true"><polygon points="32,7 49,16 49,40 32,57 15,40 15,16" fill="none" stroke="#404a5e" strokeWidth="1" /><polygon points="32,12 44,19 44,38 32,50 20,38 20,19" fill="none" stroke="#2f3848" strokeWidth="2" /></svg></span>}
                 <div className="tm-headbody">
                   <div className="tm-name">{t.name}</div>
                   <div className="tm-sub">{t.sub}</div>
@@ -5420,7 +5406,7 @@ input,textarea{font-family:var(--sans)}
 .head-stats span{font-size:9.5px;color:var(--ink-mid);letter-spacing:.2em}
 .stat-div{width:1px;height:24px;background:var(--line)}
 .head-progress{margin-top:12px;height:3px;background:var(--line-soft);border-radius:2px;overflow:hidden}
-.head-progress i{display:block;height:100%;background:linear-gradient(90deg,var(--shu),var(--gold));transition:width .5s}
+.head-progress i{display:block;height:100%;background:linear-gradient(90deg,#9c7838,var(--gold));transition:width .5s}
 
 .body{padding:8px 14px 16px;max-width:920px;margin:0 auto}
 .section-note{font-size:11px;color:var(--ink-mid);letter-spacing:.1em;padding:6px 4px 10px}
@@ -5434,8 +5420,8 @@ input,textarea{font-family:var(--sans)}
 .search:focus,.adv-sel:focus,.adv-year-sel:focus,.adv-series-btn:focus,.sp-search:focus{
   outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(217,179,106,.14)}
 .search:focus-visible,.adv-sel:focus-visible{outline:none}
-.add-btn{flex:none;background:linear-gradient(160deg,rgba(232,85,61,.18),var(--panel));
-  border:1px solid var(--shu);color:var(--shu);border-radius:8px;padding:0 14px;
+.add-btn{flex:none;background:linear-gradient(160deg,rgba(217,179,106,.16),var(--panel));
+  border:1px solid var(--gold);color:var(--gold);border-radius:8px;padding:0 14px;
   font-weight:700;font-size:12.5px;letter-spacing:.08em}
 
 .year-sec{margin-bottom:18px}
@@ -5519,15 +5505,15 @@ input,textarea{font-family:var(--sans)}
 .opt{flex:1;display:flex;justify-content:space-between;align-items:center;
   background:var(--panel);border:1px solid var(--line-soft);border-radius:8px;
   padding:12px 14px;font-size:13px;font-weight:500;transition:border-color .12s}
-.opt.on{border-color:var(--shu);background:linear-gradient(160deg,rgba(232,85,61,.12),var(--panel))}
-.opt.on i{color:var(--shu);font-size:8px}
+.opt.on{border-color:var(--gold);background:linear-gradient(160deg,rgba(217,179,106,.12),var(--panel));color:var(--gold)}
+.opt.on i{color:var(--gold);font-size:8px}
 .opt.danger{color:var(--shu);border-color:rgba(232,85,61,.4)}
 .opt.danger.solid{background:var(--shu-deep);color:#fff;justify-content:center}
 .confirm-box{background:var(--panel);border:1px solid var(--shu-deep);border-radius:8px;
   padding:14px;font-size:12.5px;display:flex;flex-direction:column;gap:10px;line-height:1.6}
 .confirm-box>div{display:flex;gap:8px}
 .switch{width:38px;height:21px;border-radius:11px;background:var(--line);position:relative;transition:background .15s;flex:none}
-.switch.on{background:var(--shu)}
+.switch.on{background:var(--gold)}
 .switch b{position:absolute;top:2.5px;left:3px;width:16px;height:16px;border-radius:50%;
   background:var(--ink-strong);transition:transform .15s}
 .switch.on b{transform:translateX(16px)}
@@ -5691,7 +5677,7 @@ input,textarea{font-family:var(--sans)}
 .adv-seg{flex:1;display:flex;gap:5px}
 .adv-seg-btn{flex:1;padding:7px 4px;font-size:11.5px;font-weight:700;border:1px solid var(--line);
   border-radius:7px;color:var(--ink-mid);background:var(--bg2);white-space:nowrap}
-.adv-seg-btn.on{border-color:rgba(111,211,199,.5);color:var(--teal);background:rgba(111,211,199,.09);box-shadow:inset 0 -2px 0 -1px var(--teal)}
+.adv-seg-btn.on{border-color:rgba(217,179,106,.5);color:var(--gold);background:rgba(217,179,106,.1);box-shadow:inset 0 -2px 0 -1px var(--gold)}
 .adv-foot{display:flex;align-items:center;justify-content:space-between;margin-top:1px}
 .adv-years{flex:1;min-width:0;display:flex;align-items:center;gap:8px}
 .adv-year{flex:1;min-width:0;background:var(--bg2);border:1px solid var(--line);border-radius:7px;
@@ -5804,7 +5790,7 @@ input,textarea{font-family:var(--sans)}
 .sp-item{display:block;width:100%;text-align:left;padding:11px 12px;border-radius:8px;
   font-size:13.5px;color:var(--ink);letter-spacing:.02em}
 .sp-item:active{background:var(--panel)}
-.sp-item.on{color:var(--teal);background:rgba(111,211,199,.1);font-weight:700}
+.sp-item.on{color:var(--gold);background:rgba(217,179,106,.1);font-weight:700}
 .sp-empty{padding:24px 12px;text-align:center;color:var(--ink-dim);font-size:12.5px}
 
 .form{display:flex;flex-direction:column;gap:12px}
@@ -5855,10 +5841,10 @@ input,textarea{font-family:var(--sans)}
   border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
 .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;
   padding:9px 0 12px;color:var(--ink-dim);position:relative;transition:color .15s}
-.tab.on{color:var(--shu)}
+.tab.on{color:var(--gold)}
 .tab-icon{font-size:16px;line-height:1}
 .tab-label{font-size:10px;font-weight:700;letter-spacing:.2em;font-family:var(--serif)}
-.tab-bar{position:absolute;top:0;left:25%;right:25%;height:2px;background:var(--shu);
+.tab-bar{position:absolute;top:0;left:25%;right:25%;height:2px;background:var(--gold);
   transform:scaleX(0);transition:transform .18s}
 .tab.on .tab-bar{transform:scaleX(1)}
 /* ═══ v2.1 UI 強化 ═══ */
@@ -6347,7 +6333,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .gf-row{display:flex;gap:6px;flex-wrap:wrap}
 .gf-btn{padding:4px 12px;font-size:11.5px;font-weight:700;letter-spacing:.05em;
   border:1px solid var(--line);border-radius:999px;color:var(--ink-mid);background:var(--panel)}
-.gf-btn.on{color:#fff;border-color:var(--shu);background:var(--shu);box-shadow:0 0 10px rgba(232,85,61,.35)}
+.gf-btn.on{color:#1a160d;border-color:var(--gold);background:var(--gold);box-shadow:0 0 10px rgba(217,179,106,.3)}
 .search-x{flex:none;width:44px;border:1px solid var(--line);border-radius:8px;
   color:var(--ink-mid);background:var(--panel);font-size:13px}
 .cr-right{display:flex;gap:8px;align-items:stretch}
@@ -6546,5 +6532,115 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .kt-quick{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
 .kt-qchip{font-size:11.5px;color:var(--ink-mid);background:var(--panel);border:1px dashed var(--line);border-radius:11px;padding:3px 11px;cursor:pointer;font-family:inherit}
 .kt-qchip:active{color:var(--teal);border-color:var(--teal)}
+/* ═══ 叙勲録(称号 金箔リデザイン) ═══ */
+.av-sec{padding-top:2px}
+.av-defs{position:absolute;width:0;height:0}
+.av-head{display:flex;align-items:flex-end;justify-content:space-between;width:100%;background:none;border:none;padding:4px 2px 0;cursor:pointer;text-align:left;gap:10px}
+.av-head:active{opacity:.75}
+.av-head-l{display:flex;flex-direction:column;min-width:0}
+.av-eyebrow{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9px;letter-spacing:.30em;color:var(--ink-mid);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.av-title{font-family:var(--serif);font-weight:800;font-size:23px;letter-spacing:.05em;color:var(--ink-strong);margin-top:6px}
+.av-title em{font-style:normal;color:var(--gold)}
+.av-head-r{display:flex;align-items:center;gap:9px;flex:none}
+.av-count{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10.5px;letter-spacing:.12em;color:var(--ink-mid);white-space:nowrap}
+.av-count b{color:var(--gold);font-size:13px}
+.av-chev{font-style:normal;font-size:14px;color:var(--ink-dim);transition:transform .3s ease,color .2s}
+.av-chev.open{transform:rotate(180deg);color:var(--gold)}
+.av-rule{height:1px;margin:11px 0 0;background:linear-gradient(90deg,var(--gold),rgba(217,179,106,.05) 70%,transparent)}
+.av-prog{height:2px;margin:8px 0 0;background:rgba(217,179,106,.12);border-radius:2px;overflow:hidden}
+.av-prog i{display:block;height:100%;background:linear-gradient(90deg,#9c7838,#f2dca0);transition:width .5s}
+.av-drop{display:grid;grid-template-rows:0fr;opacity:0;margin-top:0;transition:grid-template-rows .32s cubic-bezier(.4,0,.2,1),opacity .24s,margin-top .32s}
+.av-drop.open{grid-template-rows:1fr;opacity:1;margin-top:12px;margin-bottom:2px}
+.av-drop-inner{overflow:hidden;min-height:0}
+.av-unitabs{display:flex;flex-wrap:wrap;gap:9px 20px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.av-unitab{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:11px;letter-spacing:.16em;color:var(--ink-dim);background:none;border:none;padding:2px 0 7px;position:relative;cursor:pointer}
+.av-unitab.on{color:var(--gold)}
+.av-unitab.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1.5px;background:var(--gold)}
+.av-unitab.empty{opacity:.4}
+.av-reg{display:flex;flex-direction:column;margin-top:6px}
+.av-entry{position:relative;display:flex;gap:15px;align-items:flex-start;width:100%;background:none;border:none;border-bottom:1px solid var(--line);padding:16px 2px;text-align:left;cursor:pointer}
+.av-entry:last-child{border-bottom:none}
+.av-entry:active{background:rgba(217,179,106,.03)}
+.av-entry.pop{animation:achvPop .45s ease}
+.av-medal{flex:none;width:60px;height:60px;display:flex;align-items:center;justify-content:center}
+.av-medal svg{width:100%;height:100%;display:block}
+.av-medal.earned svg{filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
+.av-medal.locked{opacity:.55}
+.av-ebody{flex:1;min-width:0;display:flex;flex-direction:column;padding-top:2px}
+.av-eno{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9.5px;letter-spacing:.20em;color:var(--ink-dim);text-transform:uppercase}
+.av-ename{font-family:var(--serif);font-weight:700;font-size:18px;line-height:1.3;color:var(--ink-strong);margin-top:3px}
+.av-entry.locked .av-ename,.av-entry.todo .av-ename{color:var(--ink-mid)}
+.av-ehair{height:1px;width:40px;background:rgba(217,179,106,.24);margin:9px 0 8px}
+.av-eflavor{font-size:11.5px;color:var(--ink-mid);line-height:1.65}
+.av-eprog{display:flex;align-items:center;gap:10px;margin-top:9px}
+.av-ebar{flex:1;max-width:180px;height:2px;background:var(--line);border-radius:2px;overflow:hidden}
+.av-ebar i{display:block;height:100%;background:linear-gradient(90deg,#9c7838,var(--gold))}
+.av-erem{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;letter-spacing:.1em;color:var(--ink-mid)}
+.av-etag{font-family:var(--serif);font-style:italic;font-size:12px;color:var(--gold);margin-top:9px;letter-spacing:.03em}
+.av-etag.locked{font-style:normal;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.14em;color:var(--ink-dim)}
+.av-dot{position:absolute;top:14px;right:2px;width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 7px rgba(217,179,106,.7);animation:dotPulse 1.6s ease-in-out infinite}
+.av-empty{text-align:center;color:var(--ink-dim);font-size:12px;font-family:var(--serif);padding:34px 0;letter-spacing:.08em}
+/* 叙勲トースト */
+.av-toast{position:fixed;left:10px;right:10px;top:calc(env(safe-area-inset-top) + 10px);z-index:99997;max-width:520px;margin:0 auto;display:flex;gap:14px;align-items:center;text-align:left;
+  background:linear-gradient(120deg,rgba(217,179,106,.13),rgba(21,25,35,.84));border:1px solid rgba(217,179,106,.24);border-radius:4px;padding:13px 15px;overflow:hidden;
+  box-shadow:0 10px 34px rgba(0,0,0,.55);animation:ttIn .42s cubic-bezier(.2,.9,.3,1.15)}
+.av-toast::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(#f2dca0,#9c7838)}
+.av-toast-medal{flex:none;width:46px;height:46px}.av-toast-medal svg{width:100%;height:100%;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
+.av-toast-body{flex:1;min-width:0}
+.av-toast-kick{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9px;letter-spacing:.30em;color:var(--gold);text-transform:uppercase}
+.av-toast-name{font-family:var(--serif);font-weight:800;font-size:17px;color:var(--ink-strong);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.av-toast-more{flex:none;align-self:flex-start;font-family:ui-monospace,monospace;font-size:10px;font-weight:700;color:var(--gold);border:1px solid rgba(217,179,106,.24);border-radius:2px;padding:1px 7px}
+/* 条件モーダルを金箔編目へ(tm-* 上書き) */
+.title-modal .tm-head{align-items:center}
+.av-medal.big{width:84px;height:84px}
+.tm-name{font-size:25px}
+.tm-piece{background:none;border:none;border-bottom:1px solid var(--line);border-radius:0;padding:13px 2px}
+.tm-piece.ok{background:none}
+.tm-piece.ok .tm-mark{color:var(--gold)}
+.tm-piece.miss .tm-mark{color:var(--ink-dim)}
+.tm-mark{color:var(--ink-dim)}
+.tm-cnt{color:var(--gold)}
+.tm-tag.own{border-color:rgba(217,179,106,.30);color:var(--gold)}
+.tm-cand.row{background:none;border:none;border-bottom:1px solid var(--line);border-radius:0;padding:11px 2px}
+.tm-cand.row.ok .tm-cn{color:var(--ink-strong)}
+.tm-countbar b{color:var(--gold)}
+.tm-grd.on{border-color:rgba(217,179,106,.30);color:var(--gold);background:rgba(217,179,106,.08)}
+.title-need{color:var(--gold)}
+/* ═══ 図鑑 編目カード/リスト(金箔) ═══ */
+.kz-card{position:relative;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:11px 11px 10px;text-align:left;overflow:hidden;transition:border-color .12s,transform .12s}
+.kz-card:active{transform:scale(.985)}
+.kz-card.owned{border-color:rgba(217,179,106,.26)}
+.kz-card.owned::before{content:"";position:absolute;left:0;top:0;width:100%;height:2px;background:linear-gradient(90deg,#9c7838,#d9b36a,transparent);z-index:1}
+.kz-card.dim{opacity:.5}
+.kz-no{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9px;letter-spacing:.18em;color:var(--ink-dim);text-transform:uppercase;margin-bottom:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kz-frame{position:relative;display:flex;align-items:center;justify-content:center;min-height:90px;padding:4px 0}
+.kz-card.compact .kz-frame{min-height:64px}
+.kz-name{font-family:var(--serif);font-weight:700;font-size:14px;line-height:1.4;color:var(--ink-strong);margin-top:10px;min-height:2.5em}
+.kz-card.compact .kz-name{font-size:12px;min-height:2.4em;margin-top:7px}
+.kz-card.dim .kz-name{color:var(--ink-mid)}
+.kz-hair{height:1px;width:32px;background:rgba(217,179,106,.24);margin:8px 0}
+.kz-card.dim .kz-hair{background:var(--line)}
+.kz-meta{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.kz-year{font-family:var(--serif);font-size:11px;color:var(--gold);letter-spacing:.04em}
+.kz-price{font-family:ui-monospace,monospace;font-size:9.5px;color:var(--ink-mid)}
+.kz-series{font-size:9.5px;color:var(--ink-dim);margin-top:6px;letter-spacing:.04em}
+.kz-seal{position:absolute;top:9px;right:9px;z-index:3;font-family:var(--serif);font-weight:800;font-size:12px;line-height:1;color:var(--gold);border:1.4px solid rgba(217,179,106,.55);background:rgba(217,179,106,.1);border-radius:2px;padding:5px 4px;writing-mode:vertical-rl;letter-spacing:.1em;box-shadow:0 1px 2px rgba(0,0,0,.4)}
+.kz-plan{position:absolute;top:9px;right:9px;z-index:3;font-family:ui-monospace,monospace;font-size:11px;font-weight:700;color:var(--gold);border:1px dashed var(--gold);background:rgba(217,179,106,.05);border-radius:2px;padding:4px 5px;writing-mode:vertical-rl;letter-spacing:.06em}
+/* リスト */
+.kz-row{position:relative;display:flex;gap:14px;align-items:center;width:100%;background:none;border:none;border-bottom:1px solid var(--line);padding:13px 2px;text-align:left;transition:background .12s}
+.kz-row:active{background:rgba(217,179,106,.03)}
+.kz-row.dim{opacity:.5}
+.kz-rframe{flex:none;width:50px;height:50px;border:1px solid var(--line);border-radius:2px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#1b212e,#13171f)}
+.kz-row.owned .kz-rframe{border-color:rgba(217,179,106,.24)}
+.kz-rmain{flex:1;min-width:0}
+.kz-rno{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9px;letter-spacing:.18em;color:var(--ink-dim);text-transform:uppercase}
+.kz-rseries{font-size:9.5px;color:var(--ink-dim);letter-spacing:.04em;margin-top:2px}
+.kz-rname{font-family:var(--serif);font-weight:700;font-size:15px;color:var(--ink-strong);margin-top:2px;line-height:1.3}
+.kz-row.dim .kz-rname{color:var(--ink-mid)}
+.kz-rmeta{display:flex;gap:10px;align-items:center;margin-top:5px;flex-wrap:wrap}
+.kz-date{font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.05em;color:var(--ink-mid)}
+.kz-date.done{color:var(--gold)}
+.kz-rseal{flex:none;font-family:var(--serif);font-weight:800;font-size:12px;line-height:1;color:var(--gold);border:1.4px solid rgba(217,179,106,.55);background:rgba(217,179,106,.1);border-radius:2px;padding:5px 4px;writing-mode:vertical-rl;letter-spacing:.1em}
+.kz-rplan{flex:none;font-family:ui-monospace,monospace;font-size:11px;font-weight:700;color:var(--gold);border:1px dashed var(--gold);background:rgba(217,179,106,.05);border-radius:2px;padding:4px 5px;writing-mode:vertical-rl;letter-spacing:.06em}
 @media (prefers-reduced-motion:reduce){*:not(.crt-beam){animation:none!important;transition:none!important}}
 `;
