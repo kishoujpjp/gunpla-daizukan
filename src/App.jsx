@@ -2818,6 +2818,29 @@ function CropModal({ src, onDone, onCancel }) {
 }
 
 /* ── 機體編輯表單(新增/編輯共用) ── */
+function Roll({ value }) {
+  const [disp, setDisp] = useState(value);
+  const fromRef = useRef(value);
+  useEffect(() => {
+    const from = fromRef.current, to = value;
+    if (from === to) { setDisp(to); return; }
+    const reduce = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) { fromRef.current = to; setDisp(to); return; }
+    let raf, start = null; const dur = 520;
+    const tick = (t) => {
+      if (start === null) start = t;
+      const pr = Math.min(1, (t - start) / dur);
+      const e = 1 - Math.pow(1 - pr, 3);
+      setDisp(Math.round(from + (to - from) * e));
+      if (pr < 1) raf = requestAnimationFrame(tick);
+      else { fromRef.current = to; setDisp(to); }
+    };
+    raf = requestAnimationFrame(tick);
+    return () => { cancelAnimationFrame(raf); fromRef.current = to; };
+  }, [value]);
+  return <>{disp}</>;
+}
+
 function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, seriesOptions = [], ai, recInitial = null, onSaveRec,
   album, onAddImage, onRemoveImage, onSetRole, onFrame, thumbRef, acqRef, maxImgs = 6 }) {
   const albumMode = typeof onAddImage === "function";
@@ -4417,33 +4440,32 @@ export default function App() {
           const isPlan = tab === "collection" && collMode === "plan";
           const pct = isPlan ? futurePct : collectPct;
           return (
-            <div className="hf">
+            <div className="hf" role="button" tabIndex={0}
+              onClick={() => { haptic(); if (bodyRef.current) bodyRef.current.scrollTo({ top: 0, behavior: "smooth" }); }}>
+              <span className="hf-foil" aria-hidden="true" />
               <span className="hf-tag">Ⓐ ARCHIVE</span>
               <span className="hf-gate gt" style={{ left: "30%" }} /><span className="hf-gate gt" style={{ left: "55%" }} /><span className="hf-gate gl" style={{ top: "50%" }} />
-              <div className="hf-row">
-                <div className="hf-left">
-                  <div className="hf-eye">CLASSIFIED · {arc.jp}</div>
-                  <h1 className="hf-title tappable" onClick={() => { haptic(); if (bodyRef.current) bodyRef.current.scrollTo({ top: 0, behavior: "smooth" }); }}>ガンプラ<span className="hf-kana">大図鑑</span></h1>
-                </div>
-                <div className="hf-stats">
-                  {isPlan ? (
-                    <>
-                      <div className="s"><b>{allKits.length}</b><span>収録</span></div>
-                      <div className="hf-div" />
-                      <div className="s"><b className="kin">{planAll}</b><span>予定</span></div>
-                      <div className="hf-div" />
-                      <div className="s"><b className="kin">{futurePct}%</b><span>収集率</span></div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="s"><b>{tab === "collection" ? ownedAll : allKits.length}</b><span>{tab === "collection" ? "収蔵" : "収録"}</span></div>
-                      <div className="hf-div" />
-                      <div className="s"><b>{tab === "collection" ? builtAll : ownedAll}</b><span>{tab === "collection" ? "完成" : "入手"}</span></div>
-                      <div className="hf-div" />
-                      <div className="s"><b>{collectPct}%</b><span>収集率</span></div>
-                    </>
-                  )}
-                </div>
+              <div className="hf-eye">CLASSIFIED · {arc.jp}</div>
+              <h1 className="hf-title">ガンプラ<span className="hf-kana">大図鑑</span></h1>
+              <div className="hf-rule" />
+              <div className="hf-stats">
+                {isPlan ? (
+                  <>
+                    <div className="s"><b><Roll value={allKits.length} /></b><span>収録</span></div>
+                    <div className="hf-div" />
+                    <div className="s"><b className="kin"><Roll value={planAll} /></b><span>予定</span></div>
+                    <div className="hf-div" />
+                    <div className="s"><b className="kin"><Roll value={futurePct} />%</b><span>収集率</span></div>
+                  </>
+                ) : (
+                  <>
+                    <div className="s"><b><Roll value={tab === "collection" ? ownedAll : allKits.length} /></b><span>{tab === "collection" ? "収蔵" : "収録"}</span></div>
+                    <div className="hf-div" />
+                    <div className="s"><b><Roll value={tab === "collection" ? builtAll : ownedAll} /></b><span>{tab === "collection" ? "完成" : "入手"}</span></div>
+                    <div className="hf-div" />
+                    <div className="s"><b><Roll value={collectPct} />%</b><span>収集率</span></div>
+                  </>
+                )}
               </div>
               <div className="hf-prog"><i className={isPlan ? "kin" : ""} style={{ width: `${pct}%` }} /></div>
               <span className="hf-code">{arc.en}</span>
@@ -6712,29 +6734,40 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .form .f-sec span{font-family:var(--mono);font-size:8.5px;letter-spacing:.28em;color:var(--ink-dim);text-transform:uppercase}
 .form .fld>span{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--ink-mid);text-transform:uppercase}
 /* ═══ ランナー枠ヘッダー ═══ */
-.head .hf{position:relative;border:1.6px solid var(--gold);border-radius:8px;padding:13px 17px 0;background:linear-gradient(160deg,rgba(217,179,106,.05),transparent 58%)}
-.head .hf::after{content:"";position:absolute;inset:4px;border:1px solid rgba(217,179,106,.16);border-radius:5px;pointer-events:none}
+.head .hf{position:relative;border:1.6px solid var(--gold);border-radius:8px;padding:14px 18px 0;background:linear-gradient(160deg,rgba(217,179,106,.05),transparent 58%);cursor:pointer;transition:transform .14s ease}
+.head .hf:active{transform:scale(.985)}
+.head .hf::after{content:"";position:absolute;inset:4px;border:1px solid rgba(217,179,106,.16);border-radius:5px;pointer-events:none;transition:inset .14s ease}
+.head .hf:active::after{inset:5px}
+.hf-foil{position:absolute;inset:0;border-radius:8px;overflow:hidden;pointer-events:none;z-index:4}
+.hf-foil::after{content:"";position:absolute;top:0;bottom:0;left:0;width:55%;background:linear-gradient(115deg,transparent 38%,rgba(242,220,160,.42) 50%,transparent 62%);transform:translateX(-190%)}
+.head .hf:active .hf-foil::after{animation:hfGlint .6s ease-out}
+@keyframes hfGlint{from{transform:translateX(-190%)}to{transform:translateX(380%)}}
 .hf-tag{position:absolute;top:-9px;left:15px;background:var(--bg);padding:0 8px;font-family:var(--mono);font-size:9px;letter-spacing:.2em;color:var(--gold);z-index:2}
 .hf-code{position:absolute;bottom:-8px;right:15px;background:var(--bg);padding:0 8px;font-family:var(--mono);font-size:8px;letter-spacing:.18em;color:var(--ink-dim);z-index:2}
 .hf-gate{position:absolute;background:var(--gold);opacity:.5;z-index:1}
 .hf-gate.gt{top:-1px;width:8px;height:5px;border-radius:0 0 2px 2px}
 .hf-gate.gl{left:-1px;width:5px;height:8px;border-radius:0 2px 2px 0}
-.hf-row{position:relative;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding-bottom:12px}
-.hf-left{min-width:0}
-.hf-eye{font-family:var(--mono);font-size:8.5px;letter-spacing:.24em;color:var(--ink-mid);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hf-title{font-family:var(--serif);font-weight:800;font-size:24px;letter-spacing:.04em;color:var(--ink-strong);line-height:1;margin-top:5px}
-.hf-title.tappable{cursor:pointer;transition:transform .12s ease;user-select:none;-webkit-user-select:none}
-.hf-title.tappable:active{transform:scale(.96);transform-origin:left center}
-.hf-kana{color:var(--gold);margin-left:2px}
-.hf-stats{display:flex;align-items:center;gap:9px;flex:none}
-.hf-stats .s{display:flex;flex-direction:column;align-items:flex-end;line-height:1.1}
-.hf-stats b{font-family:var(--mono);font-weight:700;font-size:15px;color:var(--ink-strong);letter-spacing:.01em}
+.hf-eye{position:relative;font-family:var(--mono);font-size:9px;letter-spacing:.26em;color:var(--ink-mid);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hf-title{position:relative;font-family:var(--serif);font-weight:800;font-size:33px;letter-spacing:.05em;color:var(--ink-strong);line-height:1.04;margin-top:7px}
+.hf-kana{color:var(--gold);margin-left:3px}
+.hf-rule{position:relative;height:1px;margin:13px 0 0;background:linear-gradient(90deg,rgba(217,179,106,.3),rgba(217,179,106,.05) 75%,transparent)}
+.hf-stats{position:relative;display:flex;align-items:center;padding:10px 0 12px}
+.hf-stats .s{flex:1;display:flex;flex-direction:column;align-items:center;line-height:1.1}
+.hf-stats .s:first-child{align-items:flex-start}
+.hf-stats .s:last-child{align-items:flex-end}
+.hf-stats b{font-family:var(--mono);font-weight:700;font-size:18px;color:var(--ink-strong);letter-spacing:.01em;font-variant-numeric:tabular-nums}
 .hf-stats b.kin{color:var(--kin)}
-.hf-stats span{font-family:var(--mono);font-size:7.5px;letter-spacing:.12em;color:var(--ink-dim);margin-top:2px;text-transform:uppercase}
-.hf-div{width:1px;height:20px;background:var(--line)}
-.hf-prog{position:relative;height:3px;margin:0 -17px;border-radius:0 0 6px 6px;overflow:hidden;background:rgba(217,179,106,.1)}
+.hf-stats span{font-family:var(--mono);font-size:8px;letter-spacing:.14em;color:var(--ink-dim);margin-top:3px;text-transform:uppercase}
+.hf-div{flex:none;width:1px;height:22px;background:var(--line)}
+.hf-prog{position:relative;height:3px;margin:0 -18px;border-radius:0 0 7px 7px;overflow:hidden;background:rgba(217,179,106,.1)}
 .hf-prog i{display:block;height:100%;background:linear-gradient(90deg,#9c7838,var(--gold));transition:width .5s}
 .hf-prog i.kin{background:linear-gradient(90deg,#b88f3e,var(--kin))}
-@media (min-width:430px){.hf-title{font-size:27px}.hf-stats b{font-size:16px}}
+@media (min-width:430px){.hf-title{font-size:38px}.hf-stats b{font-size:20px}}
+/* 章徽 常駐微光(金箔glint) */
+.av-medal.earned{position:relative;overflow:hidden}
+.av-medal.earned::after{content:"";position:absolute;top:-10%;bottom:-10%;left:0;width:60%;background:linear-gradient(115deg,transparent 42%,rgba(242,220,160,.55) 50%,transparent 58%);transform:translateX(-150%);pointer-events:none;animation:medalGlint 6s ease-in-out infinite}
+@keyframes medalGlint{0%,84%{transform:translateX(-150%)}93%{transform:translateX(230%)}100%{transform:translateX(230%)}}
+.av-entry:nth-child(3n) .av-medal.earned::after{animation-delay:2s}
+.av-entry:nth-child(3n+1) .av-medal.earned::after{animation-delay:4s}
 @media (prefers-reduced-motion:reduce){*:not(.crt-beam){animation:none!important;transition:none!important}}
 `;
