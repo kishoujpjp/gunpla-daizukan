@@ -4573,11 +4573,11 @@ export default function App() {
                 const inSeg = (t) => titleSeg === "all" ? true
                   : titleSeg === "combo" ? (t.group === "combo" || t.group === "single")
                   : t.group === titleSeg;
-                const rank = (t) => (t.unlocked ? 2 : (t.cur > 0 ? 0 : 1));
+                const rank = (t) => (t.unlocked ? 3 : (t.needBuild ? 0 : (t.cur > 0 ? 1 : 2)));
                 const list = titles.filter(inSeg).slice().sort((a, b) => {
                   const r = rank(a) - rank(b);
                   if (r !== 0) return r;
-                  if (rank(a) === 0) return (b.cur / b.need) - (a.cur / a.need);
+                  if (rank(a) === 1) return (b.cur / b.need) - (a.cur / a.need);
                   return 0;
                 });
                 const got = titles.filter((t) => t.unlocked).length;
@@ -4603,22 +4603,32 @@ export default function App() {
                         const remain = Math.max(0, t.need - t.cur);
                         return (
                           <button key={t.id}
-                            className={"title-card " + (t.unlocked ? "unlocked" : "locked")
+                            className={"title-card " + (t.unlocked ? "unlocked" : (t.needBuild ? "todo" : "locked"))
                               + (isNew ? " new" : "") + (achvPop === "t:" + t.id ? " pop" : "")}
                             onClick={() => { haptic(); ackTitle(t.id); setTitleDetail(t); }}>
                             {t.unlocked
-                              ? <span className="title-seal">達成</span>
+                              ? <span className="title-chip on"><svg className="emb" viewBox="0 0 48 48" aria-hidden="true">
+                                  <path d="M16 9 H32 V15 A8 8 0 0 1 16 15 Z" fill="none" stroke="#6fd3c7" strokeWidth="2" strokeLinejoin="round" />
+                                  <path d="M16 11 H11 A4 4 0 0 0 15 17.5" fill="none" stroke="#6fd3c7" strokeWidth="1.5" />
+                                  <path d="M32 11 H37 A4 4 0 0 1 33 17.5" fill="none" stroke="#6fd3c7" strokeWidth="1.5" />
+                                  <path d="M24 23 V30" stroke="#6fd3c7" strokeWidth="2" strokeLinecap="round" />
+                                  <path d="M17 38 H31 M19 30 H29 L31 38 H17 Z" fill="none" stroke="#6fd3c7" strokeWidth="2" strokeLinejoin="round" />
+                                  <path d="M20.5 12.5 l2.5 2.5 l4.5 -4.5" fill="none" stroke="#6fd3c7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg></span>
                               : <span className="title-chip crt"><span className="qm">？</span></span>}
                             <div className="title-body">
                               <div className="title-name">{hiddenLocked ? "？？？" : t.name}</div>
-                              {!hiddenLocked && <div className="title-sub">{t.sub}</div>}
-                              {!t.unlocked && t.need > 1 && (
+                              {t.unlocked && <div className="title-sub">{t.sub}</div>}
+                              {!t.unlocked && t.needBuild && (
+                                <div className="title-foot"><span className="ttag todo">要完成 ・ 1体制作で解放</span></div>
+                              )}
+                              {!t.unlocked && !t.needBuild && t.need > 1 && (
                                 <div className="title-foot">
                                   <div className="hp-track"><i style={{ width: `${Math.round(t.cur / t.need * 100)}%` }} /></div>
                                   <span className="title-need">あと{remain}</span>
                                 </div>
                               )}
-                              {!t.unlocked && t.need === 1 && (
+                              {!t.unlocked && !t.needBuild && t.need === 1 && (
                                 <div className="title-foot"><span className="title-need locked-tag">未達成</span></div>
                               )}
                             </div>
@@ -5156,7 +5166,14 @@ export default function App() {
               </div>
               <div className="tm-head">
                 {t.unlocked
-                  ? <span className="title-seal big">達成</span>
+                  ? <span className="title-chip on big"><svg className="emb" viewBox="0 0 48 48" aria-hidden="true">
+                                  <path d="M16 9 H32 V15 A8 8 0 0 1 16 15 Z" fill="none" stroke="#6fd3c7" strokeWidth="2" strokeLinejoin="round" />
+                                  <path d="M16 11 H11 A4 4 0 0 0 15 17.5" fill="none" stroke="#6fd3c7" strokeWidth="1.5" />
+                                  <path d="M32 11 H37 A4 4 0 0 1 33 17.5" fill="none" stroke="#6fd3c7" strokeWidth="1.5" />
+                                  <path d="M24 23 V30" stroke="#6fd3c7" strokeWidth="2" strokeLinecap="round" />
+                                  <path d="M17 38 H31 M19 30 H29 L31 38 H17 Z" fill="none" stroke="#6fd3c7" strokeWidth="2" strokeLinejoin="round" />
+                                  <path d="M20.5 12.5 l2.5 2.5 l4.5 -4.5" fill="none" stroke="#6fd3c7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg></span>
                   : <span className="title-chip crt big"><span className="qm">？</span></span>}
                 <div className="tm-headbody">
                   <div className="tm-name">{t.name}</div>
@@ -5232,6 +5249,17 @@ export default function App() {
                   <p className="tm-hint">{ex.best
                     ? `「${ex.best.names[0]}」系で ${ex.best.hit}/${ex.grades.length} グレード所持`
                     : "対象になる同一機体がまだありません"}</p>
+                </div>
+              )}
+
+              {ex && ex.buildGate && (
+                <div className="tm-cond tm-gate">
+                  <div className="tm-hint">制作条件</div>
+                  <div className={"tm-piece" + (ex.buildGate.satisfied ? " ok" : " miss")}>
+                    <i className="tm-mark">{ex.buildGate.satisfied ? "✓" : "✗"}</i>
+                    <span className="tm-pname">1体以上を完成(制作)
+                      {ex.buildGate.builtName ? <b className="tm-tag own">{ex.buildGate.builtName}</b> : null}</span>
+                  </div>
                 </div>
               )}
             </div>
@@ -5600,7 +5628,7 @@ input,textarea{font-family:var(--sans)}
 .adv-seg{flex:1;display:flex;gap:5px}
 .adv-seg-btn{flex:1;padding:7px 4px;font-size:11.5px;font-weight:700;border:1px solid var(--line);
   border-radius:7px;color:var(--ink-mid);background:var(--bg2);white-space:nowrap}
-.adv-seg-btn.on{border-color:var(--gold);color:var(--gold);background:rgba(217,179,106,.12)}
+.adv-seg-btn.on{border-color:rgba(111,211,199,.5);color:var(--teal);background:rgba(111,211,199,.09);box-shadow:inset 0 -2px 0 -1px var(--teal)}
 .adv-foot{display:flex;align-items:center;justify-content:space-between;margin-top:1px}
 .adv-years{flex:1;min-width:0;display:flex;align-items:center;gap:8px}
 .adv-year{flex:1;min-width:0;background:var(--bg2);border:1px solid var(--line);border-radius:7px;
@@ -5713,7 +5741,7 @@ input,textarea{font-family:var(--sans)}
 .sp-item{display:block;width:100%;text-align:left;padding:11px 12px;border-radius:8px;
   font-size:13.5px;color:var(--ink);letter-spacing:.02em}
 .sp-item:active{background:var(--panel)}
-.sp-item.on{color:var(--gold);background:rgba(217,179,106,.12);font-weight:700}
+.sp-item.on{color:var(--teal);background:rgba(111,211,199,.1);font-weight:700}
 .sp-empty{padding:24px 12px;text-align:center;color:var(--ink-dim);font-size:12.5px}
 
 .form{display:flex;flex-direction:column;gap:12px}
@@ -6338,25 +6366,26 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
   clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,0 100%);
   transition:transform .16s cubic-bezier(.34,1.56,.64,1),border-color .12s}
 .title-card:active{transform:scale(.985);filter:brightness(.95)}
-.title-card.unlocked{border-color:rgba(217,179,106,.5)}
-.title-chip{flex:none;width:52px;height:52px;border-radius:8px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.title-card.unlocked{border-color:rgba(111,211,199,.34);background:linear-gradient(160deg,rgba(111,211,199,.06),var(--panel))}
+.title-chip{flex:none;width:72px;height:72px;border-radius:9px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
 .title-chip.crt{color:var(--teal);background:radial-gradient(ellipse at 50% 42%,rgba(111,211,199,.13),transparent 66%),#0a1014;box-shadow:inset 0 0 18px 4px rgba(0,0,0,.62)}
 .title-chip.crt::before{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(111,211,199,.06) 0 1px,transparent 1px 3px)}
-.title-chip .qm{position:relative;z-index:1;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:21px;font-weight:700;color:var(--teal);text-shadow:0 0 9px rgba(111,211,199,.6)}
+.title-chip .qm{position:relative;z-index:1;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:40px;font-weight:700;color:var(--teal);text-shadow:0 0 9px rgba(111,211,199,.6)}
 .title-seal{flex:none;width:52px;height:52px;border-radius:8px;display:flex;align-items:center;justify-content:center;
   border:1.5px solid var(--shu);color:var(--shu);background:rgba(232,85,61,.09);
   font-family:var(--serif);font-weight:800;font-size:13px;letter-spacing:.14em;writing-mode:vertical-rl;
   transform:rotate(-3deg);box-shadow:0 0 0 3px rgba(232,85,61,.06)}
 .title-body{flex:1;min-width:0}
-.title-name{font-family:var(--serif);font-size:15px;font-weight:700;color:var(--ink-strong);line-height:1.32}
-.title-card.locked .title-name{color:var(--ink-mid)}
+.title-name{font-family:var(--serif);font-size:19.5px;font-weight:700;color:var(--ink-strong);line-height:1.3}
+.title-card.locked .title-name{color:var(--ink)}
+.title-card.todo .title-name{color:var(--ink)}
 .title-sub{font-size:10.5px;color:var(--ink-dim);line-height:1.55;margin-top:3px}
 .title-foot{display:flex;align-items:center;gap:9px;margin-top:8px}
 .title-card.locked .hp-track i{background:linear-gradient(90deg,var(--teal),var(--gold));box-shadow:0 0 6px rgba(111,211,199,.4)}
 .title-need{flex:none;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9.5px;letter-spacing:.08em;color:var(--teal)}
 .title-need.locked-tag{color:var(--ink-dim)}
-.title-card.new{border-color:var(--gold)}
-.title-card.new::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 30%,rgba(217,179,106,.20) 50%,transparent 70%);transform:translateX(-100%);animation:shine 2.4s ease-in-out infinite}
+.title-card.new{border-color:rgba(111,211,199,.55);box-shadow:0 0 0 1px rgba(111,211,199,.15)}
+.title-card.new::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 30%,rgba(111,211,199,.18) 50%,transparent 70%);transform:translateX(-100%);animation:shine 2.4s ease-in-out infinite}
 .title-dot{top:8px;right:8px}
 .title-card.pop{animation:achvPop .45s ease}
 @media (min-width:768px){.title-grid{display:grid;grid-template-columns:repeat(2,1fr)}}
@@ -6409,5 +6438,17 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .tm-grades{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px}
 .tm-grd{font-size:11px;font-weight:700;border:1px solid var(--line);color:var(--ink-dim);border-radius:5px;padding:3px 9px}
 .tm-grd.on{border-color:var(--teal);color:var(--teal);background:rgba(111,211,199,.08)}
+/* ═══ 称号 リデザイン(青磷光・C賞盃・2x) ═══ */
+.title-chip.on{background:radial-gradient(ellipse at 50% 40%,rgba(111,211,199,.18),transparent 70%),#0a1417;box-shadow:inset 0 0 16px 3px rgba(0,0,0,.55),0 0 0 1px rgba(111,211,199,.18)}
+.title-chip .emb{position:relative;z-index:1;width:46px;height:46px;animation:pulseGlow 2.6s ease-in-out infinite}
+.title-chip.big{width:100px;height:100px}
+.title-chip.big .qm{font-size:54px}
+.title-chip.big .emb{width:66px;height:66px}
+@keyframes pulseGlow{0%,100%{filter:drop-shadow(0 0 4px rgba(111,211,199,.55))}50%{filter:drop-shadow(0 0 9px rgba(111,211,199,.95))}}
+.title-card.todo{border-color:rgba(111,211,199,.22)}
+.title-foot .ttag.todo{flex:none;font-size:10px;font-weight:700;letter-spacing:.06em;border:1px dashed var(--teal);color:var(--teal);background:rgba(111,211,199,.05);border-radius:5px;padding:5px 11px}
+.tm-gate{margin-top:14px}
+.tm-piece.miss{border-color:rgba(232,85,61,.28)}
+.tm-piece.miss .tm-mark{color:var(--shu)}
 @media (prefers-reduced-motion:reduce){*:not(.crt-beam){animation:none!important;transition:none!important}}
 `;

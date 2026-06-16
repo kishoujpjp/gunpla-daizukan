@@ -68,41 +68,48 @@ function assignDistinct(sels, owned) {
 /* ルール評価 → { unlocked, cur, need } */
 export function evalRule(rule, owned) {
   if (rule.match) {
-    const n = rule.n || 1, c = kitsMatching(rule.match, owned).length;
-    return { unlocked: c >= n, cur: Math.min(c, n), need: n };
+    const n = rule.n || 1;
+    const m = kitsMatching(rule.match, owned);
+    return { unlocked: m.length >= n, cur: Math.min(m.length, n), need: n, ids: m.map((k) => k.id) };
   }
   if (rule.all) {
     const simple = rule.all.every((p) => p.match);
     if (simple) {
       const sels = rule.all.map((p) => p.match);
-      const { ok, satisfied } = assignDistinct(sels, owned);
-      return { unlocked: ok, cur: ok ? sels.length : satisfied, need: sels.length };
+      const candIds = sels.map((sel) => kitsMatching(sel, owned).map((k) => k.id));
+      const order = candIds.map((_, i) => i).sort((a, b) => candIds[a].length - candIds[b].length);
+      const used = new Set();
+      for (const i of order) { const pick = candIds[i].find((id) => !used.has(id)); if (pick !== undefined) used.add(pick); }
+      const ok = used.size === sels.length;
+      const satisfied = candIds.filter((c) => c.length).length;
+      return { unlocked: ok, cur: ok ? sels.length : satisfied, need: sels.length, ids: [...used] };
     }
     const sub = rule.all.map((p) => evalRule(p, owned));
-    return { unlocked: sub.every((s) => s.unlocked),
-             cur: sub.filter((s) => s.unlocked).length, need: sub.length };
+    const ids = [].concat(...sub.map((x) => x.ids || []));
+    return { unlocked: sub.every((x) => x.unlocked), cur: sub.filter((x) => x.unlocked).length, need: sub.length, ids };
   }
   if (rule.any) {
     const sub = rule.any.map((p) => evalRule(p, owned));
-    return { unlocked: sub.some((s) => s.unlocked),
-             cur: Math.max(0, ...sub.map((s) => s.cur)), need: 1 };
+    const ids = [].concat(...sub.map((x) => x.ids || []));
+    return { unlocked: sub.some((x) => x.unlocked), cur: Math.max(0, ...sub.map((x) => x.cur)), need: 1, ids };
   }
   if (rule.count) {
-    const c = kitsMatching(rule.count, owned).length;
-    return { unlocked: c >= rule.gte, cur: Math.min(c, rule.gte), need: rule.gte };
+    const m = kitsMatching(rule.count, owned);
+    return { unlocked: m.length >= rule.gte, cur: Math.min(m.length, rule.gte), need: rule.gte, ids: m.map((k) => k.id) };
   }
   if (rule.sameCodeAcrossGrades) {
     const grades = rule.sameCodeAcrossGrades;
     const byCode = new Map();
     for (const k of owned) {
       if (!k.code || k.code === "\u2014") continue;
-      (byCode.get(k.code) || byCode.set(k.code, new Set()).get(k.code)).add(gradeOf(k));
+      if (!byCode.has(k.code)) byCode.set(k.code, { grades: new Set(), ids: [] });
+      const e = byCode.get(k.code); e.grades.add(gradeOf(k)); e.ids.push(k.id);
     }
-    let hits = 0;
-    for (const gs of byCode.values()) if (grades.every((g) => gs.has(g))) hits++;
-    return { unlocked: hits >= 1, cur: hits ? 1 : 0, need: 1 };
+    let ids = []; let hits = 0;
+    for (const e of byCode.values()) if (grades.every((g) => e.grades.has(g))) { hits++; ids = ids.concat(e.ids); }
+    return { unlocked: hits >= 1, cur: hits ? 1 : 0, need: 1, ids };
   }
-  return { unlocked: false, cur: 0, need: 1 };
+  return { unlocked: false, cur: 0, need: 1, ids: [] };
 }
 
 /* 全成就を評価。
@@ -113,17 +120,17 @@ export function evalRule(rule, owned) {
 export function evaluateAchievements(rules, allKits, getRec) {
   const isMG = (k) => gradeOf(k) === "MG";
   const ownedFull = allKits.filter((k) => getRec(k.id).owned);
-  const builtFull = allKits.filter((k) => !!getRec(k.id).buildDate);
   const ownedMG = ownedFull.filter(isMG);
-  const builtMG = builtFull.filter(isMG);
+  const builtSet = new Set(allKits.filter((k) => !!getRec(k.id).buildDate).map((k) => k.id));
   return rules.map((r) => {
-    const full = r.scope === "full";
-    const pool = r.state === "built"
-      ? (full ? builtFull : builtMG)
-      : (full ? ownedFull : ownedMG);
+    const pool = r.scope === "full" ? ownedFull : ownedMG;
     const ev = evalRule(r.rule, pool);
-    return { id: r.id, name: r.name, group: r.group, sub: r.sub,
-             hidden: !!r.hidden, ...ev };
+    const collectionMet = ev.unlocked;
+    const builtGate = collectionMet && (ev.ids || []).some((id) => builtSet.has(id));
+    return { id: r.id, name: r.name, group: r.group, sub: r.sub, hidden: !!r.hidden,
+             cur: ev.cur, need: ev.need,
+             unlocked: collectionMet && builtGate,
+             collectionMet, builtGate, needBuild: collectionMet && !builtGate };
   });
 }
 
@@ -141,58 +148,56 @@ export function newlyUnlocked(prevUnlockedSet, evaluated) {
 export function explainAchievement(ach, allKits, getRec) {
   const full = ach.scope === "full";
   const isMG = (k) => gradeOf(k) === "MG";
-  const ownedAll = allKits.filter((k) =>
-    ach.state === "built" ? !!getRec(k.id).buildDate : getRec(k.id).owned);
+  const ownedAll = allKits.filter((k) => getRec(k.id).owned);
   const owned = full ? ownedAll : ownedAll.filter(isMG);
   const cand = full ? allKits : allKits.filter(isMG);
   const ownedSet = new Set(owned.map((k) => k.id));
-  const named = (k) => ({ id: k.id, name: k.name, code: k.code, owned: ownedSet.has(k.id) });
+  const builtSet = new Set(allKits.filter((k) => !!getRec(k.id).buildDate).map((k) => k.id));
+  const byId = new Map(allKits.map((k) => [k.id, k]));
+  const named = (k) => ({ id: k.id, name: k.name, code: k.code, owned: ownedSet.has(k.id), built: builtSet.has(k.id) });
   const rule = ach.rule;
+  let result, satisfyingIds = [];
 
   if (rule.all || rule.match) {
     const parts = rule.all || [{ match: rule.match }];
     const sels = parts.filter((p) => p.match).map((p) => p.match);
     const counts = parts.filter((p) => p.count);
-    // 異なる機体を割り当て(distinct)して、どの piece が満たされたか確定
-    const candIds = sels.map((s) => kitsMatching(s, owned).map((k) => k.id));
+    const candIds = sels.map((sel) => kitsMatching(sel, owned).map((k) => k.id));
     const order = candIds.map((_, i) => i).sort((a, b) => candIds[a].length - candIds[b].length);
     const used = new Set(); const assign = new Array(sels.length).fill(null);
-    for (const i of order) {
-      const pick = candIds[i].find((id) => !used.has(id));
-      if (pick !== undefined) { used.add(pick); assign[i] = pick; }
-    }
-    const ownedById = new Map(owned.map((k) => [k.id, k]));
-    const pieces = sels.map((s, i) => ({
+    for (const i of order) { const pick = candIds[i].find((id) => !used.has(id)); if (pick !== undefined) { used.add(pick); assign[i] = pick; } }
+    const pieces = sels.map((sel, i) => ({
       satisfied: assign[i] !== null,
-      owned: assign[i] !== null ? named(ownedById.get(assign[i])) : null,
-      candidates: kitsMatching(s, cand).map(named),
+      owned: assign[i] !== null ? named(byId.get(assign[i])) : null,
+      candidates: kitsMatching(sel, cand).map(named),
     }));
-    const countPieces = counts.map((p) => ({
-      have: kitsMatching(p.count, owned).map(named),
-      need: p.gte,
-    }));
-    return { kind: "combo", pieces, countPieces };
-  }
-  if (rule.count) {
-    return { kind: "count",
-      have: kitsMatching(rule.count, owned).map(named),
-      need: rule.gte,
-      candidates: kitsMatching(rule.count, cand).map(named) };
-  }
-  if (rule.sameCodeAcrossGrades) {
+    const countPieces = counts.map((p) => ({ have: kitsMatching(p.count, owned).map(named), need: p.gte }));
+    satisfyingIds = [...used].concat(...countPieces.map((cp) => cp.have.map((h) => h.id)));
+    result = { kind: "combo", pieces, countPieces };
+  } else if (rule.count) {
+    const have = kitsMatching(rule.count, owned).map(named);
+    satisfyingIds = have.map((h) => h.id);
+    result = { kind: "count", have, need: rule.gte, candidates: kitsMatching(rule.count, cand).map(named) };
+  } else if (rule.sameCodeAcrossGrades) {
     const grades = rule.sameCodeAcrossGrades;
     const byCode = new Map();
     for (const k of ownedAll) {
       if (!k.code || k.code === "\u2014") continue;
-      if (!byCode.has(k.code)) byCode.set(k.code, { grades: new Set(), names: [] });
-      const e = byCode.get(k.code); e.grades.add(gradeOf(k)); e.names.push(k.name);
+      if (!byCode.has(k.code)) byCode.set(k.code, { grades: new Set(), names: [], ids: [] });
+      const e = byCode.get(k.code); e.grades.add(gradeOf(k)); e.names.push(k.name); e.ids.push(k.id);
     }
     let best = null;
     for (const [code, info] of byCode) {
       const hit = grades.filter((g) => info.grades.has(g)).length;
-      if (!best || hit > best.hit) best = { code, hit, grades: [...info.grades], names: info.names };
+      if (!best || hit > best.hit) best = { code, hit, grades: [...info.grades], names: info.names, ids: info.ids };
     }
-    return { kind: "grades", grades, best };
+    if (best) satisfyingIds = best.ids;
+    result = { kind: "grades", grades, best };
+  } else {
+    result = { kind: "unknown" };
   }
-  return { kind: "unknown" };
+
+  const builtId = satisfyingIds.find((id) => builtSet.has(id));
+  result.buildGate = { satisfied: !!builtId, builtName: builtId ? byId.get(builtId).name : null };
+  return result;
 }
