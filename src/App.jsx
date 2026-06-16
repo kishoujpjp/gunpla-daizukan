@@ -4409,38 +4409,47 @@ export default function App() {
       )}
 
       <header className="head">
-        <div className="head-line" />
-        <div className="head-row">
-          <div>
-            <div className="head-eyebrow">GUNPLA ARCHIVE 1995–2027</div>
-            <h1 className="head-title tappable" onClick={() => {
-              haptic();
-              if (bodyRef.current) bodyRef.current.scrollTo({ top: 0, behavior: "smooth" });
-            }}>ガンプラ<span className="head-kana">大図鑑</span></h1>
-          </div>
-          <div className="head-stats">
-            {tab === "collection" && collMode === "plan" ? (
-              <>
-                <div><b>{allKits.length}</b><span>収録</span></div>
-                <div className="stat-div" />
-                <div><b className="kin">{planAll}</b><span>予定</span></div>
-                <div className="stat-div" />
-                <div><b className="kin">{futurePct}%</b><span>収集率</span></div>
-              </>
-            ) : (
-              <>
-                <div><b>{tab === "collection" ? ownedAll : allKits.length}</b><span>{tab === "collection" ? "収蔵" : "収録"}</span></div>
-                <div className="stat-div" />
-                <div><b>{tab === "collection" ? builtAll : ownedAll}</b><span>{tab === "collection" ? "完成" : "入手"}</span></div>
-                <div className="stat-div" />
-                <div><b>{collectPct}%</b><span>収集率</span></div>
-              </>
-            )}
-          </div>
-        </div>
-        <div className="head-progress">
-          <div className="hp-track"><i style={{ width: `${collMode === "plan" && tab === "collection" ? futurePct : collectPct}%`, background: collMode === "plan" && tab === "collection" ? "var(--kin)" : undefined }} /></div>
-        </div>
+        {(() => {
+          const arc = tab === "zukan" ? { jp: "機体档案", en: "REGISTRY" }
+            : tab === "collection" ? (collMode === "plan" ? { jp: "発注档案", en: "REQUISITION" } : { jp: "収蔵档案", en: "HOLDINGS" })
+            : tab === "analysis" ? (anaMode === "analysis" ? { jp: "観測档案", en: "OBSERVATION" } : { jp: "叙勲档案", en: "DECORATIONS" })
+            : { jp: "管理档案", en: "ADMINISTRATION" };
+          const isPlan = tab === "collection" && collMode === "plan";
+          const pct = isPlan ? futurePct : collectPct;
+          return (
+            <div className="hf">
+              <span className="hf-tag">Ⓐ ARCHIVE</span>
+              <span className="hf-gate gt" style={{ left: "30%" }} /><span className="hf-gate gt" style={{ left: "55%" }} /><span className="hf-gate gl" style={{ top: "50%" }} />
+              <div className="hf-row">
+                <div className="hf-left">
+                  <div className="hf-eye">CLASSIFIED · {arc.jp}</div>
+                  <h1 className="hf-title tappable" onClick={() => { haptic(); if (bodyRef.current) bodyRef.current.scrollTo({ top: 0, behavior: "smooth" }); }}>ガンプラ<span className="hf-kana">大図鑑</span></h1>
+                </div>
+                <div className="hf-stats">
+                  {isPlan ? (
+                    <>
+                      <div className="s"><b>{allKits.length}</b><span>収録</span></div>
+                      <div className="hf-div" />
+                      <div className="s"><b className="kin">{planAll}</b><span>予定</span></div>
+                      <div className="hf-div" />
+                      <div className="s"><b className="kin">{futurePct}%</b><span>収集率</span></div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="s"><b>{tab === "collection" ? ownedAll : allKits.length}</b><span>{tab === "collection" ? "収蔵" : "収録"}</span></div>
+                      <div className="hf-div" />
+                      <div className="s"><b>{tab === "collection" ? builtAll : ownedAll}</b><span>{tab === "collection" ? "完成" : "入手"}</span></div>
+                      <div className="hf-div" />
+                      <div className="s"><b>{collectPct}%</b><span>収集率</span></div>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="hf-prog"><i className={isPlan ? "kin" : ""} style={{ width: `${pct}%` }} /></div>
+              <span className="hf-code">{arc.en}</span>
+            </div>
+          );
+        })()}
       </header>
 
       <main className="body" ref={bodyRef} onTouchStart={onBodyTouchStart} onTouchMove={onBodyTouchMove}
@@ -4527,12 +4536,12 @@ export default function App() {
 
         {tab === "analysis" && (() => {
           const owned = allKits.filter((k) => getRec(k.id).owned);
-          const builderRow = (
+          const builderRow = anaMode === "analysis" ? (
             <div className="builder-line">
               <span>BUILDER<b>{settings.builderName || "—"}</b></span>
               <span>ガンプラ歴<b>{careerStr(settings.builderSince)}</b></span>
             </div>
-          );
+          ) : null;
           if (owned.length === 0) return (
             <>
               {builderRow}
@@ -6638,17 +6647,21 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .kz-seal{position:absolute;top:9px;right:9px;z-index:3;font-family:var(--serif);font-weight:800;font-size:12px;line-height:1;color:var(--gold);border:1.4px solid rgba(217,179,106,.55);background:rgba(217,179,106,.1);border-radius:2px;padding:5px 4px;writing-mode:vertical-rl;letter-spacing:.1em;box-shadow:0 1px 2px rgba(0,0,0,.4)}
 .kz-plan{position:absolute;top:9px;right:9px;z-index:3;font-family:ui-monospace,monospace;font-size:11px;font-weight:700;color:var(--gold);border:1px dashed var(--gold);background:rgba(217,179,106,.05);border-radius:2px;padding:4px 5px;writing-mode:vertical-rl;letter-spacing:.06em}
 /* リスト */
-.kz-row{position:relative;display:flex;gap:14px;align-items:center;width:100%;background:none;border:none;border-bottom:1px solid var(--line);padding:13px 2px;text-align:left;transition:background .12s}
+.kz-row{position:relative;display:flex;gap:15px;align-items:center;width:100%;background:none;border:none;border-bottom:1px solid var(--line);padding:15px 2px;text-align:left;transition:background .12s}
 .kz-row:active{background:rgba(217,179,106,.03)}
 .kz-row.dim{opacity:.5}
-.kz-rframe{flex:none;width:50px;height:50px;border:1px solid var(--line);border-radius:2px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#1b212e,#13171f)}
+.kz-rframe{flex:none;width:76px;height:76px;border:1px solid var(--line);border-radius:3px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#1b212e,#13171f)}
+.kz-rframe img,.kz-rframe .kit-img,.kz-rframe svg{width:100%;height:100%;object-fit:cover}
 .kz-row.owned .kz-rframe{border-color:rgba(217,179,106,.24)}
 .kz-rmain{flex:1;min-width:0}
-.kz-rno{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9px;letter-spacing:.18em;color:var(--ink-dim);text-transform:uppercase}
+.kz-rno{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;letter-spacing:.18em;color:var(--ink-dim);text-transform:uppercase}
 .kz-rseries{font-size:9.5px;color:var(--ink-dim);letter-spacing:.04em;margin-top:2px}
-.kz-rname{font-family:var(--serif);font-weight:700;font-size:15px;color:var(--ink-strong);margin-top:2px;line-height:1.3}
+.kz-rname{font-family:var(--serif);font-weight:700;font-size:18px;color:var(--ink-strong);margin-top:3px;line-height:1.3}
 .kz-row.dim .kz-rname{color:var(--ink-mid)}
-.kz-rmeta{display:flex;gap:10px;align-items:center;margin-top:5px;flex-wrap:wrap}
+.kz-rmeta{display:flex;gap:11px;align-items:center;margin-top:7px;flex-wrap:wrap}
+.kz-rmeta .kz-year{font-size:12.5px}
+.kz-date{font-size:10.5px}
+.kz-rseal,.kz-rplan{font-size:13px;padding:6px 4px}
 .kz-date{font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.05em;color:var(--ink-mid)}
 .kz-date.done{color:var(--gold)}
 .kz-rseal{flex:none;font-family:var(--serif);font-weight:800;font-size:12px;line-height:1;color:var(--gold);border:1.4px solid rgba(217,179,106,.55);background:rgba(217,179,106,.1);border-radius:2px;padding:5px 4px;writing-mode:vertical-rl;letter-spacing:.1em}
@@ -6698,5 +6711,30 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .form .f-sec:first-child{margin-top:2px}
 .form .f-sec span{font-family:var(--mono);font-size:8.5px;letter-spacing:.28em;color:var(--ink-dim);text-transform:uppercase}
 .form .fld>span{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--ink-mid);text-transform:uppercase}
+/* ═══ ランナー枠ヘッダー ═══ */
+.head .hf{position:relative;border:1.6px solid var(--gold);border-radius:8px;padding:13px 17px 0;background:linear-gradient(160deg,rgba(217,179,106,.05),transparent 58%)}
+.head .hf::after{content:"";position:absolute;inset:4px;border:1px solid rgba(217,179,106,.16);border-radius:5px;pointer-events:none}
+.hf-tag{position:absolute;top:-9px;left:15px;background:var(--bg);padding:0 8px;font-family:var(--mono);font-size:9px;letter-spacing:.2em;color:var(--gold);z-index:2}
+.hf-code{position:absolute;bottom:-8px;right:15px;background:var(--bg);padding:0 8px;font-family:var(--mono);font-size:8px;letter-spacing:.18em;color:var(--ink-dim);z-index:2}
+.hf-gate{position:absolute;background:var(--gold);opacity:.5;z-index:1}
+.hf-gate.gt{top:-1px;width:8px;height:5px;border-radius:0 0 2px 2px}
+.hf-gate.gl{left:-1px;width:5px;height:8px;border-radius:0 2px 2px 0}
+.hf-row{position:relative;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding-bottom:12px}
+.hf-left{min-width:0}
+.hf-eye{font-family:var(--mono);font-size:8.5px;letter-spacing:.24em;color:var(--ink-mid);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hf-title{font-family:var(--serif);font-weight:800;font-size:24px;letter-spacing:.04em;color:var(--ink-strong);line-height:1;margin-top:5px}
+.hf-title.tappable{cursor:pointer;transition:transform .12s ease;user-select:none;-webkit-user-select:none}
+.hf-title.tappable:active{transform:scale(.96);transform-origin:left center}
+.hf-kana{color:var(--gold);margin-left:2px}
+.hf-stats{display:flex;align-items:center;gap:9px;flex:none}
+.hf-stats .s{display:flex;flex-direction:column;align-items:flex-end;line-height:1.1}
+.hf-stats b{font-family:var(--mono);font-weight:700;font-size:15px;color:var(--ink-strong);letter-spacing:.01em}
+.hf-stats b.kin{color:var(--kin)}
+.hf-stats span{font-family:var(--mono);font-size:7.5px;letter-spacing:.12em;color:var(--ink-dim);margin-top:2px;text-transform:uppercase}
+.hf-div{width:1px;height:20px;background:var(--line)}
+.hf-prog{position:relative;height:3px;margin:0 -17px;border-radius:0 0 6px 6px;overflow:hidden;background:rgba(217,179,106,.1)}
+.hf-prog i{display:block;height:100%;background:linear-gradient(90deg,#9c7838,var(--gold));transition:width .5s}
+.hf-prog i.kin{background:linear-gradient(90deg,#b88f3e,var(--kin))}
+@media (min-width:430px){.hf-title{font-size:27px}.hf-stats b{font-size:16px}}
 @media (prefers-reduced-motion:reduce){*:not(.crt-beam){animation:none!important;transition:none!important}}
 `;
