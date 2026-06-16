@@ -4445,7 +4445,7 @@ export default function App() {
               <span className="hf-foil" aria-hidden="true" />
               <span className="hf-tag">Ⓐ ARCHIVE</span>
               <span className="hf-gate gt" style={{ left: "30%" }} /><span className="hf-gate gt" style={{ left: "55%" }} /><span className="hf-gate gl" style={{ top: "50%" }} />
-              <div className="hf-eye">CLASSIFIED · {arc.jp}</div>
+              <div className="hf-eye" key={arc.jp}>CLASSIFIED · {arc.jp}</div>
               <h1 className="hf-title">ガンプラ<span className="hf-kana">大図鑑</span></h1>
               <div className="hf-rule" />
               <div className="hf-stats">
@@ -4468,7 +4468,7 @@ export default function App() {
                 )}
               </div>
               <div className="hf-prog"><i className={isPlan ? "kin" : ""} style={{ width: `${pct}%` }} /></div>
-              <span className="hf-code">{arc.en}</span>
+              <span className="hf-code" key={arc.en}>{arc.en}</span>
             </div>
           );
         })()}
@@ -5390,10 +5390,18 @@ export default function App() {
               {...lp}>
               <span className="tab-icon">{icon}</span>
               <span className="tab-label">{label}</span>
-              {tab === k && <i className="tab-bar" />}
             </button>
           );
         })}
+        {(() => {
+          const order = ["zukan", "collection", "analysis", "settings"];
+          const idx = Math.max(0, order.indexOf(tab));
+          const col = tab === "analysis" && anaMode === "analysis" ? "var(--blue)"
+            : tab === "collection" && collMode === "plan" ? "var(--kin)"
+            : tab === "settings" ? "var(--ink-strong)"
+            : "var(--gold)";
+          return <i className="tab-slider" style={{ transform: `translateX(${idx * 100}%)` }}><b style={{ background: col }} /></i>;
+        })()}
       </nav>
     </div>
   );
@@ -6199,7 +6207,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
   max-width:none;margin:0;padding:8px 14px calc(28px + env(safe-area-inset-bottom))}
 .tab-page{max-width:920px;margin:0 auto}
 .app.lock .body{overflow:hidden}
-.tabbar{position:static;flex:none}
+.tabbar{position:relative;flex:none}
 .tab-bar{transform:none;transition:none;animation:barIn .18s ease-out}
 @keyframes barIn{from{transform:scaleX(0)}to{transform:none}}
 
@@ -6769,5 +6777,50 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 @keyframes medalGlint{0%,84%{transform:translateX(-150%)}93%{transform:translateX(230%)}100%{transform:translateX(230%)}}
 .av-entry:nth-child(3n) .av-medal.earned::after{animation-delay:2s}
 .av-entry:nth-child(3n+1) .av-medal.earned::after{animation-delay:4s}
+/* ═══ モーションA(CSS) ═══ */
+@keyframes fxIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+/* 初表示カスケード(先頭12のみ) */
+.grid-wrap .kz-card:nth-child(-n+12),.list-wrap .kz-row:nth-child(-n+12){animation:fxIn .42s ease-out backwards}
+.grid-wrap .kz-card:nth-child(1),.list-wrap .kz-row:nth-child(1){animation-delay:.02s}
+.grid-wrap .kz-card:nth-child(2),.list-wrap .kz-row:nth-child(2){animation-delay:.05s}
+.grid-wrap .kz-card:nth-child(3),.list-wrap .kz-row:nth-child(3){animation-delay:.08s}
+.grid-wrap .kz-card:nth-child(4),.list-wrap .kz-row:nth-child(4){animation-delay:.11s}
+.grid-wrap .kz-card:nth-child(5),.list-wrap .kz-row:nth-child(5){animation-delay:.14s}
+.grid-wrap .kz-card:nth-child(6),.list-wrap .kz-row:nth-child(6){animation-delay:.17s}
+.grid-wrap .kz-card:nth-child(7),.list-wrap .kz-row:nth-child(7){animation-delay:.20s}
+.grid-wrap .kz-card:nth-child(8),.list-wrap .kz-row:nth-child(8){animation-delay:.23s}
+.grid-wrap .kz-card:nth-child(9),.list-wrap .kz-row:nth-child(9){animation-delay:.26s}
+.grid-wrap .kz-card:nth-child(10),.list-wrap .kz-row:nth-child(10){animation-delay:.29s}
+.grid-wrap .kz-card:nth-child(11),.list-wrap .kz-row:nth-child(11){animation-delay:.32s}
+.grid-wrap .kz-card:nth-child(12),.list-wrap .kz-row:nth-child(12){animation-delay:.35s}
+/* toggle 実感(overshoot) */
+.switch{transition:background .25s ease}
+.switch b{transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
+/* 予定 描き出し */
+@keyframes planDraw{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:none}}
+.kz-plan,.kz-rplan,.dc-plan{animation:planDraw .34s ease-out backwards}
+/* 入手頁:鑑定済 朱印が落ちる */
+@keyframes stampDrop{0%{opacity:0;transform:rotate(-5deg) scale(1.55)}58%{opacity:1;transform:rotate(-5deg) scale(.9)}80%{transform:rotate(-5deg) scale(1.05)}100%{transform:rotate(-5deg) scale(1)}}
+.dc-seal{animation:stampDrop .52s cubic-bezier(.3,1.3,.5,1) backwards}
+/* 入手頁:開示スタッガ + UNIDENTIFIED 点滅 */
+.dc-spec .dc-srow{animation:fxIn .32s ease-out backwards}
+.dc-spec .dc-srow:nth-child(2){animation-delay:.05s}
+.dc-spec .dc-srow:nth-child(3){animation-delay:.10s}
+.dc-spec .dc-srow:nth-child(4){animation-delay:.15s}
+.dc-spec .dc-srow:nth-child(5){animation-delay:.20s}
+@keyframes unidIn{0%{opacity:0}28%{opacity:.45}42%{opacity:.12}70%{opacity:.6}100%{opacity:1}}
+.dc-classified .dc-unid{animation:unidIn .6s ease-out}
+/* 解錠トースト:金箔glint一閃 */
+.av-toast-medal{position:relative;overflow:hidden}
+.av-toast-medal::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 40%,rgba(242,220,160,.6) 50%,transparent 60%);transform:translateX(-140%);pointer-events:none;animation:medalGlint1 .9s ease-out .25s}
+@keyframes medalGlint1{from{transform:translateX(-140%)}to{transform:translateX(170%)}}
+/* タブ:共用スライド下線 */
+.tab-slider{position:absolute;top:0;left:0;width:25%;height:2px;display:flex;justify-content:center;pointer-events:none;z-index:2;transition:transform .34s cubic-bezier(.4,0,.2,1)}
+.tab-slider b{width:46%;height:100%;border-radius:0 0 2px 2px;background:var(--gold);transition:background .25s;box-shadow:0 0 8px rgba(217,179,106,.4)}
+/* タブ切替:eyebrow/部品コードの差し替え */
+.hf-eye{animation:hfEyeIn .34s ease}
+@keyframes hfEyeIn{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:none}}
+.hf-code{animation:hfCodeStamp .36s cubic-bezier(.3,1.3,.5,1) both}
+@keyframes hfCodeStamp{0%{opacity:0;transform:scale(1.3)}60%{opacity:1}100%{opacity:1;transform:scale(1)}}
 @media (prefers-reduced-motion:reduce){*:not(.crt-beam){animation:none!important;transition:none!important}}
 `;
