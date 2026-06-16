@@ -2824,8 +2824,6 @@ function Roll({ value }) {
   useEffect(() => {
     const from = fromRef.current, to = value;
     if (from === to) { setDisp(to); return; }
-    const reduce = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) { fromRef.current = to; setDisp(to); return; }
     let raf, start = null; const dur = 520;
     const tick = (t) => {
       if (start === null) start = t;
@@ -6822,5 +6820,5 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 @keyframes hfEyeIn{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:none}}
 .hf-code{animation:hfCodeStamp .36s cubic-bezier(.3,1.3,.5,1) both}
 @keyframes hfCodeStamp{0%{opacity:0;transform:scale(1.3)}60%{opacity:1}100%{opacity:1;transform:scale(1)}}
-@media (prefers-reduced-motion:reduce){*:not(.crt-beam){animation:none!important;transition:none!important}}
+/* OSの減少動態(reduce-motion)では動畫を止めない:アプリ側のトグルで制御(スキャンラインと同方針) */
 `;
