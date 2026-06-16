@@ -2858,6 +2858,7 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
 
   return (
     <div className="form">
+      <div className="f-sec">画像<span>IMAGES</span></div>
       {albumMode ? (
         <div className="form-album">
           <div className="form-album-strip">
@@ -2925,6 +2926,7 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
       </div>
       )}
 
+      <div className="f-sec">基本情報<span>BASIC</span></div>
       <div className="fld-row name-row">
         <label className="fld grow2"><span>機体名 *</span><input value={f.name} onChange={set("name")} placeholder="例: νガンダム Ver.Ka" /></label>
         <label className="fld"><span>Grade</span>
@@ -2956,7 +2958,8 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
       </div>
       <label className="fld"><span>メモ</span><textarea rows={2} value={f.note} onChange={set("note")} placeholder="改修予定、塗装レシピ、保管場所など" /></label>
 
-      {recInitial && (
+      {recInitial && (<>
+        <div className="f-sec">記録<span>RECORD</span></div>
         <div className="form-dates">
           <label className="fld"><span>購入日</span>
             <span className="date-wrap">
@@ -2971,7 +2974,7 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
             </span>
           </label>
         </div>
-      )}
+      </>)}
 
       <div className="form-actions">
         <button className="btn primary" disabled={!f.name.trim()}
@@ -3082,7 +3085,7 @@ export default function App() {
   const [images, setImages] = useState({});
   const [extras, setExtras] = useState({});       // 追加画像 {xid: src}
   const [albumMeta, setAlbumMeta] = useState({});  // {kitId:{order,thumb,acquire,framing}}
-  const [settings, setSettings] = useState({ view: "grid", compact: false, dimUnowned: true, showCode: true, showSeries: false, showPrice: true, showNo: false, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "low", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", geminiModel: "gemini-2.5-flash-image" });
+  const [settings, setSettings] = useState({ view: "grid", compact: false, dimUnowned: true, unownedInfo: false, showCode: true, showSeries: false, showPrice: true, showNo: false, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "low", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", geminiModel: "gemini-2.5-flash-image" });
   const [sortKey, setSortKey] = useState("year");
   const [sortDir, setSortDir] = useState("asc");
   const [queries, setQueries] = useState({ z: "", c: "" });
@@ -4807,6 +4810,10 @@ export default function App() {
                 <span>未入手を淡色表示(共通)</span>
                 <i className={`switch ${settings.dimUnowned ? "on" : ""}`}><b /></i>
               </button>
+              <button className="opt toggle" onClick={() => setSettings((s) => ({ ...s, unownedInfo: !s.unownedInfo }))}>
+                <span>未入手でも基礎情報を表示</span>
+                <i className={`switch ${settings.unownedInfo ? "on" : ""}`}><b /></i>
+              </button>
               <button className="opt toggle" onClick={() => setSettings((s) => ({ ...s, crtScan: s.crtScan === false ? true : false }))}>
                 <span>未識別プレートのスキャンライン</span>
                 <i className={`switch ${settings.crtScan !== false ? "on" : ""}`}><b /></i>
@@ -5016,59 +5023,63 @@ export default function App() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             {!editing ? (
               <>
-                <div className="tc-head">
-                  <div className="tc-head-sub">
-                    <GradeChip grade={detailKit.grade} />
-                    {detailKit.no !== "—" && <span className="tc-no">No.{detailKit.no}</span>}
-                    <span className="tc-head-series">{detailKit.code || "—"}</span>
-                  </div>
-                  <span className="tc-head-rule" />
-                  <div className="tc-head-top">
-                    <span className="tc-name"><KitName name={detailKit.name} /></span>
-                  </div>
+                <div className="dc-head">
+                  <div className="dc-eye">{detailKit.grade}{detailKit.no !== "—" ? ` · No.${detailKit.no}` : ""}{detailKit.code ? ` · ${detailKit.code}` : ""}</div>
+                  <div className="dc-name"><KitName name={detailKit.name} /></div>
+                  <div className="dc-rule" />
                 </div>
-                <div className={"tc-art square" + (acquireSrc(detailKit.id) ? " has-photo" : "")}>
+                <div className={"dc-art" + (acquireSrc(detailKit.id) ? " has-photo" : " blank") + (detailRec.owned ? " owned" : "")}>
                   {acquireSrc(detailKit.id)
-                    ? <div className="tc-frame" onClick={() => openViewer(detailKit.id)}>
+                    ? <div className="dc-frame" onClick={() => openViewer(detailKit.id)}>
                         <img src={acquireSrc(detailKit.id)} alt={detailKit.name} className="kit-img tc" draggable={false}
                           loading="lazy" decoding="async" style={acqFrameStyle(detailKit.id)} />
+                        <div className="tc-scan" aria-hidden="true">
+                          {settings.crtScan !== false && <>
+                            <span className="crt-beam" style={{ animationDelay: beamDelay[0] + "s" }} />
+                            <span className="crt-beam beam2" style={{ animationDelay: beamDelay[1] + "s" }} />
+                          </>}
+                        </div>
                       </div>
-                    : <KitImage kit={detailKit} img={null} owned={detailRec.owned} built={!!detailRec.buildDate} size={150} cls="tc" />}
-                  <div className="tc-scan" aria-hidden="true">
-                    {settings.crtScan !== false && <>
-                      <span className="crt-beam" style={{ animationDelay: beamDelay[0] + "s" }} />
-                      <span className="crt-beam beam2" style={{ animationDelay: beamDelay[1] + "s" }} />
-                    </>}
-                  </div>
-                  {acquireSrc(detailKit.id) && settings.vfFilter !== false && (
-                    <div className="vf-overlay" aria-hidden="true">
-                      <span className="vf-corner tl" /><span className="vf-corner tr" />
-                      <span className="vf-corner bl" /><span className="vf-corner br" />
-                      <span className="vf-focus" />
-                    </div>
-                  )}
+                    : <div className="dc-classified">
+                        <span className="dc-tick tl" /><span className="dc-tick tr" /><span className="dc-tick bl" /><span className="dc-tick br" />
+                        <span className="dc-unid">UNIDENTIFIED</span>
+                        <span className="dc-unsub">NO VISUAL ON FILE · 機密</span>
+                        <span className="dc-unref">REF · {detailKit.code || (detailKit.no !== "—" ? "No." + detailKit.no : "—")}</span>
+                      </div>}
+                  {detailRec.buildDate
+                    ? <span className="dc-seal">鑑定済</span>
+                    : detailRec.plan ? <span className="dc-plan">予</span> : null}
                   {acquireSrc(detailKit.id) && (
-                    <button className="tc-frame-btn" onClick={(e) => { e.stopPropagation();
+                    <button className="dc-frame-btn" onClick={(e) => { e.stopPropagation();
                       const r = pickRef("acquire", detailKit.id, images, extras, albumMeta);
                       if (r) setFrameEdit({ kitId: detailKit.id, ref: r });
                     }}>⛶ 構図</button>
                   )}
                 </div>
-                <div className="tc-info tappable" onClick={() => { setDetail(null); setEditing(false); }}>
-                  <div className="tc-row"><span>原作</span><b>{detailKit.series || "—"}</b></div>
-                  <div className="tc-row tc-row-tag"><span>Tag</span>
-                    <div className="tc-tags">
+                {(detailRec.owned || detailRec.plan || settings.unownedInfo) ? (
+                  <div className="dc-spec">
+                    <div className="dc-srow"><span className="dc-k">原作</span><span className="dc-v">{detailKit.series || "—"}</span></div>
+                    <div className="dc-srow"><span className="dc-k">分類</span><span className="dc-v dc-tags">
                       <GradeChip grade={detailKit.grade} />
                       {detailKit.base && <span className="line-chip base">ベース</span>}
                       {lineBadge(detailKit)}
-                    </div>
+                    </span></div>
+                    <div className="dc-srow"><span className="dc-k">発売·定価</span><span className="dc-v"><span className="dc-gold">{detailKit.ym ? detailKit.ym.replace("-", ".") : "—"}</span>{detailKit.price ? <> · <span className="dc-mono">{fmtYen(detailKit.price)}</span></> : ""}</span></div>
+                    {detailRec.owned && (detailRec.purchaseDate || detailRec.buildDate) && (
+                      <div className="dc-srow"><span className="dc-k">記録</span><span className="dc-v">
+                        {detailRec.purchaseDate && <span className="dc-mono">購入 {fmtDate(detailRec.purchaseDate)}</span>}
+                        {detailRec.purchaseDate && detailRec.buildDate ? " · " : ""}
+                        {detailRec.buildDate && <span className="dc-mono done">完成 {fmtDate(detailRec.buildDate)}</span>}
+                      </span></div>
+                    )}
+                    {detailKit.note && <div className="dc-srow"><span className="dc-k">メモ</span><span className="dc-v dc-memo">{detailKit.note}</span></div>}
                   </div>
-                  <div className="tc-row tc-row-split">
-                    <div className="tc-half"><span>発売</span><b className="tc-num">{detailKit.ym ? detailKit.ym.replace("-", ".") : "—"}</b></div>
-                    <div className="tc-half"><span>定価</span><b className="tc-num price">{fmtYen(detailKit.price)}</b></div>
-                  </div>
-                  <div className="tc-row tc-row-memo"><span>メモ</span><b className="tc-memo">{detailKit.note || ""}</b></div>
-                </div>
+                ) : (
+                  <button className="dc-locked" onClick={() => setSettings((s) => ({ ...s, unownedInfo: true }))}>
+                    <span className="dc-locked-t">機密 — 未入手</span>
+                    <span className="dc-locked-s">タップで基礎情報を開示</span>
+                  </button>
+                )}
 
                 <div className="kt-tags">
                   <div className="kt-tags-head">タグ</div>
@@ -5799,11 +5810,11 @@ input,textarea{font-family:var(--sans)}
 .form-album-strip{display:flex;gap:8px;flex-wrap:wrap}
 .fa-thumb{position:relative;width:72px;height:72px;border-radius:8px;overflow:hidden;
   border:1px solid var(--line);background:var(--panel);padding:0}
-.fa-thumb.sel{border-color:var(--shu);box-shadow:0 0 0 2px rgba(232,85,61,.35)}
+.fa-thumb.sel{border-color:var(--gold);box-shadow:0 0 0 2px rgba(217,179,106,.35)}
 .fa-thumb img{width:100%;height:100%;object-fit:cover;display:block}
 .fa-badge{position:absolute;top:2px;font-size:10px;font-weight:700;line-height:1;padding:2px 4px;border-radius:5px;
   background:rgba(13,16,24,.82)}
-.fa-badge.t{left:2px;color:var(--teal)}
+.fa-badge.t{left:2px;color:var(--gold)}
 .fa-badge.a{right:2px;color:var(--gold)}
 .fa-add{width:72px;height:72px;border-radius:8px;border:1px dashed var(--line);background:var(--panel);
   color:var(--ink-mid);font-size:22px;display:flex;align-items:center;justify-content:center}
@@ -5832,7 +5843,7 @@ input,textarea{font-family:var(--sans)}
 .form-actions{display:flex;gap:8px;margin-top:4px}
 .btn{flex:1;padding:12px;border-radius:8px;border:1px solid var(--line);font-size:13px;font-weight:700;
   background:var(--panel)}
-.btn.primary{background:var(--shu-deep);border-color:var(--shu);color:#fff}
+.btn.primary{background:linear-gradient(160deg,#f2dca0,#d9b36a);border-color:var(--gold);color:#1a160d}
 .btn.primary:disabled{opacity:.4}
 .btn.danger{flex:none;color:var(--shu);border-color:rgba(232,85,61,.4);padding:12px 14px}
 
@@ -5881,8 +5892,8 @@ input,textarea{font-family:var(--sans)}
   border:1px solid var(--line);border-radius:7px;padding:11px 12px;font-size:12.5px;text-align:left}
 .prem-toggle i{width:18px;height:18px;border:1.5px solid var(--ink-dim);border-radius:4px;
   display:flex;align-items:center;justify-content:center;font-size:11px;flex:none;color:#b9a0e8}
-.prem-toggle.on{border-color:#b9a0e8;color:var(--ink-strong)}
-.prem-toggle.on i{border-color:#b9a0e8;background:rgba(185,160,232,.12)}
+.prem-toggle.on{border-color:var(--gold);color:var(--ink-strong)}
+.prem-toggle.on i{border-color:var(--gold);background:rgba(217,179,106,.14)}
 
 .crop-bg{position:fixed;inset:0;background:rgba(5,7,12,.85);z-index:80;
   display:flex;align-items:center;justify-content:center;padding:16px}
@@ -6642,5 +6653,50 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .kz-date.done{color:var(--gold)}
 .kz-rseal{flex:none;font-family:var(--serif);font-weight:800;font-size:12px;line-height:1;color:var(--gold);border:1.4px solid rgba(217,179,106,.55);background:rgba(217,179,106,.1);border-radius:2px;padding:5px 4px;writing-mode:vertical-rl;letter-spacing:.1em}
 .kz-rplan{flex:none;font-family:ui-monospace,monospace;font-size:11px;font-weight:700;color:var(--gold);border:1px dashed var(--gold);background:rgba(217,179,106,.05);border-radius:2px;padding:4px 5px;writing-mode:vertical-rl;letter-spacing:.06em}
+/* ═══ 入手頁(機密档案) ═══ */
+.dc-head{padding:2px 0 0}
+.dc-eye{font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;color:var(--ink-mid);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dc-name{font-family:var(--serif);font-weight:800;font-size:23px;line-height:1.25;color:var(--ink-strong);margin-top:6px}
+.dc-rule{height:1px;margin:13px 0 0;background:linear-gradient(90deg,var(--gold),rgba(217,179,106,.05) 75%,transparent)}
+.dc-art{position:relative;margin-top:15px;aspect-ratio:1;border:1px solid var(--line);border-radius:3px;overflow:hidden;background:linear-gradient(160deg,#1b212e,#13171f);display:flex;align-items:center;justify-content:center}
+.dc-art.owned{border-color:var(--hair)}
+.dc-frame{width:100%;height:100%;display:flex;align-items:center;justify-content:center;cursor:zoom-in;position:relative}
+.dc-frame .kit-img.tc{width:100%;height:100%;object-fit:cover}
+.dc-frame-btn{position:absolute;bottom:9px;right:9px;z-index:4;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;color:var(--gold);background:rgba(13,16,24,.72);border:1px solid var(--hair);border-radius:2px;padding:5px 10px;cursor:pointer}
+.dc-seal{position:absolute;top:11px;right:11px;z-index:4;transform:rotate(-5deg);font-family:var(--serif);font-weight:800;writing-mode:vertical-rl;font-size:13px;letter-spacing:.12em;color:#c8503a;border:2px solid #c8503a;border-radius:2px;padding:8px 5px;background:rgba(200,80,58,.08);box-shadow:0 0 0 1px rgba(200,80,58,.12)}
+.dc-plan{position:absolute;top:11px;right:11px;z-index:4;font-family:var(--mono);font-size:12px;font-weight:700;color:var(--gold);border:1px dashed var(--gold);background:rgba(217,179,106,.05);border-radius:2px;padding:5px 6px;writing-mode:vertical-rl;letter-spacing:.06em}
+.dc-classified{position:relative;width:100%;height:100%;background:#0a0d13;box-shadow:inset 0 0 34px 10px rgba(0,0,0,.6);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px}
+.dc-classified::before{content:"";position:absolute;left:14%;right:14%;top:24%;height:8px;background:repeating-linear-gradient(90deg,#2a3042 0 9px,transparent 9px 14px)}
+.dc-tick{position:absolute;width:11px;height:11px;border:1px solid #39414f}
+.dc-tick.tl{top:9px;left:9px;border-right:none;border-bottom:none}.dc-tick.tr{top:9px;right:9px;border-left:none;border-bottom:none}
+.dc-tick.bl{bottom:9px;left:9px;border-right:none;border-top:none}.dc-tick.br{bottom:9px;right:9px;border-left:none;border-top:none}
+.dc-unid{font-family:var(--mono);font-weight:700;letter-spacing:.36em;color:#5b6273;font-size:16px;text-indent:.36em}
+.dc-unsub{font-family:var(--mono);font-size:9px;letter-spacing:.22em;color:#3c4452}
+.dc-unref{position:absolute;bottom:11px;font-family:var(--mono);font-size:8px;letter-spacing:.18em;color:#3c4452}
+.dc-spec{margin-top:15px}
+.dc-srow{display:flex;align-items:baseline;gap:14px;padding:11px 0;border-bottom:1px solid var(--line)}
+.dc-k{flex:none;width:64px;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--ink-dim);text-transform:uppercase}
+.dc-v{flex:1;font-size:13.5px;color:var(--ink-strong);min-width:0}
+.dc-v.dc-tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.dc-gold{color:var(--gold);font-family:var(--serif)}
+.dc-mono{font-family:var(--mono);font-size:12px;color:var(--ink-mid)}.dc-mono.done{color:var(--gold)}
+.dc-memo{font-size:12.5px;color:var(--ink-mid);line-height:1.7}
+.dc-locked{display:flex;flex-direction:column;align-items:center;gap:5px;width:100%;margin-top:15px;padding:22px;background:linear-gradient(160deg,rgba(11,14,20,.6),var(--panel));border:1px dashed var(--line);border-radius:3px;cursor:pointer}
+.dc-locked-t{font-family:var(--mono);font-size:11px;letter-spacing:.24em;color:var(--ink-mid)}
+.dc-locked-s{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--ink-dim)}
+/* 入手頁 既存classの金上書き */
+.own-btn.owned{border:1.5px solid var(--gold);color:#1a160d;background:linear-gradient(160deg,#f2dca0,#d9b36a)}
+.own-btn.planned{border:1.5px solid var(--gold);color:var(--gold);background:rgba(217,179,106,.06)}
+.edit-link{font-family:var(--mono);letter-spacing:.1em}
+.kt-chip{background:rgba(217,179,106,.05);border:1px solid var(--hair);border-radius:3px;color:var(--ink-strong)}
+.kt-chip .kt-x{color:var(--gold)}
+.kt-addbtn{background:rgba(217,179,106,.1);border:1px solid rgba(217,179,106,.4);color:var(--gold);border-radius:3px}
+.kt-qchip{border-radius:3px}
+.kt-tags-head{font-family:var(--mono);letter-spacing:.18em}
+/* ═══ 編輯頁(KitForm) 金箔 ═══ */
+.form .f-sec{font-family:var(--serif);font-weight:700;font-size:14px;color:var(--ink-strong);margin:21px 0 12px;display:flex;align-items:baseline;gap:9px;padding-bottom:7px;border-bottom:1px solid var(--hair)}
+.form .f-sec:first-child{margin-top:2px}
+.form .f-sec span{font-family:var(--mono);font-size:8.5px;letter-spacing:.28em;color:var(--ink-dim);text-transform:uppercase}
+.form .fld>span{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--ink-mid);text-transform:uppercase}
 @media (prefers-reduced-motion:reduce){*:not(.crt-beam){animation:none!important;transition:none!important}}
 `;
