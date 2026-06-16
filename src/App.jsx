@@ -3106,7 +3106,8 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [achvSeen, setAchvSeen] = useState(null);
   const [achvPop, setAchvPop] = useState(null);
-  const [titleSeg, setTitleSeg] = useState("all");
+  const [titleUniverse, setTitleUniverse] = useState("all");
+  const [segOpen, setSegOpen] = useState(false);
   const prevUnlockedRef = useRef(null);
   const [toastQueue, setToastQueue] = useState([]);
   const [toast, setToast] = useState(null);
@@ -4569,32 +4570,43 @@ export default function App() {
               {anaMode === "record" ? (
               <>
               {(() => {
-                const segs = [["all", "すべて"], ["combo", "組合せ"], ["count", "収集"], ["meta", "メタ"]];
-                const inSeg = (t) => titleSeg === "all" ? true
-                  : titleSeg === "combo" ? (t.group === "combo" || t.group === "single")
-                  : t.group === titleSeg;
+                const UNIVERSES = [["all", "すべて"], ["UC", "U.C."], ["SEED", "SEED"], ["W", "W"], ["X", "X"], ["G", "G"], ["00", "00"], ["BF", "BF"], ["other", "その他"]];
+                const UNI_PREFIX = { UC: "U.C.", SEED: "C.E.", W: "A.C.", X: "A.W.", G: "F.C.", "00": "A.D.", BF: "BF", other: "" };
+                const inUni = (t) => titleUniverse === "all" ? true : (t.universe || "UC") === titleUniverse;
                 const rank = (t) => (t.unlocked ? 3 : (t.needBuild ? 0 : (t.cur > 0 ? 1 : 2)));
-                const list = titles.filter(inSeg).slice().sort((a, b) => {
+                const pool = titles.filter(inUni);
+                const list = pool.slice().sort((a, b) => {
                   const r = rank(a) - rank(b);
                   if (r !== 0) return r;
                   if (rank(a) === 1) return (b.cur / b.need) - (a.cur / a.need);
-                  return 0;
+                  return (a.no || 0) - (b.no || 0);
                 });
-                const got = titles.filter((t) => t.unlocked).length;
-                const newN = titles.filter(titleIsNew).length;
-                const pct = Math.round(got / Math.max(1, titles.length) * 100);
+                const got = pool.filter((t) => t.unlocked).length;
+                const newN = pool.filter(titleIsNew).length;
+                const pct = Math.round(got / Math.max(1, pool.length) * 100);
+                const curUni = UNIVERSES.find(([v]) => v === titleUniverse);
                 return (
-                  <section className="ana-sec">
-                    <div className="year-head">
-                      <span className="year-num">称号</span><span className="year-rule" />
-                      <span className="year-count">{got} / {titles.length}{newN > 0 ? `\u3000NEW ${newN}` : ""}</span>
-                    </div>
+                  <section className="ana-sec title-sec">
+                    <button className="title-head" onClick={() => { haptic(); setSegOpen((o) => !o); }}>
+                      <span className="year-num">称号</span>
+                      <span className="th-uni">{curUni ? curUni[1] : "すべて"}</span>
+                      <span className="year-rule" />
+                      <span className="year-count">{got} / {pool.length}{newN > 0 ? `\u3000NEW ${newN}` : ""}</span>
+                      <i className={"th-chev" + (segOpen ? " open" : "")}>⌄</i>
+                    </button>
                     <div className="title-prog"><div className="hp-track"><i style={{ width: `${pct}%` }} /></div></div>
-                    <div className="adv-seg title-seg">
-                      {segs.map(([v, l]) => (
-                        <button key={v} className={"adv-seg-btn" + (titleSeg === v ? " on" : "")}
-                          onClick={() => { haptic(); setTitleSeg(v); }}>{l}</button>
-                      ))}
+                    <div className={"seg-drop" + (segOpen ? " open" : "")}>
+                      <div className="seg-drop-inner adv-seg uni-seg">
+                        {UNIVERSES.map(([v, l]) => {
+                          const n = v === "all" ? titles.length : titles.filter((t) => (t.universe || "UC") === v).length;
+                          return (
+                            <button key={v} className={"adv-seg-btn" + (titleUniverse === v ? " on" : "") + (n === 0 ? " empty" : "")}
+                              onClick={() => { haptic(); setTitleUniverse(v); setSegOpen(false); }}>
+                              {l}{n > 0 ? <b className="us-n">{n}</b> : null}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                     <div className="title-grid">
                       {list.map((t) => {
@@ -4617,6 +4629,7 @@ export default function App() {
                                 </svg></span>
                               : <span className="title-chip crt"><span className="qm">？</span></span>}
                             <div className="title-body">
+                              <div className="title-uni">{(UNI_PREFIX[t.universe] || "")} {String(t.no || 0).padStart(3, "0")}</div>
                               <div className="title-name">{hiddenLocked ? "？？？" : t.name}</div>
                               {t.unlocked && <div className="title-sub">{t.sub}</div>}
                               {!t.unlocked && t.needBuild && (
@@ -4636,6 +4649,7 @@ export default function App() {
                           </button>
                         );
                       })}
+                      {list.length === 0 && <div className="title-empty">この世界の称号は準備中…</div>}
                     </div>
                   </section>
                 );
@@ -6450,5 +6464,22 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .tm-gate{margin-top:14px}
 .tm-piece.miss{border-color:rgba(232,85,61,.28)}
 .tm-piece.miss .tm-mark{color:var(--shu)}
+/* ═══ 称号 世界別ドロップダウン ═══ */
+.title-head{display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;padding:6px 2px 4px;cursor:pointer;text-align:left}
+.title-head:active{opacity:.7}
+.th-uni{flex:none;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;color:var(--teal);letter-spacing:.1em;border:1px solid rgba(111,211,199,.3);border-radius:4px;padding:1px 7px}
+.th-chev{flex:none;font-style:normal;font-size:15px;line-height:1;color:var(--ink-dim);transition:transform .3s ease,color .2s;margin-left:2px}
+.th-chev.open{transform:rotate(180deg);color:var(--teal)}
+.seg-drop{display:grid;grid-template-rows:0fr;opacity:0;margin-top:0;transition:grid-template-rows .32s cubic-bezier(.4,0,.2,1),opacity .24s ease,margin-top .32s}
+.seg-drop.open{grid-template-rows:1fr;opacity:1;margin-top:10px}
+.seg-drop-inner{overflow:hidden;min-height:0}
+.uni-seg{display:grid;grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:6px}
+.uni-seg .adv-seg-btn{position:relative;display:flex;align-items:center;justify-content:center;gap:5px}
+.uni-seg .adv-seg-btn.empty{opacity:.4}
+.us-n{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9px;font-weight:700;color:var(--ink-dim)}
+.adv-seg-btn.on .us-n{color:var(--teal)}
+.title-uni{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9.5px;letter-spacing:.12em;color:var(--ink-dim);margin-bottom:3px}
+.title-card.unlocked .title-uni{color:var(--teal)}
+.title-empty{grid-column:1/-1;text-align:center;color:var(--ink-dim);font-size:12px;font-family:var(--serif);padding:30px 0;letter-spacing:.08em}
 @media (prefers-reduced-motion:reduce){*:not(.crt-beam){animation:none!important;transition:none!important}}
 `;

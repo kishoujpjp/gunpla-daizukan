@@ -127,7 +127,8 @@ export function evaluateAchievements(rules, allKits, getRec) {
     const ev = evalRule(r.rule, pool);
     const collectionMet = ev.unlocked;
     const builtGate = collectionMet && (ev.ids || []).some((id) => builtSet.has(id));
-    return { id: r.id, name: r.name, group: r.group, sub: r.sub, hidden: !!r.hidden,
+    return { id: r.id, universe: r.universe || "UC", no: r.no, name: r.name, group: r.group,
+             sub: r.sub, hidden: !!r.hidden,
              cur: ev.cur, need: ev.need,
              unlocked: collectionMet && builtGate,
              collectionMet, builtGate, needBuild: collectionMet && !builtGate };

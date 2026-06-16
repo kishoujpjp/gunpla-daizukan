@@ -1,8 +1,10 @@
-// AUTO-GENERATED achievement rules (UC set, slice 1). 37 live achievements.
-// Each rule is pure data; see achievements-engine.js for evaluation.
+// AUTO-GENERATED achievement rules. 37 live achievements.
+// fields: id, universe(UC/SEED/W/X/G/00/BF/other), no(1-based per universe), group, name, sub, hidden, scope?, rule
 export const ACHIEVEMENTS = [
   {
     "id": "trinity_x3",
+    "universe": "UC",
+    "no": 1,
     "group": "combo",
     "name": "三倍の流儀",
     "sub": "通常の3倍を3度繰り返す男。色だけ赤くて性能3割増(当社比)。",
@@ -32,6 +34,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "casval_faces",
+    "universe": "UC",
+    "no": 2,
     "group": "combo",
     "name": "キャスバルの七つの顔",
     "sub": "名前を変えても中身は同じ。エドワウもクワトロも、結局あなたの棚の住人。",
@@ -59,6 +63,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "see_perf",
+    "universe": "UC",
+    "no": 3,
     "group": "combo",
     "name": "見せてもらおうか",
     "sub": "「連邦のMSの性能とやらを!」永遠のライバル、同じ段に仲良く整列。",
@@ -81,6 +87,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "axis_shock",
+    "universe": "UC",
+    "no": 4,
     "group": "combo",
     "name": "アクシズ・ショック",
     "sub": "サイコフレーム共振中。本棚がアクシズを押し返している。",
@@ -102,6 +110,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "guf_diff",
+    "universe": "UC",
+    "no": 5,
     "group": "combo",
     "name": "ザクとは違うのだよ",
     "sub": "「ザクとは違うのだよ、ザクとは!」並べると正直、違いが分からない。",
@@ -125,6 +135,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "numbers",
+    "universe": "UC",
+    "no": 6,
     "group": "count",
     "name": "戦いは数だよ兄貴",
     "sub": "緑が増えるほど画面が緑になる。数こそ正義。",
@@ -139,6 +151,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "last_shoot",
+    "universe": "UC",
+    "no": 7,
     "group": "combo",
     "name": "ラスト・シューティング",
     "sub": "頭部と片腕を失っても、最後の一撃。正史の名シーン、棚で再現。",
@@ -161,6 +175,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "pocket_war",
+    "universe": "UC",
+    "no": 8,
     "group": "combo",
     "name": "ポケットの中の戦争",
     "sub": "クリスマスは、こない。並べると毎年12月が少し切なくなる。",
@@ -182,6 +198,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "solomon",
+    "universe": "UC",
+    "no": 9,
     "group": "single",
     "name": "ソロモンよ、私は帰ってきた",
     "sub": "ガトーの咆哮。核は別売りどころか、撃てません。",
@@ -194,6 +212,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "stardust",
+    "universe": "UC",
+    "no": 10,
     "group": "combo",
     "name": "星の屑作戦",
     "sub": "デラーズ・フリート完全再現。デンドロビウムが無いだけ、平和。",
@@ -220,6 +240,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "toki_mieru",
+    "universe": "UC",
+    "no": 11,
     "group": "combo",
     "name": "刻が見える",
     "sub": "シロッコとハマーン。Zの二大黒幕。でかい機体は、時間も場所も食う。",
@@ -241,6 +263,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "aeug3",
+    "universe": "UC",
+    "no": 12,
     "group": "combo",
     "name": "エゥーゴ三羽烏",
     "sub": "カミーユ・クワトロ・アポリー、エゥーゴ精鋭ここに結成。",
@@ -269,6 +293,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "jazz_nenbutsu",
+    "universe": "UC",
+    "no": 13,
     "group": "combo",
     "name": "ジャズと念仏",
     "sub": "義手・義足で奏でる死闘。南無阿弥陀仏。",
@@ -290,6 +316,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "f91_relax",
+    "universe": "UC",
+    "no": 14,
     "group": "single",
     "name": "鉄仮面の美学",
     "sub": "「シーブック、いっけぇぇ!」質量を持った残像。",
@@ -302,6 +330,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "gm_grave",
+    "universe": "UC",
+    "no": 15,
     "group": "count",
     "name": "ジムの墓場",
     "sub": "「やられメカ」の誇り。主役を引き立てる名もなき量産機に、献杯。",
@@ -315,6 +345,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "oyako_don",
+    "universe": "UC",
+    "no": 16,
     "group": "meta",
     "name": "親子丼",
     "sub": "同じ機体を、グレード違いで親子で勢揃い。グレード違いの食卓。",
@@ -329,6 +361,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "three_grade",
+    "universe": "UC",
+    "no": 17,
     "group": "meta",
     "name": "三段活用",
     "sub": "親子三代。財布は静かに泣いている。",
@@ -344,6 +378,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "sieg_zeon",
+    "universe": "UC",
+    "no": 18,
     "group": "count",
     "name": "ジーク・ジオン",
     "sub": "ジーク・ジオン! 緑と紫が棚を埋め尽くす。公国に栄光あれ。",
@@ -357,6 +393,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "x4",
+    "universe": "UC",
+    "no": 19,
     "group": "combo",
     "name": "通常の4倍",
     "sub": "全部赤い。性能3割増(当社比)を4機分。棚だけはアクシズ。",
@@ -392,6 +430,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "ral_team",
+    "universe": "UC",
+    "no": 20,
     "group": "combo",
     "name": "若いな、ラル隊",
     "sub": "歴戦の漢のシブさで一棚。「若いな」「だが、それがいい」。",
@@ -419,6 +459,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "gato_cv",
+    "universe": "UC",
+    "no": 21,
     "group": "combo",
     "name": "英雄ガトーの履歴書",
     "sub": "「ソロモンよ、私は帰ってきた!」核は相変わらず、撃てない。",
@@ -461,6 +503,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "jegan_top",
+    "universe": "UC",
+    "no": 22,
     "group": "combo",
     "name": "ジェガン、量産機の到達点",
     "sub": "「使い捨てだなんて、もったいない」を地で行く名脇役の系譜。",
@@ -502,6 +546,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "v_sakusen",
+    "universe": "UC",
+    "no": 23,
     "group": "combo",
     "name": "V作戦、完遂",
     "sub": "連邦の希望、3機。Gファイターがあれば、ごっこ遊びは無限。",
@@ -528,6 +574,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "fsws",
+    "universe": "UC",
+    "no": 24,
     "group": "combo",
     "name": "FSWS計画",
     "sub": "全身これミサイル。重装の系譜、接着剤との終わりなき戦い。",
@@ -554,6 +602,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "feet_decor",
+    "universe": "UC",
+    "no": 25,
     "group": "combo",
     "name": "足は飾りです",
     "sub": "「偉い人にはそれが分からんのですよ」。完成しても、やっぱり足は付いてない。",
@@ -576,6 +626,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "perfected",
+    "universe": "UC",
+    "no": 26,
     "group": "combo",
     "name": "完成された者の孤独",
     "sub": "サイコミュの極致が二体。フィン・ファンネルとサイコミュ・ワイヤー、絡まり注意。",
@@ -597,6 +649,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "frontal",
+    "universe": "UC",
+    "no": 27,
     "group": "combo",
     "name": "フロンタルの器",
     "sub": "「私はシャアの再来だ」。赤い器を3つ並べても、中身は空虚。",
@@ -626,6 +680,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "alice",
+    "universe": "UC",
+    "no": 28,
     "group": "combo",
     "name": "ALICE、目覚める",
     "sub": "『ガンダム・センチネル』完全再現。知ってる人だけが静かに発狂する深度。",
@@ -663,6 +719,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "jupiter",
+    "universe": "UC",
+    "no": 29,
     "group": "combo",
     "name": "木星帰りの男",
     "sub": "シーブックがキンケドゥになるまで。鉄仮面の美学から、海賊の髑髏へ。",
@@ -687,6 +745,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "f90_atoz",
+    "universe": "UC",
+    "no": 30,
     "group": "combo",
     "name": "F90、AからZまで",
     "sub": "アルファベット全部集める呪い。『F90 A to Z』、Zは「絶望」のZ。",
@@ -723,6 +783,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "kurorekishi",
+    "universe": "UC",
+    "no": 31,
     "group": "combo",
     "name": "黒歴史、全消去",
     "sub": "ヒゲと、その兄弟。月光蝶を起動した瞬間、これまでの達成も無かったことに。",
@@ -744,6 +806,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "adults_lie",
+    "universe": "UC",
+    "no": 32,
     "group": "combo",
     "name": "大人は嘘をつく",
     "sub": "ティターンズの正義。子供だったカミーユが見た、大人の汚さ。",
@@ -768,6 +832,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "design_war",
+    "universe": "UC",
+    "no": 33,
     "group": "combo",
     "name": "大河原か、永野か",
     "sub": "永野護の百式と、出渕裕のサザビー。MSデザイン史の二大潮流が睨み合う。",
@@ -789,6 +855,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "katoki",
+    "universe": "UC",
+    "no": 34,
     "group": "combo",
     "name": "線の魔術師",
     "sub": "モールドの暴力。素組みで完成された情報量。塗装派への挑戦状。",
@@ -812,6 +880,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "casval_if",
+    "universe": "UC",
+    "no": 35,
     "group": "combo",
     "name": "キャスバルという可能性",
     "sub": "もしシャアが復讐を選ばなかったら。連邦のガンダムも、彼の手では赤く染まる。",
@@ -834,6 +904,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "kyoshiro",
+    "universe": "UC",
+    "no": 36,
     "group": "combo",
     "name": "狂四郎の夢",
     "sub": "漫画から生まれ、公式になった機体。「プラモは、自由だ」。改造erの原点に献杯。",
@@ -855,6 +927,8 @@ export const ACHIEVEMENTS = [
   },
   {
     "id": "red_again",
+    "universe": "UC",
+    "no": 37,
     "group": "combo",
     "name": "赤い彗星、再臨また再臨",
     "sub": "一年戦争、逆襲、そしてUC。世界はいつの時代も「赤い男」を求める。様式美という呪縛。",
