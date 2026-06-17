@@ -4331,21 +4331,23 @@ export default function App() {
     if (settings.view === "list") {
       return (
         <button className={`kz-row ${dim ? "dim" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""} ${rec.buildDate ? "built" : ""}`} onClick={onCardClick} {...longPress}>
-          <div className={"kz-rframe" + (sketchCrt ? " crt" : "")}>
-            <KitImage kit={kit} img={img} owned={rec.owned} built={!!rec.buildDate} size={80} cls="sm" frame={thumbFrameStyle(kit.id)} />
+          <div className="kz-rframe">
+            {img
+              ? <KitImage kit={kit} img={img} owned={rec.owned} built={!!rec.buildDate} size={88} cls="sm" frame={thumbFrameStyle(kit.id)} />
+              : <div className="kz-uni"><span>UNIDENTIFIED</span></div>}
           </div>
           <div className="kz-rmain">
             <div className="kz-rno">{kit.grade}{settings.listNo && kit.no && kit.no !== "—" ? ` · No.${kit.no}` : ""}{settings.listCode && kit.code ? ` · ${kit.code}` : ""}</div>
             {settings.listSeries && kit.series && <div className="kz-rseries">{kit.series}</div>}
             <div className="kz-rname"><KitName name={kit.name} /></div>
             <div className="kz-rmeta">
-              {kit.premium && <span className="line-chip pb">プレバン</span>}
-              {kit.base && <span className="line-chip base">ベース</span>}
-              {lineBadge(kit, false)}
               <span className="kz-year">{kit.ym ? kit.ym.replace("-", ".") : "—"}</span>
               {settings.listPrice && kit.price ? <span className="kz-price">{fmtYen(kit.price)}</span> : null}
               {settings.listPurchase && rec.purchaseDate && <span className="kz-date">購入 {fmtDate(rec.purchaseDate)}</span>}
               {settings.listBuild && rec.buildDate && <span className="kz-date done">完成 {fmtDate(rec.buildDate)}</span>}
+              {kit.premium && <span className="line-chip pb">プレバン</span>}
+              {kit.base && <span className="line-chip base">ベース</span>}
+              {lineBadge(kit, false)}
             </div>
           </div>
           {rec.buildDate ? <span className="kz-rseal">済</span> : rec.plan ? <span className="kz-rplan">予</span> : null}
@@ -6671,13 +6673,15 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .kz-row{position:relative;display:flex;gap:15px;align-items:center;width:100%;background:none;border:none;border-bottom:1px solid var(--line);padding:15px 2px;text-align:left;transition:background .12s}
 .kz-row:active{background:rgba(217,179,106,.03)}
 .kz-row.dim{opacity:.5}
-.kz-rframe{flex:none;width:76px;height:76px;border:1px solid var(--line);border-radius:3px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#1b212e,#13171f)}
+.kz-rframe{flex:none;width:88px;height:88px;border:1px solid var(--line);border-radius:3px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#1b212e,#13171f)}
 .kz-rframe img,.kz-rframe .kit-img,.kz-rframe svg{width:100%;height:100%;object-fit:cover}
+.kz-uni{width:100%;height:100%;background:#0a0d13;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 16px 4px rgba(0,0,0,.5)}
+.kz-uni span{font-family:var(--mono);font-size:8px;letter-spacing:.16em;color:#4a5263;text-align:center}
 .kz-row.owned .kz-rframe{border-color:rgba(217,179,106,.24)}
 .kz-rmain{flex:1;min-width:0}
 .kz-rno{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;letter-spacing:.18em;color:var(--ink-dim);text-transform:uppercase}
 .kz-rseries{font-size:9.5px;color:var(--ink-dim);letter-spacing:.04em;margin-top:2px}
-.kz-rname{font-family:var(--serif);font-weight:700;font-size:18px;color:var(--ink-strong);margin-top:3px;line-height:1.3}
+.kz-rname{font-family:var(--serif);font-weight:700;font-size:21px;color:var(--ink-strong);margin-top:3px;line-height:1.28}
 .kz-row.dim .kz-rname{color:var(--ink-mid)}
 .kz-rmeta{display:flex;gap:11px;align-items:center;margin-top:7px;flex-wrap:wrap}
 .kz-rmeta .kz-year{font-size:12.5px}
