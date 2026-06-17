@@ -3106,7 +3106,7 @@ export default function App() {
   const [images, setImages] = useState({});
   const [extras, setExtras] = useState({});       // 追加画像 {xid: src}
   const [albumMeta, setAlbumMeta] = useState({});  // {kitId:{order,thumb,acquire,framing}}
-  const [settings, setSettings] = useState({ view: "grid", compact: false, dimUnowned: true, unownedInfo: false, showCode: true, showSeries: false, showPrice: true, showNo: false, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "low", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", geminiModel: "gemini-2.5-flash-image" });
+  const [settings, setSettings] = useState({ view: "grid", compact: false, dimUnowned: true, showCode: true, showSeries: false, showPrice: true, showNo: false, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "low", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", geminiModel: "gemini-2.5-flash-image" });
   const [sortKey, setSortKey] = useState("year");
   const [sortDir, setSortDir] = useState("asc");
   const [queries, setQueries] = useState({ z: "", c: "" });
@@ -4440,11 +4440,16 @@ export default function App() {
           return (
             <div className="hf" role="button" tabIndex={0}
               onClick={() => { haptic(); if (bodyRef.current) bodyRef.current.scrollTo({ top: 0, behavior: "smooth" }); }}>
-              <span className="hf-foil" aria-hidden="true" />
               <span className="hf-tag">Ⓐ ARCHIVE</span>
-              <span className="hf-gate gt" style={{ left: "30%" }} /><span className="hf-gate gt" style={{ left: "55%" }} /><span className="hf-gate gl" style={{ top: "50%" }} />
-              <div className="hf-eye" key={arc.jp}>CLASSIFIED · {arc.jp}</div>
-              <h1 className="hf-title">ガンプラ<span className="hf-kana">大図鑑</span></h1>
+              <span className="hf-part" key={arc.en}><i className="hf-rl">Ⓡ</i>{arc.en}</span>
+              <span className="hf-gate gt" style={{ left: "32%" }} /><span className="hf-gate gt" style={{ left: "58%" }} /><span className="hf-gate gl" style={{ top: "50%" }} />
+              <div className="hf-top">
+                <div className="hf-vbar" key={arc.jp}>{arc.jp}</div>
+                <div className="hf-main">
+                  <div className="hf-eye">CLASSIFIED</div>
+                  <h1 className="hf-title">ガンプラ<span className="hf-kana">大図鑑</span><span className="hf-gateline" aria-hidden="true" /></h1>
+                </div>
+              </div>
               <div className="hf-rule" />
               <div className="hf-stats">
                 {isPlan ? (
@@ -4466,7 +4471,6 @@ export default function App() {
                 )}
               </div>
               <div className="hf-prog"><i className={isPlan ? "kin" : ""} style={{ width: `${pct}%` }} /></div>
-              <span className="hf-code" key={arc.en}>{arc.en}</span>
             </div>
           );
         })()}
@@ -4839,10 +4843,6 @@ export default function App() {
                 <span>未入手を淡色表示(共通)</span>
                 <i className={`switch ${settings.dimUnowned ? "on" : ""}`}><b /></i>
               </button>
-              <button className="opt toggle" onClick={() => setSettings((s) => ({ ...s, unownedInfo: !s.unownedInfo }))}>
-                <span>未入手でも基礎情報を表示</span>
-                <i className={`switch ${settings.unownedInfo ? "on" : ""}`}><b /></i>
-              </button>
               <button className="opt toggle" onClick={() => setSettings((s) => ({ ...s, crtScan: s.crtScan === false ? true : false }))}>
                 <span>未識別プレートのスキャンライン</span>
                 <i className={`switch ${settings.crtScan !== false ? "on" : ""}`}><b /></i>
@@ -5085,30 +5085,23 @@ export default function App() {
                     }}>⛶ 構図</button>
                   )}
                 </div>
-                {(detailRec.owned || detailRec.plan || settings.unownedInfo) ? (
-                  <div className="dc-spec">
-                    <div className="dc-srow"><span className="dc-k">原作</span><span className="dc-v">{detailKit.series || "—"}</span></div>
-                    <div className="dc-srow"><span className="dc-k">分類</span><span className="dc-v dc-tags">
-                      <GradeChip grade={detailKit.grade} />
-                      {detailKit.base && <span className="line-chip base">ベース</span>}
-                      {lineBadge(detailKit)}
+                <div className="dc-spec">
+                  <div className="dc-srow"><span className="dc-k">原作</span><span className="dc-v">{detailKit.series || "—"}</span></div>
+                  <div className="dc-srow"><span className="dc-k">分類</span><span className="dc-v dc-tags">
+                    <GradeChip grade={detailKit.grade} />
+                    {detailKit.base && <span className="line-chip base">ベース</span>}
+                    {lineBadge(detailKit)}
+                  </span></div>
+                  <div className="dc-srow"><span className="dc-k">発売·定価</span><span className="dc-v"><span className="dc-gold">{detailKit.ym ? detailKit.ym.replace("-", ".") : "—"}</span>{detailKit.price ? <> · <span className="dc-mono">{fmtYen(detailKit.price)}</span></> : ""}</span></div>
+                  {detailRec.owned && (detailRec.purchaseDate || detailRec.buildDate) && (
+                    <div className="dc-srow"><span className="dc-k">記録</span><span className="dc-v">
+                      {detailRec.purchaseDate && <span className="dc-mono">購入 {fmtDate(detailRec.purchaseDate)}</span>}
+                      {detailRec.purchaseDate && detailRec.buildDate ? " · " : ""}
+                      {detailRec.buildDate && <span className="dc-mono done">完成 {fmtDate(detailRec.buildDate)}</span>}
                     </span></div>
-                    <div className="dc-srow"><span className="dc-k">発売·定価</span><span className="dc-v"><span className="dc-gold">{detailKit.ym ? detailKit.ym.replace("-", ".") : "—"}</span>{detailKit.price ? <> · <span className="dc-mono">{fmtYen(detailKit.price)}</span></> : ""}</span></div>
-                    {detailRec.owned && (detailRec.purchaseDate || detailRec.buildDate) && (
-                      <div className="dc-srow"><span className="dc-k">記録</span><span className="dc-v">
-                        {detailRec.purchaseDate && <span className="dc-mono">購入 {fmtDate(detailRec.purchaseDate)}</span>}
-                        {detailRec.purchaseDate && detailRec.buildDate ? " · " : ""}
-                        {detailRec.buildDate && <span className="dc-mono done">完成 {fmtDate(detailRec.buildDate)}</span>}
-                      </span></div>
-                    )}
-                    {detailKit.note && <div className="dc-srow"><span className="dc-k">メモ</span><span className="dc-v dc-memo">{detailKit.note}</span></div>}
-                  </div>
-                ) : (
-                  <button className="dc-locked" onClick={() => setSettings((s) => ({ ...s, unownedInfo: true }))}>
-                    <span className="dc-locked-t">機密 — 未入手</span>
-                    <span className="dc-locked-s">タップで基礎情報を開示</span>
-                  </button>
-                )}
+                  )}
+                  {detailKit.note && <div className="dc-srow"><span className="dc-k">メモ</span><span className="dc-v dc-memo">{detailKit.note}</span></div>}
+                </div>
 
                 <div className="kt-tags">
                   <div className="kt-tags-head">タグ</div>
@@ -6740,35 +6733,36 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .form .f-sec span{font-family:var(--mono);font-size:8.5px;letter-spacing:.28em;color:var(--ink-dim);text-transform:uppercase}
 .form .fld>span{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--ink-mid);text-transform:uppercase}
 /* ═══ ランナー枠ヘッダー ═══ */
-.head .hf{position:relative;border:1.6px solid var(--gold);border-radius:8px;padding:14px 18px 0;background:linear-gradient(160deg,rgba(217,179,106,.05),transparent 58%);cursor:pointer;transition:transform .14s ease}
-.head .hf:active{transform:scale(.985)}
-.head .hf::after{content:"";position:absolute;inset:4px;border:1px solid rgba(217,179,106,.16);border-radius:5px;pointer-events:none;transition:inset .14s ease}
-.head .hf:active::after{inset:5px}
-.hf-foil{position:absolute;inset:0;border-radius:8px;overflow:hidden;pointer-events:none;z-index:4}
-.hf-foil::after{content:"";position:absolute;top:0;bottom:0;left:0;width:55%;background:linear-gradient(115deg,transparent 38%,rgba(242,220,160,.42) 50%,transparent 62%);transform:translateX(-190%)}
-.head .hf:active .hf-foil::after{animation:hfGlint .6s ease-out}
-@keyframes hfGlint{from{transform:translateX(-190%)}to{transform:translateX(380%)}}
-.hf-tag{position:absolute;top:-9px;left:15px;background:var(--bg);padding:0 8px;font-family:var(--mono);font-size:9px;letter-spacing:.2em;color:var(--gold);z-index:2}
-.hf-code{position:absolute;bottom:-8px;right:15px;background:var(--bg);padding:0 8px;font-family:var(--mono);font-size:8px;letter-spacing:.18em;color:var(--ink-dim);z-index:2}
+.head .hf{position:relative;border:1.6px solid var(--gold);border-radius:8px;padding:14px 18px 0;background:linear-gradient(160deg,rgba(217,179,106,.05),transparent 58%);cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;transition:transform .14s ease,box-shadow .14s ease}
+.head .hf:active{transform:scale(.99);box-shadow:inset 0 3px 11px rgba(0,0,0,.55)}
+.head .hf::after{content:"";position:absolute;inset:4px;border:1px solid rgba(217,179,106,.16);border-radius:5px;pointer-events:none;transition:inset .14s ease,border-color .14s ease}
+.head .hf:active::after{inset:6px;border-color:rgba(217,179,106,.28)}
+.hf-tag{position:absolute;top:-9px;left:15px;background:var(--bg);padding:0 8px;font-family:var(--mono);font-size:9px;letter-spacing:.2em;color:var(--gold);z-index:3}
+.hf-part{position:absolute;top:-9px;right:15px;background:var(--bg);padding:0 8px;display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;color:var(--ink-mid);z-index:3}
+.hf-rl{font-style:normal;color:var(--gold);font-size:10px}
 .hf-gate{position:absolute;background:var(--gold);opacity:.5;z-index:1}
 .hf-gate.gt{top:-1px;width:8px;height:5px;border-radius:0 0 2px 2px}
 .hf-gate.gl{left:-1px;width:5px;height:8px;border-radius:0 2px 2px 0}
-.hf-eye{position:relative;font-family:var(--mono);font-size:9px;letter-spacing:.26em;color:var(--ink-mid);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hf-title{position:relative;font-family:var(--serif);font-weight:800;font-size:33px;letter-spacing:.05em;color:var(--ink-strong);line-height:1.04;margin-top:7px}
-.hf-kana{color:var(--gold);margin-left:3px}
-.hf-rule{position:relative;height:1px;margin:13px 0 0;background:linear-gradient(90deg,rgba(217,179,106,.3),rgba(217,179,106,.05) 75%,transparent)}
-.hf-stats{position:relative;display:flex;align-items:center;padding:10px 0 12px}
-.hf-stats .s{flex:1;display:flex;flex-direction:column;align-items:center;line-height:1.1}
+.hf-top{position:relative;display:flex;gap:13px}
+.hf-vbar{flex:none;writing-mode:vertical-rl;font-family:var(--serif);font-weight:800;font-size:13px;letter-spacing:.18em;color:var(--gold);border-left:1.5px solid rgba(217,179,106,.3);padding-left:8px}
+.hf-main{min-width:0;flex:1}
+.hf-eye{font-family:var(--mono);font-size:9px;letter-spacing:.26em;color:var(--ink-mid);text-transform:uppercase}
+.hf-title{position:relative;font-family:var(--serif);font-weight:800;font-size:40px;letter-spacing:.05em;color:var(--ink-strong);line-height:.98;margin-top:6px}
+.hf-kana{color:var(--gold)}
+.hf-gateline{position:absolute;left:6%;right:30%;bottom:-9px;height:7px;background:repeating-linear-gradient(90deg,var(--gold) 0 2px,transparent 2px 9px);opacity:.42}
+.hf-rule{position:relative;height:1px;margin:18px 0 0;background:linear-gradient(90deg,rgba(217,179,106,.3),rgba(217,179,106,.05) 75%,transparent)}
+.hf-stats{position:relative;display:flex;align-items:flex-start;padding:11px 0 12px}
+.hf-stats .s{flex:1;display:flex;flex-direction:column;align-items:center;line-height:1}
 .hf-stats .s:first-child{align-items:flex-start}
 .hf-stats .s:last-child{align-items:flex-end}
-.hf-stats b{font-family:var(--mono);font-weight:700;font-size:18px;color:var(--ink-strong);letter-spacing:.01em;font-variant-numeric:tabular-nums}
+.hf-stats b{font-family:var(--mono);font-weight:700;font-size:26px;color:var(--ink-strong);letter-spacing:.01em;font-variant-numeric:tabular-nums}
 .hf-stats b.kin{color:var(--kin)}
-.hf-stats span{font-family:var(--mono);font-size:8px;letter-spacing:.14em;color:var(--ink-dim);margin-top:3px;text-transform:uppercase}
-.hf-div{flex:none;width:1px;height:22px;background:var(--line)}
+.hf-stats span{font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;color:var(--ink-dim);margin-top:6px;text-transform:uppercase}
+.hf-div{flex:none;width:1px;height:30px;background:var(--line);margin-top:1px}
 .hf-prog{position:relative;height:3px;margin:0 -18px;border-radius:0 0 7px 7px;overflow:hidden;background:rgba(217,179,106,.1)}
 .hf-prog i{display:block;height:100%;background:linear-gradient(90deg,#9c7838,var(--gold));transition:width .5s}
 .hf-prog i.kin{background:linear-gradient(90deg,#b88f3e,var(--kin))}
-@media (min-width:430px){.hf-title{font-size:38px}.hf-stats b{font-size:20px}}
+@media (min-width:430px){.hf-title{font-size:46px}.hf-stats b{font-size:30px}}
 /* 章徽 常駐微光(金箔glint) */
 .av-medal.earned{position:relative;overflow:hidden}
 .av-medal.earned::after{content:"";position:absolute;top:-10%;bottom:-10%;left:0;width:60%;background:linear-gradient(115deg,transparent 42%,rgba(242,220,160,.55) 50%,transparent 58%);transform:translateX(-150%);pointer-events:none;animation:medalGlint 6s ease-in-out infinite}
@@ -6815,10 +6809,10 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 /* タブ:共用スライド下線 */
 .tab-slider{position:absolute;top:0;left:0;width:25%;height:2px;display:flex;justify-content:center;pointer-events:none;z-index:2;transition:transform .34s cubic-bezier(.4,0,.2,1)}
 .tab-slider b{width:46%;height:100%;border-radius:0 0 2px 2px;background:var(--gold);transition:background .25s;box-shadow:0 0 8px rgba(217,179,106,.4)}
-/* タブ切替:eyebrow/部品コードの差し替え */
-.hf-eye{animation:hfEyeIn .34s ease}
-@keyframes hfEyeIn{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:none}}
-.hf-code{animation:hfCodeStamp .36s cubic-bezier(.3,1.3,.5,1) both}
-@keyframes hfCodeStamp{0%{opacity:0;transform:scale(1.3)}60%{opacity:1}100%{opacity:1;transform:scale(1)}}
+/* タブ切替:档案名/部品コードの差し替え */
+.hf-vbar{animation:hfVbarIn .34s ease}
+@keyframes hfVbarIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+.hf-part{animation:hfPartIn .36s cubic-bezier(.3,1.3,.5,1) both}
+@keyframes hfPartIn{0%{opacity:0;transform:scale(1.25)}60%{opacity:1}100%{opacity:1;transform:scale(1)}}
 /* OSの減少動態(reduce-motion)では動畫を止めない:アプリ側のトグルで制御(スキャンラインと同方針) */
 `;
