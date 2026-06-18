@@ -6616,21 +6616,21 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .av-unitab.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1.5px;background:var(--gold)}
 .av-unitab.empty{opacity:.4}
 .av-reg{display:flex;flex-direction:column;margin-top:6px}
-.av-entry{position:relative;display:block;width:100%;background:none;border:none;border-bottom:1px solid var(--line);padding:14px 2px;text-align:left;cursor:pointer}
+.av-entry{position:relative;display:block;width:100%;background:none;border:none;border-bottom:1px solid var(--line);padding:10px 2px;text-align:left;cursor:pointer}
 .av-erow{display:flex;gap:15px;align-items:center}
 .av-ehead{flex:1;min-width:0;display:flex;flex-direction:column}
-.av-edetail{margin-left:75px;display:flex;flex-direction:column}
+.av-edetail{margin-left:87px;display:flex;flex-direction:column}
 .av-entry:last-child{border-bottom:none}
 .av-entry:active{background:rgba(217,179,106,.03)}
 .av-entry.pop{animation:achvPop .45s ease}
-.av-medal{flex:none;width:60px;height:60px;display:flex;align-items:center;justify-content:center}
+.av-medal{flex:none;width:72px;height:72px;display:flex;align-items:center;justify-content:center}
 .av-medal svg{width:100%;height:100%;display:block}
 .av-medal.earned svg{filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
 .av-medal.locked{opacity:.55}
-.av-eno{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9.5px;letter-spacing:.20em;color:var(--ink-dim);text-transform:uppercase}
-.av-ename{font-family:var(--serif);font-weight:700;font-size:18px;line-height:1.3;color:var(--ink-strong);margin-top:3px}
+.av-eno{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:11px;letter-spacing:.20em;color:var(--ink-dim);text-transform:uppercase}
+.av-ename{font-family:var(--serif);font-weight:700;font-size:22px;line-height:1.3;color:var(--ink-strong);margin-top:4px}
 .av-entry.locked .av-ename,.av-entry.todo .av-ename{color:var(--ink-mid)}
-.av-ehair{height:1px;width:40px;background:rgba(217,179,106,.24);margin:6px 0 6px}
+.av-ehair{height:1px;width:40px;background:rgba(217,179,106,.24);margin:3px 0 5px}
 .av-eflavor{font-size:11.5px;color:var(--ink-mid);line-height:1.65}
 .av-eprog{display:flex;align-items:center;gap:10px;margin-top:7px}
 .av-ebar{flex:1;max-width:180px;height:2px;background:var(--line);border-radius:2px;overflow:hidden}
