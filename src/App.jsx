@@ -4337,12 +4337,12 @@ export default function App() {
               : <div className="kz-uni"><span>UNIDENTIFIED</span></div>}
           </div>
           <div className="kz-rmain">
+            {settings.listSeries && kit.series && <div className="kz-rseries">{kit.series}</div>}
             <div className="kz-rno">{[
               settings.listGrade !== false ? kit.grade : null,
               settings.listNo && kit.no && kit.no !== "—" ? `No.${kit.no}` : null,
               settings.listCode && kit.code ? kit.code : null,
             ].filter(Boolean).join(" · ")}</div>
-            {settings.listSeries && kit.series && <div className="kz-rseries">{kit.series}</div>}
             <div className="kz-rname"><KitName name={kit.name} /></div>
             <div className="kz-rmeta">
               <span className="kz-year">{kit.ym ? kit.ym.replace("-", ".") : "—"}</span>
@@ -6696,13 +6696,13 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .kz-uni span{font-family:var(--mono);font-size:8px;letter-spacing:.16em;color:#4a5263;text-align:center}
 .kz-row.owned .kz-rframe{border-color:rgba(217,179,106,.24)}
 .kz-rmain{flex:1;min-width:0}
-.kz-rno{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;letter-spacing:.18em;color:var(--ink-dim);text-transform:uppercase}
-.kz-rseries{font-size:9.5px;color:var(--ink-dim);letter-spacing:.04em;margin-top:2px}
+.kz-rno{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;letter-spacing:.18em;color:var(--ink-dim);text-transform:uppercase;margin-top:2px}
+.kz-rseries{font-size:9.5px;color:var(--ink-dim);letter-spacing:.04em}
 .kz-rname{font-family:var(--serif);font-weight:700;font-size:21px;color:var(--ink-strong);margin-top:3px;line-height:1.28}
 .kz-row.dim .kz-rname{color:var(--ink-mid)}
 .kz-rmeta{display:flex;gap:11px;align-items:center;margin-top:7px;flex-wrap:wrap}
 .kz-rmeta .kz-year{font-size:12.5px}
-.kz-rmeta .kz-price{font-size:12.5px;letter-spacing:.01em;align-self:baseline}
+.kz-rmeta .kz-price{font-size:12.5px;letter-spacing:.01em}
 .kz-date{font-size:10.5px}
 .kz-rseal,.kz-rplan{font-size:13px;padding:6px 4px}
 .kz-date{font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.05em;color:var(--ink-mid)}
