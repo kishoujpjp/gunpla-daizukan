@@ -3106,7 +3106,7 @@ export default function App() {
   const [images, setImages] = useState({});
   const [extras, setExtras] = useState({});       // 追加画像 {xid: src}
   const [albumMeta, setAlbumMeta] = useState({});  // {kitId:{order,thumb,acquire,framing}}
-  const [settings, setSettings] = useState({ view: "grid", compact: false, dimUnowned: true, showCode: true, showSeries: false, showPrice: true, showNo: false, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "low", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", geminiModel: "gemini-2.5-flash-image" });
+  const [settings, setSettings] = useState({ view: "grid", compact: false, dimUnowned: true, showCode: true, showSeries: false, showPrice: true, showNo: false, listGrade: true, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "low", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", geminiModel: "gemini-2.5-flash-image" });
   const [sortKey, setSortKey] = useState("year");
   const [sortDir, setSortDir] = useState("asc");
   const [queries, setQueries] = useState({ z: "", c: "" });
@@ -4337,7 +4337,11 @@ export default function App() {
               : <div className="kz-uni"><span>UNIDENTIFIED</span></div>}
           </div>
           <div className="kz-rmain">
-            <div className="kz-rno">{kit.grade}{settings.listNo && kit.no && kit.no !== "—" ? ` · No.${kit.no}` : ""}{settings.listCode && kit.code ? ` · ${kit.code}` : ""}</div>
+            <div className="kz-rno">{[
+              settings.listGrade !== false ? kit.grade : null,
+              settings.listNo && kit.no && kit.no !== "—" ? `No.${kit.no}` : null,
+              settings.listCode && kit.code ? kit.code : null,
+            ].filter(Boolean).join(" · ")}</div>
             {settings.listSeries && kit.series && <div className="kz-rseries">{kit.series}</div>}
             <div className="kz-rname"><KitName name={kit.name} /></div>
             <div className="kz-rmeta">
@@ -4826,6 +4830,7 @@ export default function App() {
                     ["showSeries", "作品名を表示"],
                   ]
                 : [
+                    ["listGrade", "グレードを表示"],
                     ["listSeries", "作品名を表示"],
                     ["listNo", "No.番号を表示"],
                     ["listCode", "型式番号を表示"],
@@ -6685,6 +6690,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .kz-row.dim .kz-rname{color:var(--ink-mid)}
 .kz-rmeta{display:flex;gap:11px;align-items:center;margin-top:7px;flex-wrap:wrap}
 .kz-rmeta .kz-year{font-size:12.5px}
+.kz-rmeta .kz-price{font-size:12.5px;letter-spacing:.01em;align-self:baseline}
 .kz-date{font-size:10.5px}
 .kz-rseal,.kz-rplan{font-size:13px;padding:6px 4px}
 .kz-date{font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.05em;color:var(--ink-mid)}
