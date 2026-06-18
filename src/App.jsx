@@ -4453,31 +4453,33 @@ export default function App() {
               <span className="hf-part" key={arc.en}><i className="hf-rl">Ⓡ</i>{arc.en}</span>
               <span className="hf-gate gt" style={{ left: "32%" }} /><span className="hf-gate gt" style={{ left: "58%" }} /><span className="hf-gate gl" style={{ top: "50%" }} />
               <div className="hf-top">
-                <div className="hf-vbar" key={arc.jp}>{arc.jp}</div>
-                <div className="hf-main">
-                  <div className="hf-eye">CLASSIFIED</div>
-                  <h1 className="hf-title">ガンプラ<span className="hf-kana">大図鑑</span><span className="hf-gateline" aria-hidden="true" /></h1>
+                <div className="hf-vbar" key={arc.jp}><span className="hf-vbar-t">{arc.jp}</span></div>
+                <div className="hf-rcol">
+                  <div className="hf-main">
+                    <div className="hf-eye">CLASSIFIED</div>
+                    <h1 className="hf-title">ガンプラ<span className="hf-kana">大図鑑</span><span className="hf-gateline" aria-hidden="true" /></h1>
+                  </div>
+                  <div className="hf-rule" />
+                  <div className="hf-stats">
+                    {isPlan ? (
+                      <>
+                        <div className="s"><b><Roll value={allKits.length} resetKey={arc.jp} /></b><span>収録</span></div>
+                        <div className="hf-div" />
+                        <div className="s"><b className="kin"><Roll value={planAll} resetKey={arc.jp} /></b><span>予定</span></div>
+                        <div className="hf-div" />
+                        <div className="s"><b className="kin"><Roll value={futurePct} resetKey={arc.jp} />%</b><span>収集率</span></div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="s"><b><Roll value={tab === "collection" ? ownedAll : allKits.length} resetKey={arc.jp} /></b><span>{tab === "collection" ? "収蔵" : "収録"}</span></div>
+                        <div className="hf-div" />
+                        <div className="s"><b><Roll value={tab === "collection" ? builtAll : ownedAll} resetKey={arc.jp} /></b><span>{tab === "collection" ? "完成" : "入手"}</span></div>
+                        <div className="hf-div" />
+                        <div className="s"><b><Roll value={collectPct} resetKey={arc.jp} />%</b><span>収集率</span></div>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="hf-rule" />
-              <div className="hf-stats">
-                {isPlan ? (
-                  <>
-                    <div className="s"><b><Roll value={allKits.length} resetKey={arc.jp} /></b><span>収録</span></div>
-                    <div className="hf-div" />
-                    <div className="s"><b className="kin"><Roll value={planAll} resetKey={arc.jp} /></b><span>予定</span></div>
-                    <div className="hf-div" />
-                    <div className="s"><b className="kin"><Roll value={futurePct} resetKey={arc.jp} />%</b><span>収集率</span></div>
-                  </>
-                ) : (
-                  <>
-                    <div className="s"><b><Roll value={tab === "collection" ? ownedAll : allKits.length} resetKey={arc.jp} /></b><span>{tab === "collection" ? "収蔵" : "収録"}</span></div>
-                    <div className="hf-div" />
-                    <div className="s"><b><Roll value={tab === "collection" ? builtAll : ownedAll} resetKey={arc.jp} /></b><span>{tab === "collection" ? "完成" : "入手"}</span></div>
-                    <div className="hf-div" />
-                    <div className="s"><b><Roll value={collectPct} resetKey={arc.jp} />%</b><span>収集率</span></div>
-                  </>
-                )}
               </div>
               <div className="hf-prog"><i className={isPlan ? "kin" : ""} style={{ width: `${pct}%` }} /></div>
             </div>
@@ -6138,7 +6140,7 @@ input,textarea{font-family:var(--sans)}
     radial-gradient(800px 400px at -10% 30%, rgba(31,141,129,.05), transparent 60%),
     var(--bg);
 }
-.app.light .hf-vbar,.app.light .hf-kana{background:linear-gradient(180deg,#a07b35,#5f4519);-webkit-background-clip:text;background-clip:text}
+.app.light .hf-vbar-t,.app.light .hf-kana{background:linear-gradient(180deg,#a07b35,#5f4519);-webkit-background-clip:text;background-clip:text}
 .app.light .hf-vbar::before{background:linear-gradient(180deg,transparent,rgba(156,118,58,.6) 16%,rgba(156,118,58,.6) 84%,transparent)}
 .app.light .hf-title{text-shadow:0 1px 0 rgba(255,255,255,.5)}
 .app.light .stamp{background:radial-gradient(circle at 36% 30%, rgba(253,250,243,.6), rgba(253,250,243,.88))}
@@ -6759,23 +6761,25 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .hf-gate{position:absolute;background:var(--gold);opacity:.5;z-index:1}
 .hf-gate.gt{top:-1px;width:8px;height:5px;border-radius:0 0 2px 2px}
 .hf-gate.gl{left:-1px;width:5px;height:8px;border-radius:0 2px 2px 0}
-.hf-top{position:relative;display:flex;gap:13px}
-.hf-vbar{flex:none;position:relative;writing-mode:vertical-rl;font-family:var(--serif);font-weight:800;font-size:30px;letter-spacing:.1em;line-height:1.05;margin-left:13px;background:linear-gradient(180deg,#f2dca0,#b8924a);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hf-top{position:relative;display:flex;align-items:stretch;gap:13px}
+.hf-vbar{flex:none;position:relative;margin-left:13px;display:flex;align-items:center;justify-content:center}
+.hf-vbar-t{writing-mode:vertical-rl;font-family:var(--serif);font-weight:800;font-size:30px;letter-spacing:.1em;line-height:1.05;background:linear-gradient(180deg,#f2dca0,#b8924a);-webkit-background-clip:text;background-clip:text;color:transparent}
 .hf-vbar::before{content:"";position:absolute;left:-13px;top:0;bottom:0;width:1.5px;border-radius:1px;background:linear-gradient(180deg,transparent,rgba(217,179,106,.55) 16%,rgba(217,179,106,.55) 84%,transparent)}
 .hf-main{min-width:0;flex:1}
+.hf-rcol{flex:1;min-width:0}
 .hf-eye{font-family:var(--mono);font-size:9px;letter-spacing:.26em;color:var(--ink-mid);text-transform:uppercase}
 .hf-title{position:relative;font-family:var(--serif);font-weight:800;font-size:40px;letter-spacing:.05em;color:var(--ink-strong);line-height:.98;margin-top:6px;text-shadow:0 1px 1px rgba(0,0,0,.35)}
 .hf-kana{background:linear-gradient(180deg,#f2dca0,#b8924a);-webkit-background-clip:text;background-clip:text;color:transparent}
 .hf-gateline{position:absolute;left:6%;right:30%;bottom:-9px;height:7px;background:repeating-linear-gradient(90deg,var(--gold) 0 2px,transparent 2px 9px);opacity:.42}
 .hf-rule{position:relative;height:1px;margin:18px 0 0;background:linear-gradient(90deg,rgba(217,179,106,.3),rgba(217,179,106,.05) 75%,transparent)}
-.hf-stats{position:relative;display:flex;align-items:flex-start;padding:11px 0 12px}
-.hf-stats .s{flex:1;display:flex;flex-direction:column;align-items:center;line-height:1}
-.hf-stats .s:first-child{align-items:flex-start}
-.hf-stats .s:last-child{align-items:flex-end}
+.hf-stats{position:relative;display:flex;align-items:stretch;padding:11px 0 12px}
+.hf-stats .s{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;line-height:1}
+.hf-stats .s:first-child{align-items:center}
+.hf-stats .s:last-child{align-items:center}
 .hf-stats b{font-family:var(--serif);font-weight:800;font-size:26px;color:var(--ink-strong);letter-spacing:.02em;font-variant-numeric:tabular-nums}
 .hf-stats b.kin{color:var(--kin)}
 .hf-stats span{font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;color:var(--ink-dim);margin-top:6px;text-transform:uppercase}
-.hf-div{flex:none;width:1px;height:30px;background:var(--line);margin-top:1px}
+.hf-div{flex:none;width:1px;background:var(--line);align-self:stretch}
 .hf-prog{position:relative;height:3px;margin:0 -18px;border-radius:0 0 7px 7px;overflow:hidden;background:rgba(217,179,106,.1)}
 .hf-prog i{display:block;height:100%;background:linear-gradient(90deg,#9c7838,var(--gold));transition:width .5s}
 .hf-prog i.kin{background:linear-gradient(90deg,#b88f3e,var(--kin))}
