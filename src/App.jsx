@@ -2818,13 +2818,16 @@ function CropModal({ src, onDone, onCancel }) {
 }
 
 /* ── 機體編輯表單(新增/編輯共用) ── */
-function Roll({ value }) {
-  const [disp, setDisp] = useState(value);
-  const fromRef = useRef(value);
+function Roll({ value, resetKey }) {
+  const [disp, setDisp] = useState(0);
+  const fromRef = useRef(0);
+  const keyRef = useRef(resetKey);
   useEffect(() => {
-    const from = fromRef.current, to = value;
-    if (from === to) { setDisp(to); return; }
-    let raf, start = null; const dur = 520;
+    let from = fromRef.current;
+    if (resetKey !== keyRef.current) { from = 0; keyRef.current = resetKey; }
+    const to = value;
+    if (from === to) { setDisp(to); fromRef.current = to; return; }
+    let raf, start = null; const dur = 700;
     const tick = (t) => {
       if (start === null) start = t;
       const pr = Math.min(1, (t - start) / dur);
@@ -2835,7 +2838,7 @@ function Roll({ value }) {
     };
     raf = requestAnimationFrame(tick);
     return () => { cancelAnimationFrame(raf); fromRef.current = to; };
-  }, [value]);
+  }, [value, resetKey]);
   return <>{disp}</>;
 }
 
@@ -4337,12 +4340,12 @@ export default function App() {
               : <div className="kz-uni"><span>UNIDENTIFIED</span></div>}
           </div>
           <div className="kz-rmain">
-            {settings.listSeries && kit.series && <div className="kz-rseries">{kit.series}</div>}
             <div className="kz-rno">{[
               settings.listGrade !== false ? kit.grade : null,
               settings.listNo && kit.no && kit.no !== "—" ? `No.${kit.no}` : null,
               settings.listCode && kit.code ? kit.code : null,
             ].filter(Boolean).join(" · ")}</div>
+            {settings.listSeries && kit.series && <div className="kz-rseries">{kit.series}</div>}
             <div className="kz-rname"><KitName name={kit.name} /></div>
             <div className="kz-rmeta">
               <span className="kz-year">{kit.ym ? kit.ym.replace("-", ".") : "—"}</span>
@@ -4426,7 +4429,7 @@ export default function App() {
       {/* 称号 叙勲トースト */}
       {toast && (
         <button className="av-toast" onClick={() => { setToast(null); setAchvPop(null); }}>
-          <span className="av-toast-medal"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="avGoldT" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#f2dca0" /><stop offset="1" stopColor="#9c7838" /></linearGradient></defs><path d="M24 10 L40 10 L37.5 19 L26.5 19 Z" fill="#b13a28" stroke="#e8553d" strokeWidth="1" /><line x1="32" y1="11" x2="32" y2="19" stroke="rgba(0,0,0,.25)" strokeWidth="1" /><circle cx="32" cy="37" r="13" fill="rgba(217,179,106,.12)" stroke="url(#avGoldT)" strokeWidth="2" /><circle cx="32" cy="37" r="9.3" fill="none" stroke="url(#avGoldT)" strokeWidth=".7" /><polygon points="32,29.5 33.9,34.4 39.1,34.7 35,38 36.4,43.1 32,40.2 27.6,43.1 29,38 24.9,34.7 30.1,34.4" fill="url(#avGoldT)" /></svg></span>
+          <span className="av-toast-medal"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="avGoldT" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#f2dca0" /><stop offset="1" stopColor="#9c7838" /></linearGradient></defs><polygon points="32,7 49,16 49,40 32,57 15,40 15,16" fill="none" stroke="url(#avGoldT)" strokeWidth="2" /><polygon points="32,12 44,19 44,38 32,50 20,38 20,19" fill="rgba(217,179,106,.12)" stroke="url(#avGoldT)" strokeWidth="2.4" /><text x="32" y="39" textAnchor="middle" fontFamily="Shippori Mincho,serif" fontWeight="800" fontSize="20" fill="url(#avGoldT)">章</text></svg></span>
           <div className="av-toast-body">
             <div className="av-toast-kick">DECORATED · 叙勲</div>
             <div className="av-toast-name">{toast.name}</div>
@@ -4460,19 +4463,19 @@ export default function App() {
               <div className="hf-stats">
                 {isPlan ? (
                   <>
-                    <div className="s"><b><Roll value={allKits.length} /></b><span>収録</span></div>
+                    <div className="s"><b><Roll value={allKits.length} resetKey={arc.jp} /></b><span>収録</span></div>
                     <div className="hf-div" />
-                    <div className="s"><b className="kin"><Roll value={planAll} /></b><span>予定</span></div>
+                    <div className="s"><b className="kin"><Roll value={planAll} resetKey={arc.jp} /></b><span>予定</span></div>
                     <div className="hf-div" />
-                    <div className="s"><b className="kin"><Roll value={futurePct} />%</b><span>収集率</span></div>
+                    <div className="s"><b className="kin"><Roll value={futurePct} resetKey={arc.jp} />%</b><span>収集率</span></div>
                   </>
                 ) : (
                   <>
-                    <div className="s"><b><Roll value={tab === "collection" ? ownedAll : allKits.length} /></b><span>{tab === "collection" ? "収蔵" : "収録"}</span></div>
+                    <div className="s"><b><Roll value={tab === "collection" ? ownedAll : allKits.length} resetKey={arc.jp} /></b><span>{tab === "collection" ? "収蔵" : "収録"}</span></div>
                     <div className="hf-div" />
-                    <div className="s"><b><Roll value={tab === "collection" ? builtAll : ownedAll} /></b><span>{tab === "collection" ? "完成" : "入手"}</span></div>
+                    <div className="s"><b><Roll value={tab === "collection" ? builtAll : ownedAll} resetKey={arc.jp} /></b><span>{tab === "collection" ? "完成" : "入手"}</span></div>
                     <div className="hf-div" />
-                    <div className="s"><b><Roll value={collectPct} />%</b><span>収集率</span></div>
+                    <div className="s"><b><Roll value={collectPct} resetKey={arc.jp} />%</b><span>収集率</span></div>
                   </>
                 )}
               </div>
@@ -4639,24 +4642,18 @@ export default function App() {
                 const curUni = UNIVERSES.find(([v]) => v === titleUniverse);
                 const medal = (cls) => cls === "earned" ? (
                   <svg viewBox="0 0 64 64" aria-hidden="true">
-                    <path d="M24 10 L40 10 L37.5 19 L26.5 19 Z" fill="#b13a28" stroke="#e8553d" strokeWidth="1" />
-                    <line x1="32" y1="11" x2="32" y2="19" stroke="rgba(0,0,0,.25)" strokeWidth="1" />
-                    <circle cx="32" cy="37" r="13" fill="rgba(217,179,106,.12)" stroke="url(#avGold)" strokeWidth="2" />
-                    <circle cx="32" cy="37" r="9.3" fill="none" stroke="url(#avGold)" strokeWidth=".7" />
-                    <polygon points="32,29.5 33.9,34.4 39.1,34.7 35,38 36.4,43.1 32,40.2 27.6,43.1 29,38 24.9,34.7 30.1,34.4" fill="url(#avGold)" />
+                    <polygon points="32,7 49,16 49,40 32,57 15,40 15,16" fill="none" stroke="url(#avGold)" strokeWidth="2" />
+                    <polygon points="32,12 44,19 44,38 32,50 20,38 20,19" fill="rgba(217,179,106,.12)" stroke="url(#avGold)" strokeWidth="2.4" />
+                    <text x="32" y="39" textAnchor="middle" fontFamily="Shippori Mincho,serif" fontWeight="800" fontSize="20" fill="url(#avGold)">章</text>
                   </svg>
                 ) : cls === "todo" ? (
                   <svg viewBox="0 0 64 64" aria-hidden="true">
-                    <path d="M24 10 L40 10 L37.5 19 L26.5 19 Z" fill="#b13a28" stroke="#e8553d" strokeWidth="1" />
-                    <line x1="32" y1="11" x2="32" y2="19" stroke="rgba(0,0,0,.25)" strokeWidth="1" />
-                    <circle cx="32" cy="37" r="13" fill="rgba(217,179,106,.12)" stroke="url(#avGold)" strokeWidth="2" />
-                    <circle cx="32" cy="37" r="9.3" fill="none" stroke="url(#avGold)" strokeWidth=".7" />
+                    <polygon points="32,12 44,19 44,38 32,50 20,38 20,19" fill="none" stroke="#d9b36a" strokeWidth="1.6" strokeDasharray="3 3" />
                   </svg>
                 ) : (
                   <svg viewBox="0 0 64 64" aria-hidden="true">
-                    <path d="M24 10 L40 10 L37.5 19 L26.5 19 Z" fill="none" stroke="#404a5e" strokeWidth="1" />
-                    <circle cx="32" cy="37" r="13" fill="none" stroke="#404a5e" strokeWidth="1.2" />
-                    <circle cx="32" cy="37" r="9.3" fill="none" stroke="#2f3848" strokeWidth=".7" />
+                    <polygon points="32,7 49,16 49,40 32,57 15,40 15,16" fill="none" stroke="#404a5e" strokeWidth="1" />
+                    <polygon points="32,12 44,19 44,38 32,50 20,38 20,19" fill="none" stroke="#2f3848" strokeWidth="2" />
                   </svg>
                 );
                 return (
@@ -4697,14 +4694,10 @@ export default function App() {
                         return (
                           <button key={t.id} className={"av-entry " + cls + (isNew ? " new" : "") + (achvPop === "t:" + t.id ? " pop" : "")}
                             onClick={() => { haptic(); ackTitle(t.id); setTitleDetail(t); }}>
-                            <span className="av-erow">
-                              <span className={"av-medal " + cls}>{medal(cls)}</span>
-                              <span className="av-ehead">
-                                <span className="av-eno">{(UNI_PREFIX[t.universe] || t.universe || "U.C.")} · No.{String(t.no || 0).padStart(3, "0")}</span>
-                                <span className="av-ename">{hiddenLocked ? "？？？" : t.name}</span>
-                              </span>
-                            </span>
-                            <span className="av-edetail">
+                            <span className={"av-medal " + cls}>{medal(cls)}</span>
+                            <span className="av-ebody">
+                              <span className="av-eno">{(UNI_PREFIX[t.universe] || t.universe || "U.C.")} · No.{String(t.no || 0).padStart(3, "0")}</span>
+                              <span className="av-ename">{hiddenLocked ? "？？？" : t.name}</span>
                               {t.unlocked && <span className="av-ehair" />}
                               {t.unlocked && <span className="av-eflavor">{t.sub}</span>}
                               {!t.unlocked && t.needBuild && <span className="av-etag">要完成 · 1体制作で叙勲</span>}
@@ -5272,8 +5265,8 @@ export default function App() {
               </div>
               <div className="tm-head">
                 {t.unlocked
-                  ? <span className="av-medal earned big"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="avGoldM" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#f2dca0" /><stop offset="1" stopColor="#9c7838" /></linearGradient></defs><path d="M24 10 L40 10 L37.5 19 L26.5 19 Z" fill="#b13a28" stroke="#e8553d" strokeWidth="1" /><line x1="32" y1="11" x2="32" y2="19" stroke="rgba(0,0,0,.25)" strokeWidth="1" /><circle cx="32" cy="37" r="13" fill="rgba(217,179,106,.12)" stroke="url(#avGoldM)" strokeWidth="2" /><circle cx="32" cy="37" r="9.3" fill="none" stroke="url(#avGoldM)" strokeWidth=".7" /><polygon points="32,29.5 33.9,34.4 39.1,34.7 35,38 36.4,43.1 32,40.2 27.6,43.1 29,38 24.9,34.7 30.1,34.4" fill="url(#avGoldM)" /></svg></span>
-                  : <span className="av-medal locked big"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M24 10 L40 10 L37.5 19 L26.5 19 Z" fill="none" stroke="#404a5e" strokeWidth="1" /><circle cx="32" cy="37" r="13" fill="none" stroke="#404a5e" strokeWidth="1.2" /><circle cx="32" cy="37" r="9.3" fill="none" stroke="#2f3848" strokeWidth=".7" /></svg></span>}
+                  ? <span className="av-medal earned big"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="avGoldM" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#f2dca0" /><stop offset="1" stopColor="#9c7838" /></linearGradient></defs><polygon points="32,7 49,16 49,40 32,57 15,40 15,16" fill="none" stroke="url(#avGoldM)" strokeWidth="2" /><polygon points="32,12 44,19 44,38 32,50 20,38 20,19" fill="rgba(217,179,106,.12)" stroke="url(#avGoldM)" strokeWidth="2.4" /><text x="32" y="39" textAnchor="middle" fontFamily="Shippori Mincho,serif" fontWeight="800" fontSize="20" fill="url(#avGoldM)">章</text></svg></span>
+                  : <span className="av-medal locked big"><svg viewBox="0 0 64 64" aria-hidden="true"><polygon points="32,7 49,16 49,40 32,57 15,40 15,16" fill="none" stroke="#404a5e" strokeWidth="1" /><polygon points="32,12 44,19 44,38 32,50 20,38 20,19" fill="none" stroke="#2f3848" strokeWidth="2" /></svg></span>}
                 <div className="tm-headbody">
                   <div className="tm-name">{t.name}</div>
                   <div className="tm-sub">{t.sub}</div>
@@ -6145,6 +6138,9 @@ input,textarea{font-family:var(--sans)}
     radial-gradient(800px 400px at -10% 30%, rgba(31,141,129,.05), transparent 60%),
     var(--bg);
 }
+.app.light .hf-vbar,.app.light .hf-kana{background:linear-gradient(180deg,#a07b35,#5f4519);-webkit-background-clip:text;background-clip:text}
+.app.light .hf-vbar::before{background:linear-gradient(180deg,transparent,rgba(156,118,58,.6) 16%,rgba(156,118,58,.6) 84%,transparent)}
+.app.light .hf-title{text-shadow:0 1px 0 rgba(255,255,255,.5)}
 .app.light .stamp{background:radial-gradient(circle at 36% 30%, rgba(253,250,243,.6), rgba(253,250,243,.88))}
 .app.light .tabbar{background:rgba(246,241,230,.93)}
 .app.light .card-sketch{background:linear-gradient(180deg,rgba(0,0,0,.08),rgba(0,0,0,.02))}
@@ -6616,23 +6612,21 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .av-unitab.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1.5px;background:var(--gold)}
 .av-unitab.empty{opacity:.4}
 .av-reg{display:flex;flex-direction:column;margin-top:6px}
-.av-entry{position:relative;display:block;width:100%;background:none;border:none;border-bottom:1px solid var(--line);padding:10px 2px;text-align:left;cursor:pointer}
-.av-erow{display:flex;gap:15px;align-items:center}
-.av-ehead{flex:1;min-width:0;display:flex;flex-direction:column}
-.av-edetail{margin-left:87px;display:flex;flex-direction:column}
+.av-entry{position:relative;display:flex;gap:15px;align-items:flex-start;width:100%;background:none;border:none;border-bottom:1px solid var(--line);padding:16px 2px;text-align:left;cursor:pointer}
 .av-entry:last-child{border-bottom:none}
 .av-entry:active{background:rgba(217,179,106,.03)}
 .av-entry.pop{animation:achvPop .45s ease}
-.av-medal{flex:none;width:72px;height:72px;display:flex;align-items:center;justify-content:center}
+.av-medal{flex:none;width:60px;height:60px;display:flex;align-items:center;justify-content:center}
 .av-medal svg{width:100%;height:100%;display:block}
 .av-medal.earned svg{filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
 .av-medal.locked{opacity:.55}
-.av-eno{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:11px;letter-spacing:.20em;color:var(--ink-dim);text-transform:uppercase}
-.av-ename{font-family:var(--serif);font-weight:700;font-size:22px;line-height:1.3;color:var(--ink-strong);margin-top:4px}
+.av-ebody{flex:1;min-width:0;display:flex;flex-direction:column;padding-top:2px}
+.av-eno{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9.5px;letter-spacing:.20em;color:var(--ink-dim);text-transform:uppercase}
+.av-ename{font-family:var(--serif);font-weight:700;font-size:18px;line-height:1.3;color:var(--ink-strong);margin-top:3px}
 .av-entry.locked .av-ename,.av-entry.todo .av-ename{color:var(--ink-mid)}
-.av-ehair{height:1px;width:40px;background:rgba(217,179,106,.24);margin:3px 0 5px}
+.av-ehair{height:1px;width:40px;background:rgba(217,179,106,.24);margin:9px 0 8px}
 .av-eflavor{font-size:11.5px;color:var(--ink-mid);line-height:1.65}
-.av-eprog{display:flex;align-items:center;gap:10px;margin-top:7px}
+.av-eprog{display:flex;align-items:center;gap:10px;margin-top:9px}
 .av-ebar{flex:1;max-width:180px;height:2px;background:var(--line);border-radius:2px;overflow:hidden}
 .av-ebar i{display:block;height:100%;background:linear-gradient(90deg,#9c7838,var(--gold))}
 .av-erem{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;letter-spacing:.1em;color:var(--ink-mid)}
@@ -6696,13 +6690,13 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .kz-uni span{font-family:var(--mono);font-size:8px;letter-spacing:.16em;color:#4a5263;text-align:center}
 .kz-row.owned .kz-rframe{border-color:rgba(217,179,106,.24)}
 .kz-rmain{flex:1;min-width:0}
-.kz-rno{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;letter-spacing:.18em;color:var(--ink-dim);text-transform:uppercase;margin-top:2px}
-.kz-rseries{font-size:9.5px;color:var(--ink-dim);letter-spacing:.04em}
+.kz-rno{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;letter-spacing:.18em;color:var(--ink-dim);text-transform:uppercase}
+.kz-rseries{font-size:9.5px;color:var(--ink-dim);letter-spacing:.04em;margin-top:2px}
 .kz-rname{font-family:var(--serif);font-weight:700;font-size:21px;color:var(--ink-strong);margin-top:3px;line-height:1.28}
 .kz-row.dim .kz-rname{color:var(--ink-mid)}
 .kz-rmeta{display:flex;gap:11px;align-items:center;margin-top:7px;flex-wrap:wrap}
 .kz-rmeta .kz-year{font-size:12.5px}
-.kz-rmeta .kz-price{font-size:12.5px;letter-spacing:.01em}
+.kz-rmeta .kz-price{font-size:12.5px;letter-spacing:.01em;align-self:baseline}
 .kz-date{font-size:10.5px}
 .kz-rseal,.kz-rplan{font-size:13px;padding:6px 4px}
 .kz-date{font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.05em;color:var(--ink-mid)}
@@ -6766,18 +6760,19 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .hf-gate.gt{top:-1px;width:8px;height:5px;border-radius:0 0 2px 2px}
 .hf-gate.gl{left:-1px;width:5px;height:8px;border-radius:0 2px 2px 0}
 .hf-top{position:relative;display:flex;gap:13px}
-.hf-vbar{flex:none;writing-mode:vertical-rl;font-family:var(--serif);font-weight:800;font-size:13px;letter-spacing:.18em;color:var(--gold);border-left:1.5px solid rgba(217,179,106,.3);padding-left:8px}
+.hf-vbar{flex:none;position:relative;writing-mode:vertical-rl;font-family:var(--serif);font-weight:800;font-size:30px;letter-spacing:.1em;line-height:1.05;margin-left:13px;background:linear-gradient(180deg,#f2dca0,#b8924a);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hf-vbar::before{content:"";position:absolute;left:-13px;top:0;bottom:0;width:1.5px;border-radius:1px;background:linear-gradient(180deg,transparent,rgba(217,179,106,.55) 16%,rgba(217,179,106,.55) 84%,transparent)}
 .hf-main{min-width:0;flex:1}
 .hf-eye{font-family:var(--mono);font-size:9px;letter-spacing:.26em;color:var(--ink-mid);text-transform:uppercase}
-.hf-title{position:relative;font-family:var(--serif);font-weight:800;font-size:40px;letter-spacing:.05em;color:var(--ink-strong);line-height:.98;margin-top:6px}
-.hf-kana{color:var(--gold)}
+.hf-title{position:relative;font-family:var(--serif);font-weight:800;font-size:40px;letter-spacing:.05em;color:var(--ink-strong);line-height:.98;margin-top:6px;text-shadow:0 1px 1px rgba(0,0,0,.35)}
+.hf-kana{background:linear-gradient(180deg,#f2dca0,#b8924a);-webkit-background-clip:text;background-clip:text;color:transparent}
 .hf-gateline{position:absolute;left:6%;right:30%;bottom:-9px;height:7px;background:repeating-linear-gradient(90deg,var(--gold) 0 2px,transparent 2px 9px);opacity:.42}
 .hf-rule{position:relative;height:1px;margin:18px 0 0;background:linear-gradient(90deg,rgba(217,179,106,.3),rgba(217,179,106,.05) 75%,transparent)}
 .hf-stats{position:relative;display:flex;align-items:flex-start;padding:11px 0 12px}
 .hf-stats .s{flex:1;display:flex;flex-direction:column;align-items:center;line-height:1}
 .hf-stats .s:first-child{align-items:flex-start}
 .hf-stats .s:last-child{align-items:flex-end}
-.hf-stats b{font-family:var(--mono);font-weight:700;font-size:26px;color:var(--ink-strong);letter-spacing:.01em;font-variant-numeric:tabular-nums}
+.hf-stats b{font-family:var(--serif);font-weight:800;font-size:26px;color:var(--ink-strong);letter-spacing:.02em;font-variant-numeric:tabular-nums}
 .hf-stats b.kin{color:var(--kin)}
 .hf-stats span{font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;color:var(--ink-dim);margin-top:6px;text-transform:uppercase}
 .hf-div{flex:none;width:1px;height:30px;background:var(--line);margin-top:1px}
@@ -6785,7 +6780,12 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .hf-prog i{display:block;height:100%;background:linear-gradient(90deg,#9c7838,var(--gold));transition:width .5s}
 .hf-prog i.kin{background:linear-gradient(90deg,#b88f3e,var(--kin))}
 @media (min-width:430px){.hf-title{font-size:46px}.hf-stats b{font-size:30px}}
-/* 徽章(リボン勲章) */
+/* 章徽 常駐微光(金箔glint) */
+.av-medal.earned{position:relative;overflow:hidden}
+.av-medal.earned::after{content:"";position:absolute;top:-10%;bottom:-10%;left:0;width:60%;background:linear-gradient(115deg,transparent 42%,rgba(242,220,160,.55) 50%,transparent 58%);transform:translateX(-150%);pointer-events:none;animation:medalGlint 6s ease-in-out infinite}
+@keyframes medalGlint{0%,84%{transform:translateX(-150%)}93%{transform:translateX(230%)}100%{transform:translateX(230%)}}
+.av-entry:nth-child(3n) .av-medal.earned::after{animation-delay:2s}
+.av-entry:nth-child(3n+1) .av-medal.earned::after{animation-delay:4s}
 /* ═══ モーションA(CSS) ═══ */
 @keyframes fxIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 /* 初表示カスケード(先頭12のみ) */
@@ -6827,7 +6827,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .tab-slider{position:absolute;top:0;left:0;width:25%;height:2px;display:flex;justify-content:center;pointer-events:none;z-index:2;transition:transform .34s cubic-bezier(.4,0,.2,1)}
 .tab-slider b{width:46%;height:100%;border-radius:0 0 2px 2px;background:var(--gold);transition:background .25s;box-shadow:0 0 8px rgba(217,179,106,.4)}
 /* タブ切替:档案名/部品コードの差し替え */
-.hf-vbar{animation:hfVbarIn .34s ease}
+.hf-vbar{animation:hfVbarIn .7s ease}
 @keyframes hfVbarIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
 .hf-part{animation:hfPartIn .36s cubic-bezier(.3,1.3,.5,1) both}
 @keyframes hfPartIn{0%{opacity:0;transform:scale(1.25)}60%{opacity:1}100%{opacity:1;transform:scale(1)}}
