@@ -2842,6 +2842,43 @@ function Roll({ value, resetKey }) {
   return <>{disp}</>;
 }
 
+function TagField({ tags, onCommit }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const start = (e) => { if (e) e.stopPropagation(); setDraft(tags.join("; ")); setEditing(true); };
+  const commit = () => {
+    const next = [];
+    for (const part of draft.split(/[;；]/)) {
+      const t = part.trim();
+      if (t && !next.includes(t)) next.push(t);
+    }
+    onCommit(next);
+    setEditing(false);
+  };
+  if (editing) {
+    return (
+      <input className="kt-edit" autoFocus value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") { e.preventDefault(); commit(); }
+          else if (e.key === "Escape") { e.preventDefault(); setEditing(false); }
+        }}
+        placeholder="タグを半角「;」区切りで入力" />
+    );
+  }
+  return (
+    <span className="kt-field" role="button" tabIndex={0} onClick={start}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); start(); } }}>
+      {tags.length
+        ? tags.map((t) => <span key={t} className="dc-tag">{t}</span>)
+        : <span className="kt-empty">タグを追加…</span>}
+      <i className="kt-pen" aria-hidden="true">✎</i>
+    </span>
+  );
+}
+
 function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, seriesOptions = [], ai, recInitial = null, onSaveRec,
   album, onAddImage, onRemoveImage, onSetRole, onFrame, thumbRef, acqRef, maxImgs = 6 }) {
   const albumMode = typeof onAddImage === "function";
@@ -5113,32 +5150,7 @@ export default function App() {
                     </span></div>
                   )}
                   {detailKit.note && <div className="dc-srow"><span className="dc-k">メモ</span><span className="dc-v dc-memo">{detailKit.note}</span></div>}
-                </div>
-
-                <div className="kt-tags">
-                  <div className="kt-tags-head">タグ</div>
-                  <div className="kt-chiprow">
-                    {getTags(detailKit.id).map((t) => (
-                      <span key={t} className="kt-chip">{t}
-                        <button className="kt-x" onClick={() => removeTag(detailKit.id, t)} aria-label="削除">✕</button>
-                      </span>
-                    ))}
-                    {getTags(detailKit.id).length === 0 && <span className="kt-empty">タグなし</span>}
-                  </div>
-                  <div className="kt-add">
-                    <input className="kt-input" value={tagInput} placeholder="タグを追加…" list="kt-suggest"
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(detailKit.id, tagInput); setTagInput(""); } }} />
-                    <datalist id="kt-suggest">{allTags.map((t) => <option key={t} value={t} />)}</datalist>
-                    <button className="kt-addbtn" onClick={() => { addTag(detailKit.id, tagInput); setTagInput(""); }}>追加</button>
-                  </div>
-                  {allTags.filter((t) => !getTags(detailKit.id).includes(t)).length > 0 && (
-                    <div className="kt-quick">
-                      {allTags.filter((t) => !getTags(detailKit.id).includes(t)).slice(0, 10).map((t) => (
-                        <button key={t} className="kt-qchip" onClick={() => addTag(detailKit.id, t)}>＋{t}</button>
-                      ))}
-                    </div>
-                  )}
+                  <div className="dc-srow dc-srow-tag"><span className="dc-k">タグ</span><span className="dc-v"><TagField tags={getTags(detailKit.id)} onCommit={(next) => setTags(detailKit.id, next)} /></span></div>
                 </div>
 
                 {detailRec.owned ? (
@@ -6588,6 +6600,12 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .kt-quick{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
 .kt-qchip{font-size:11.5px;color:var(--ink-mid);background:var(--panel);border:1px dashed var(--line);border-radius:11px;padding:3px 11px;cursor:pointer;font-family:inherit}
 .kt-qchip:active{color:var(--teal);border-color:var(--teal)}
+.dc-srow-tag{align-items:center}
+.kt-field{display:flex;flex-wrap:wrap;gap:6px;align-items:center;cursor:text;width:100%}
+.dc-tag{display:inline-flex;align-items:center;font-size:12px;color:var(--ink-strong);background:rgba(217,179,106,.07);border:1px solid rgba(217,179,106,.3);border-radius:3px;padding:3px 9px;letter-spacing:.02em}
+.kt-pen{font-style:normal;color:var(--ink-dim);font-size:11px;opacity:.65;margin-left:auto}
+.kt-edit{width:100%;background:var(--bg2);border:1px solid rgba(217,179,106,.4);border-radius:4px;padding:7px 10px;color:var(--ink);font-family:inherit;font-size:13px;letter-spacing:.02em}
+.kt-edit:focus{outline:none;border-color:rgba(217,179,106,.65)}
 /* ═══ 叙勲録(称号 金箔リデザイン) ═══ */
 .av-sec{padding-top:2px}
 .av-defs{position:absolute;width:0;height:0}
@@ -6694,7 +6712,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .kz-rmain{flex:1;min-width:0}
 .kz-rno{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;letter-spacing:.18em;color:var(--ink-dim);text-transform:uppercase}
 .kz-rseries{font-size:9.5px;color:var(--ink-dim);letter-spacing:.04em;margin-top:2px}
-.kz-rname{font-family:var(--serif);font-weight:700;font-size:21px;color:var(--ink-strong);margin-top:3px;line-height:1.28}
+.kz-rname{font-family:var(--serif);font-weight:700;font-size:23px;color:var(--ink-strong);margin-top:3px;line-height:1.28}
 .kz-row.dim .kz-rname{color:var(--ink-mid)}
 .kz-rmeta{display:flex;gap:11px;align-items:center;margin-top:7px;flex-wrap:wrap}
 .kz-rmeta .kz-year{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-weight:600;font-size:12.5px;letter-spacing:.02em}
@@ -6708,7 +6726,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 /* ═══ 入手頁(機密档案) ═══ */
 .dc-head{padding:2px 0 0}
 .dc-eye{font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;color:var(--ink-mid);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dc-name{font-family:var(--serif);font-weight:800;font-size:23px;line-height:1.25;color:var(--ink-strong);margin-top:6px}
+.dc-name{font-family:var(--serif);font-weight:800;font-size:25px;line-height:1.25;color:var(--ink-strong);margin-top:6px}
 .dc-rule{height:1px;margin:13px 0 0;background:linear-gradient(90deg,var(--gold),rgba(217,179,106,.05) 75%,transparent)}
 .dc-art{position:relative;margin-top:15px;aspect-ratio:1;border:1px solid var(--line);border-radius:3px;overflow:hidden;background:linear-gradient(160deg,#1b212e,#13171f);display:flex;align-items:center;justify-content:center}
 .dc-art.owned{border-color:var(--hair)}
