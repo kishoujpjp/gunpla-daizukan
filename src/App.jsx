@@ -2879,6 +2879,29 @@ function TagField({ tags, onCommit }) {
   );
 }
 
+function NoteField({ note, onCommit }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const start = (e) => { if (e) e.stopPropagation(); setDraft(note || ""); setEditing(true); };
+  const commit = () => { onCommit(draft.trim()); setEditing(false); };
+  if (editing) {
+    return (
+      <textarea className="dc-memo-edit" autoFocus rows={2} value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); setEditing(false); } }}
+        placeholder="改修予定、塗装レシピ、保管場所など" />
+    );
+  }
+  return (
+    <span className="dc-memo" role="button" tabIndex={0} onClick={start}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); start(); } }}>
+      {note ? note : <span className="kt-empty">メモを追加…</span>}
+    </span>
+  );
+}
+
 function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, seriesOptions = [], ai, recInitial = null, onSaveRec,
   album, onAddImage, onRemoveImage, onSetRole, onFrame, thumbRef, acqRef, maxImgs = 6 }) {
   const albumMode = typeof onAddImage === "function";
@@ -4321,6 +4344,15 @@ export default function App() {
     setEditing(false);
   };
 
+  const setNote = (kit, note) => {
+    const now = new Date().toISOString();
+    if (kit.line === "CUSTOM") {
+      setCustomKits((cs) => cs.map((c) => (c.id === kit.id ? { ...c, note, t: now } : c)));
+    } else {
+      setOverrides((o) => ({ ...o, [kit.id]: stampRec(o[kit.id], { note }, now) }));
+    }
+  };
+
   const saveNew = (values, imgVal) => {
     const now = new Date().toISOString();
     const id = "c" + Date.now().toString(36);
@@ -5124,9 +5156,7 @@ export default function App() {
                         <span className="dc-unsub">NO VISUAL ON FILE · 機密</span>
                         <span className="dc-unref">REF · {detailKit.code || (detailKit.no !== "—" ? "No." + detailKit.no : "—")}</span>
                       </div>}
-                  {detailRec.buildDate
-                    ? <span className="dc-seal">鑑定済</span>
-                    : detailRec.plan ? <span className="dc-plan">予</span> : null}
+                  {acquireSrc(detailKit.id) ? <span className="dc-seal">鑑定済</span> : null}
                   {acquireSrc(detailKit.id) && (
                     <button className="dc-frame-btn" onClick={(e) => { e.stopPropagation();
                       const r = pickRef("acquire", detailKit.id, images, extras, albumMeta);
@@ -5149,7 +5179,7 @@ export default function App() {
                       {detailRec.buildDate && <span className="dc-mono done">完成 {fmtDate(detailRec.buildDate)}</span>}
                     </span></div>
                   )}
-                  {detailKit.note && <div className="dc-srow"><span className="dc-k">メモ</span><span className="dc-v dc-memo">{detailKit.note}</span></div>}
+                  <div className="dc-srow dc-srow-memo"><span className="dc-k">メモ</span><span className="dc-v"><NoteField note={detailKit.note} onCommit={(v) => setNote(detailKit, v)} /></span></div>
                   <div className="dc-srow dc-srow-tag"><span className="dc-k">タグ</span><span className="dc-v"><TagField tags={getTags(detailKit.id)} onCommit={(next) => setTags(detailKit.id, next)} /></span></div>
                 </div>
 
@@ -6728,7 +6758,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .dc-eye{font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;color:var(--ink-mid);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dc-name{font-family:var(--serif);font-weight:800;font-size:25px;line-height:1.25;color:var(--ink-strong);margin-top:6px}
 .dc-rule{height:1px;margin:13px 0 0;background:linear-gradient(90deg,var(--gold),rgba(217,179,106,.05) 75%,transparent)}
-.dc-art{position:relative;margin-top:15px;aspect-ratio:1;border:1px solid var(--line);border-radius:3px;overflow:hidden;background:linear-gradient(160deg,#1b212e,#13171f);display:flex;align-items:center;justify-content:center}
+.dc-art{position:relative;margin-top:15px;aspect-ratio:1;border:1px solid var(--line);border-radius:3px;overflow:hidden;padding:2px;background:linear-gradient(160deg,#1b212e,#13171f);display:flex;align-items:center;justify-content:center}
 .dc-art.owned{border-color:var(--hair)}
 .dc-frame{width:100%;height:100%;display:flex;align-items:center;justify-content:center;cursor:zoom-in;position:relative}
 .dc-frame .kit-img.tc{width:100%;height:100%;object-fit:cover}
@@ -6748,9 +6778,13 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .dc-k{flex:none;width:64px;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--ink-dim);text-transform:uppercase}
 .dc-v{flex:1;font-size:13.5px;color:var(--ink-strong);min-width:0}
 .dc-v.dc-tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-.dc-gold{color:var(--gold);font-family:var(--serif)}
-.dc-mono{font-family:var(--mono);font-size:12px;color:var(--ink-mid)}.dc-mono.done{color:var(--gold)}
-.dc-memo{font-size:12.5px;color:var(--ink-mid);line-height:1.7}
+.dc-gold{color:var(--gold);font-family:ui-monospace,"SF Mono",Menlo,monospace;font-weight:600;font-size:12.5px;letter-spacing:.02em}
+.dc-mono{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:12.5px;letter-spacing:.01em;color:var(--ink-mid)}.dc-mono.done{color:var(--gold)}
+.dc-memo{font-size:12.5px;color:var(--ink-mid);line-height:1.7;cursor:text;display:block;width:100%}
+.dc-srow-memo{align-items:flex-start}
+.dc-srow-memo .dc-k{padding-top:3px}
+.dc-memo-edit{width:100%;background:var(--bg2);border:1px solid rgba(217,179,106,.4);border-radius:4px;padding:8px 10px;color:var(--ink);font-family:inherit;font-size:12.5px;line-height:1.6;resize:vertical}
+.dc-memo-edit:focus{outline:none;border-color:rgba(217,179,106,.65)}
 .dc-locked{display:flex;flex-direction:column;align-items:center;gap:5px;width:100%;margin-top:15px;padding:22px;background:linear-gradient(160deg,rgba(11,14,20,.6),var(--panel));border:1px dashed var(--line);border-radius:3px;cursor:pointer}
 .dc-locked-t{font-family:var(--mono);font-size:11px;letter-spacing:.24em;color:var(--ink-mid)}
 .dc-locked-s{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--ink-dim)}
