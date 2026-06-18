@@ -3106,7 +3106,7 @@ export default function App() {
   const [images, setImages] = useState({});
   const [extras, setExtras] = useState({});       // 追加画像 {xid: src}
   const [albumMeta, setAlbumMeta] = useState({});  // {kitId:{order,thumb,acquire,framing}}
-  const [settings, setSettings] = useState({ view: "grid", compact: false, dimUnowned: true, showCode: true, showSeries: false, showPrice: true, showNo: false, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "low", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", geminiModel: "gemini-2.5-flash-image" });
+  const [settings, setSettings] = useState({ view: "grid", compact: false, dimUnowned: true, showCode: true, showSeries: false, showPrice: true, showNo: false, listGrade: true, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "low", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", geminiModel: "gemini-2.5-flash-image" });
   const [sortKey, setSortKey] = useState("year");
   const [sortDir, setSortDir] = useState("asc");
   const [queries, setQueries] = useState({ z: "", c: "" });
@@ -4337,7 +4337,11 @@ export default function App() {
               : <div className="kz-uni"><span>UNIDENTIFIED</span></div>}
           </div>
           <div className="kz-rmain">
-            <div className="kz-rno">{kit.grade}{settings.listNo && kit.no && kit.no !== "—" ? ` · No.${kit.no}` : ""}{settings.listCode && kit.code ? ` · ${kit.code}` : ""}</div>
+            <div className="kz-rno">{[
+              settings.listGrade !== false ? kit.grade : null,
+              settings.listNo && kit.no && kit.no !== "—" ? `No.${kit.no}` : null,
+              settings.listCode && kit.code ? kit.code : null,
+            ].filter(Boolean).join(" · ")}</div>
             {settings.listSeries && kit.series && <div className="kz-rseries">{kit.series}</div>}
             <div className="kz-rname"><KitName name={kit.name} /></div>
             <div className="kz-rmeta">
@@ -4836,6 +4840,7 @@ export default function App() {
                     ["showSeries", "作品名を表示"],
                   ]
                 : [
+                    ["listGrade", "グレードを表示"],
                     ["listSeries", "作品名を表示"],
                     ["listNo", "No.番号を表示"],
                     ["listCode", "型式番号を表示"],
@@ -6611,7 +6616,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .av-unitab.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1.5px;background:var(--gold)}
 .av-unitab.empty{opacity:.4}
 .av-reg{display:flex;flex-direction:column;margin-top:6px}
-.av-entry{position:relative;display:block;width:100%;background:none;border:none;border-bottom:1px solid var(--line);padding:16px 2px;text-align:left;cursor:pointer}
+.av-entry{position:relative;display:block;width:100%;background:none;border:none;border-bottom:1px solid var(--line);padding:14px 2px;text-align:left;cursor:pointer}
 .av-erow{display:flex;gap:15px;align-items:center}
 .av-ehead{flex:1;min-width:0;display:flex;flex-direction:column}
 .av-edetail{margin-left:75px;display:flex;flex-direction:column}
@@ -6625,9 +6630,9 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .av-eno{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9.5px;letter-spacing:.20em;color:var(--ink-dim);text-transform:uppercase}
 .av-ename{font-family:var(--serif);font-weight:700;font-size:18px;line-height:1.3;color:var(--ink-strong);margin-top:3px}
 .av-entry.locked .av-ename,.av-entry.todo .av-ename{color:var(--ink-mid)}
-.av-ehair{height:1px;width:40px;background:rgba(217,179,106,.24);margin:9px 0 8px}
+.av-ehair{height:1px;width:40px;background:rgba(217,179,106,.24);margin:6px 0 6px}
 .av-eflavor{font-size:11.5px;color:var(--ink-mid);line-height:1.65}
-.av-eprog{display:flex;align-items:center;gap:10px;margin-top:9px}
+.av-eprog{display:flex;align-items:center;gap:10px;margin-top:7px}
 .av-ebar{flex:1;max-width:180px;height:2px;background:var(--line);border-radius:2px;overflow:hidden}
 .av-ebar i{display:block;height:100%;background:linear-gradient(90deg,#9c7838,var(--gold))}
 .av-erem{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;letter-spacing:.1em;color:var(--ink-mid)}
@@ -6697,6 +6702,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .kz-row.dim .kz-rname{color:var(--ink-mid)}
 .kz-rmeta{display:flex;gap:11px;align-items:center;margin-top:7px;flex-wrap:wrap}
 .kz-rmeta .kz-year{font-size:12.5px}
+.kz-rmeta .kz-price{font-size:12.5px;letter-spacing:.01em;align-self:baseline}
 .kz-date{font-size:10.5px}
 .kz-rseal,.kz-rplan{font-size:13px;padding:6px 4px}
 .kz-date{font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.05em;color:var(--ink-mid)}
