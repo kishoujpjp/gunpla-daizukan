@@ -5441,7 +5441,7 @@ export default function App() {
       <nav className={"tabbar pad-" + (settings.tabPad || "low")} style={{
         paddingBottom: settings.tabPad === "std" ? "env(safe-area-inset-bottom)"
           : settings.tabPad === "min" ? "4px"
-          : "max(4px, calc(env(safe-area-inset-bottom) - 12px))" }}>
+          : "max(2px, calc(env(safe-area-inset-bottom) / 2 - 6px))" }}>
         {[
           ["zukan", "図鑑", "▦"],
           ["collection", collMode === "plan" ? "予定" : "収蔵", collMode === "plan" ? "◆" : "✦"],
@@ -5510,8 +5510,8 @@ button,.tab,.card,.row,.gf-btn,.adv-seg-btn,.tab-label,.tab-icon{
 .card,.row,.tab,.gf-btn,.btn,.add-btn,.more-btn,.own-btn,.own-btn.half,.search-x,.adv-seg-btn,.view-toggle button,.sort-bar button,.edit-link{
   transition:transform .16s cubic-bezier(.34,1.56,.64,1), filter .12s ease, box-shadow .16s ease}
 .card:active,.row:active{transform:scale(.97);filter:brightness(.94)}
-.tab:active{transform:scale(.92);background:rgba(255,255,255,.07);border-radius:10px}
-.app.light .tab:active{background:rgba(0,0,0,.06)}
+.tab:active{transform:scale(.95);background:radial-gradient(112% 80% at 50% 100%,rgba(227,191,125,.20),rgba(227,191,125,.06) 56%,transparent 78%);border-radius:12px}
+.app.light .tab:active{background:radial-gradient(112% 80% at 50% 100%,rgba(156,120,56,.16),rgba(156,120,56,.04) 56%,transparent 78%)}
 .btn:active,.add-btn:active,.more-btn:active,.own-btn:active,.gf-btn:active,.adv-seg-btn:active,.view-toggle button:active,.sort-bar button:active,.search-x:active,.edit-link:active{
   transform:scale(.95);filter:brightness(.92)}
 .app{min-height:100vh;background:
@@ -6397,7 +6397,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .modal{overflow-x:hidden}
 
 /* 7. 分頁鈕下拉貼近畫面下緣(保留少量Home Indicator餘裕) */
-.tabbar{padding-bottom:max(2px, calc(env(safe-area-inset-bottom) - 12px))}
+.tabbar{padding-bottom:max(2px, calc(env(safe-area-inset-bottom) / 2 - 6px))}
 
 @media (min-width:768px){
   .row-name{font-size:25px}
@@ -6407,7 +6407,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 /* 1. 分頁被切根治:殘留的 min-height:100vh 撐高容器導致溢出 */
 .app{min-height:0}
 /* 位置貼底:安全區內距減 12px(截斷 bug 已根治,可安全縮減) */
-.tabbar{padding-bottom:max(4px, calc(env(safe-area-inset-bottom) - 12px))}
+.tabbar{padding-bottom:max(2px, calc(env(safe-area-inset-bottom) / 2 - 6px))}
 
 /* 2. iOS month/date 輸入框固有寬度根治 */
 .fld{overflow:hidden}
@@ -6671,7 +6671,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .kt-edit{width:100%;background:var(--bg2);border:1px solid rgba(217,179,106,.4);border-radius:4px;padding:7px 10px;color:var(--ink);font-family:inherit;font-size:13px;letter-spacing:.02em}
 .kt-edit:focus{outline:none;border-color:rgba(217,179,106,.65)}
 /* ═══ 叙勲録(称号 金箔リデザイン) ═══ */
-.av-sec{padding-top:2px}
+.av-sec{padding-top:2px;margin-top:12px}
 .av-defs{position:absolute;width:0;height:0}
 .av-head{display:flex;align-items:flex-end;justify-content:space-between;width:100%;background:none;border:none;padding:4px 2px 0;cursor:pointer;text-align:left;gap:10px}
 .av-head:active{opacity:.75}
@@ -6706,7 +6706,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .av-medal.locked{opacity:.55}
 .av-ebody{flex:1;min-width:0;display:flex;flex-direction:column;padding-top:2px}
 .av-eno{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9.5px;letter-spacing:.20em;color:var(--ink-dim);text-transform:uppercase}
-.av-ename{font-family:var(--serif);font-weight:700;font-size:18px;line-height:1.3;color:var(--ink-strong);margin-top:3px}
+.av-ename{font-family:var(--serif);font-weight:700;font-size:20px;line-height:1.3;color:var(--ink-strong);margin-top:3px}
 .av-entry.locked .av-ename,.av-entry.todo .av-ename{color:var(--ink-mid)}
 .av-ehair{height:1px;width:40px;background:rgba(217,179,106,.24);margin:9px 0 8px}
 .av-eflavor{font-size:11.5px;color:var(--ink-mid);line-height:1.65}
