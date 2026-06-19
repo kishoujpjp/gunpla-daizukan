@@ -4559,8 +4559,11 @@ export default function App() {
                 <div className="hf-vbar" key={arc.jp}><span className="hf-vbar-t">{arc.jp}</span></div>
                 <div className="hf-rcol">
                   <div className="hf-main">
-                    <div className="hf-eye">CLASSIFIED</div>
-                    <h1 className="hf-title">ガンプラ<span className="hf-kana">大図鑑</span><span className="hf-gateline" aria-hidden="true" /></h1>
+                    <div className="nf-left">
+                      <div className="hf-eye">CLASSIFIED</div>
+                      <h1 className="nf-gunpla">ガンプラ</h1>
+                    </div>
+                    <div className="nf-right"><div className="nf-big">大図鑑</div><span className="nf-gateline" aria-hidden="true" /></div>
                   </div>
                   <div className="hf-rule" />
                   <div className="hf-stats">
@@ -6216,9 +6219,9 @@ input,textarea{font-family:var(--sans)}
     radial-gradient(800px 400px at -10% 30%, rgba(31,141,129,.05), transparent 60%),
     var(--bg);
 }
-.app.light .hf-vbar-t,.app.light .hf-kana{background:linear-gradient(180deg,#a07b35,#5f4519);-webkit-background-clip:text;background-clip:text}
+.app.light .hf-vbar-t,.app.light .hf-kana,.app.light .nf-big{background:linear-gradient(180deg,#a07b35,#5f4519);-webkit-background-clip:text;background-clip:text}
 .app.light .hf-vbar::before{background:linear-gradient(180deg,transparent,rgba(156,118,58,.6) 16%,rgba(156,118,58,.6) 84%,transparent)}
-.app.light .hf-title{text-shadow:0 1px 0 rgba(255,255,255,.5)}
+.app.light .hf-title,.app.light .nf-gunpla{text-shadow:0 1px 0 rgba(255,255,255,.5)}
 .app.light .stamp{background:radial-gradient(circle at 36% 30%, rgba(253,250,243,.6), rgba(253,250,243,.88))}
 .app.light .tabbar{background:rgba(246,241,230,.93)}
 .app.light .card-sketch{background:linear-gradient(180deg,rgba(0,0,0,.08),rgba(0,0,0,.02))}
@@ -6851,25 +6854,31 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .hf-vbar{flex:none;position:relative;margin-left:7px;display:flex;align-items:center;justify-content:center}
 .hf-vbar-t{writing-mode:vertical-rl;font-family:var(--serif);font-weight:800;font-size:25px;letter-spacing:.1em;line-height:1.05;background:linear-gradient(180deg,#f2dca0,#b8924a);-webkit-background-clip:text;background-clip:text;color:transparent}
 .hf-vbar::before{content:"";position:absolute;left:-7px;top:0;bottom:0;width:1.5px;border-radius:1px;background:linear-gradient(180deg,transparent,rgba(217,179,106,.55) 16%,rgba(217,179,106,.55) 84%,transparent)}
-.hf-main{min-width:0;flex:1}
+.hf-main{display:flex;align-items:flex-start;gap:14px;min-width:0;flex:1}
 .hf-rcol{flex:1;min-width:0}
 .hf-eye{font-family:var(--mono);font-size:9px;letter-spacing:.26em;color:var(--ink-mid);text-transform:uppercase}
 .hf-title{position:relative;font-family:var(--serif);font-weight:800;font-size:37px;letter-spacing:.02em;color:var(--ink-strong);line-height:.98;margin-top:6px;white-space:nowrap;text-shadow:0 1px 1px rgba(0,0,0,.35)}
 .hf-kana{background:linear-gradient(180deg,#f7e6b2,#d4ab5e);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
 .hf-gateline{position:absolute;left:6%;right:30%;bottom:-9px;height:7px;background:repeating-linear-gradient(90deg,var(--gold) 0 2px,transparent 2px 9px);opacity:.42}
+/* ── 提案V2 二欄タイトル(左:CLASSIFIED＋ガンプラ / 右:大図鑑) ── */
+.nf-left{flex:none;display:flex;flex-direction:column}
+.nf-gunpla{font-family:var(--serif);font-weight:800;font-size:37px;line-height:1;letter-spacing:.02em;color:var(--ink-strong);margin:6px 0 0;white-space:nowrap;text-shadow:0 1px 1px rgba(0,0,0,.35)}
+.nf-right{position:relative;padding-bottom:10px}
+.nf-big{font-family:var(--serif);font-weight:800;font-size:52px;line-height:1;letter-spacing:.04em;white-space:nowrap;margin-top:-3px;background:linear-gradient(180deg,#f7e6b2,#d4ab5e);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
+.nf-gateline{position:absolute;left:1%;right:7%;bottom:0;height:6px;background:repeating-linear-gradient(90deg,var(--gold) 0 2px,transparent 2px 9px);opacity:.4}
 .hf-rule{position:relative;height:1px;margin:18px 0 0;background:linear-gradient(90deg,rgba(217,179,106,.3),rgba(217,179,106,.05) 75%,transparent)}
 .hf-stats{position:relative;display:flex;align-items:stretch;padding:11px 0 12px}
 .hf-stats .s{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;line-height:1}
 .hf-stats .s:first-child{align-items:center}
 .hf-stats .s:last-child{align-items:center}
-.hf-stats b{font-family:var(--serif);font-weight:800;font-size:26px;color:var(--ink-strong);letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.hf-stats b{font-family:var(--serif);font-weight:800;font-size:17px;color:var(--ink-strong);letter-spacing:.02em;font-variant-numeric:tabular-nums}
 .hf-stats b.kin{color:var(--kin)}
 .hf-stats span{font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;color:var(--ink-dim);margin-top:6px;text-transform:uppercase}
 .hf-div{flex:none;width:1px;background:var(--line);align-self:stretch}
 .hf-prog{position:relative;height:3px;margin:0 -18px;border-radius:0 0 7px 7px;overflow:hidden;background:rgba(217,179,106,.1)}
 .hf-prog i{display:block;height:100%;background:linear-gradient(90deg,#9c7838,var(--gold));transition:width .5s}
 .hf-prog i.kin{background:linear-gradient(90deg,#b88f3e,var(--kin))}
-@media (min-width:430px){.hf-title{font-size:46px}.hf-stats b{font-size:30px}}
+@media (min-width:430px){.hf-title{font-size:46px}.hf-stats b{font-size:17px}}
 /* 章徽 常駐微光(金箔glint) */
 .av-medal.earned{position:relative;overflow:hidden}
 .av-medal.earned::after{content:"";position:absolute;top:-10%;bottom:-10%;left:0;width:60%;background:linear-gradient(115deg,transparent 42%,rgba(242,220,160,.55) 50%,transparent 58%);transform:translateX(-150%);pointer-events:none;animation:medalGlint 6s ease-in-out infinite}
