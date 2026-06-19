@@ -6851,8 +6851,8 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .hf-gate.gt{top:-1px;width:8px;height:5px;border-radius:0 0 2px 2px}
 .hf-gate.gl{left:-1px;width:5px;height:8px;border-radius:0 2px 2px 0}
 .hf-top{position:relative;display:flex;align-items:stretch;gap:8px}
-.hf-vbar{flex:none;position:relative;margin-left:7px;display:flex;align-items:center;justify-content:center}
-.hf-vbar-t{writing-mode:vertical-rl;font-family:var(--serif);font-weight:800;font-size:25px;letter-spacing:.1em;line-height:1.05;background:linear-gradient(180deg,#f2dca0,#b8924a);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hf-vbar{flex:none;position:relative;margin-left:5px;display:flex;align-items:center;justify-content:center}
+.hf-vbar-t{writing-mode:vertical-rl;font-family:var(--serif);font-weight:800;font-size:27px;letter-spacing:.1em;line-height:1.05;background:linear-gradient(180deg,#f2dca0,#b8924a);-webkit-background-clip:text;background-clip:text;color:transparent}
 .hf-vbar::before{content:"";position:absolute;left:-7px;top:0;bottom:0;width:1.5px;border-radius:1px;background:linear-gradient(180deg,transparent,rgba(217,179,106,.55) 16%,rgba(217,179,106,.55) 84%,transparent)}
 .hf-main{display:flex;align-items:flex-start;gap:14px;min-width:0;flex:1}
 .hf-rcol{flex:1;min-width:0}
@@ -6862,9 +6862,9 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .hf-gateline{position:absolute;left:6%;right:30%;bottom:-9px;height:7px;background:repeating-linear-gradient(90deg,var(--gold) 0 2px,transparent 2px 9px);opacity:.42}
 /* ── 提案V2 二欄タイトル(左:CLASSIFIED＋ガンプラ / 右:大図鑑) ── */
 .nf-left{flex:none;display:flex;flex-direction:column}
-.nf-gunpla{font-family:var(--serif);font-weight:800;font-size:37px;line-height:1;letter-spacing:.02em;color:var(--ink-strong);margin:6px 0 0;white-space:nowrap;text-shadow:0 1px 1px rgba(0,0,0,.35)}
-.nf-right{position:relative;padding-bottom:10px}
-.nf-big{font-family:var(--serif);font-weight:800;font-size:52px;line-height:1;letter-spacing:.04em;white-space:nowrap;margin-top:-3px;background:linear-gradient(180deg,#f7e6b2,#d4ab5e);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
+.nf-gunpla{font-family:var(--serif);font-weight:800;font-size:38px;line-height:1;letter-spacing:-0.5px;color:var(--ink-strong);margin:6px 0 0;white-space:nowrap;text-shadow:0 1px 1px rgba(0,0,0,.35)}
+.nf-right{position:relative;padding-bottom:10px;transform:translateX(-7px)}
+.nf-big{font-family:var(--serif);font-weight:800;font-size:50px;line-height:1;letter-spacing:.04em;white-space:nowrap;margin-top:-3px;background:linear-gradient(180deg,#f7e6b2,#d4ab5e);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
 .nf-gateline{position:absolute;left:1%;right:7%;bottom:0;height:6px;background:repeating-linear-gradient(90deg,var(--gold) 0 2px,transparent 2px 9px);opacity:.4}
 .hf-rule{position:relative;height:1px;margin:18px 0 0;background:linear-gradient(90deg,rgba(217,179,106,.3),rgba(217,179,106,.05) 75%,transparent)}
 .hf-stats{position:relative;display:flex;align-items:stretch;padding:11px 0 12px}
