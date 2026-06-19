@@ -6845,14 +6845,14 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .head .hf::after{content:"";position:absolute;inset:4px;border:1px solid rgba(217,179,106,.16);border-radius:5px;pointer-events:none;transition:inset .14s ease,border-color .14s ease}
 .head .hf:active::after{inset:6px;border-color:rgba(217,179,106,.28)}
 .hf-tag{position:absolute;top:-9px;left:15px;background:var(--bg);padding:0 8px;font-family:var(--mono);font-size:9px;letter-spacing:.2em;color:var(--gold);z-index:3}
-.hf-part{position:absolute;top:-9px;right:15px;background:var(--bg);padding:0 8px;display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;color:var(--ink-mid);z-index:3}
+.hf-part{position:absolute;bottom:-9px;right:15px;background:var(--bg);padding:0 8px;display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;color:var(--ink-mid);z-index:3}
 .hf-rl{font-style:normal;color:var(--gold);font-size:10px}
 .hf-gate{position:absolute;background:var(--gold);opacity:.5;z-index:1}
 .hf-gate.gt{top:-1px;width:8px;height:5px;border-radius:0 0 2px 2px}
 .hf-gate.gl{left:-1px;width:5px;height:8px;border-radius:0 2px 2px 0}
 .hf-top{position:relative;display:flex;align-items:stretch;gap:8px}
-.hf-vbar{flex:none;position:relative;margin-left:5px;display:flex;align-items:center;justify-content:center}
-.hf-vbar-t{writing-mode:vertical-rl;font-family:var(--serif);font-weight:800;font-size:27px;letter-spacing:.1em;line-height:1.05;background:linear-gradient(180deg,#f2dca0,#b8924a);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hf-vbar{flex:none;position:relative;margin-left:5px;display:flex;align-items:center;justify-content:center;transform:translateY(-1px)}
+.hf-vbar-t{writing-mode:vertical-rl;font-family:var(--serif);font-weight:800;font-size:28px;letter-spacing:.1em;line-height:1.05;background:linear-gradient(180deg,#f2dca0,#b8924a);-webkit-background-clip:text;background-clip:text;color:transparent}
 .hf-vbar::before{content:"";position:absolute;left:-7px;top:0;bottom:0;width:1.5px;border-radius:1px;background:linear-gradient(180deg,transparent,rgba(217,179,106,.55) 16%,rgba(217,179,106,.55) 84%,transparent)}
 .hf-main{display:flex;align-items:flex-start;gap:14px;min-width:0;flex:1}
 .hf-rcol{flex:1;min-width:0}
@@ -6862,23 +6862,23 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .hf-gateline{position:absolute;left:6%;right:30%;bottom:-9px;height:7px;background:repeating-linear-gradient(90deg,var(--gold) 0 2px,transparent 2px 9px);opacity:.42}
 /* ── 提案V2 二欄タイトル(左:CLASSIFIED＋ガンプラ / 右:大図鑑) ── */
 .nf-left{flex:none;display:flex;flex-direction:column}
-.nf-gunpla{font-family:var(--serif);font-weight:800;font-size:38px;line-height:1;letter-spacing:-0.5px;color:var(--ink-strong);margin:6px 0 0;white-space:nowrap;text-shadow:0 1px 1px rgba(0,0,0,.35)}
-.nf-right{position:relative;padding-bottom:10px;transform:translateX(-7px)}
-.nf-big{font-family:var(--serif);font-weight:800;font-size:50px;line-height:1;letter-spacing:.04em;white-space:nowrap;margin-top:-3px;background:linear-gradient(180deg,#f7e6b2,#d4ab5e);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
-.nf-gateline{position:absolute;left:1%;right:7%;bottom:0;height:6px;background:repeating-linear-gradient(90deg,var(--gold) 0 2px,transparent 2px 9px);opacity:.4}
+.nf-gunpla{font-family:var(--serif);font-weight:800;font-size:38px;line-height:1;letter-spacing:-0.5px;color:var(--ink-strong);margin:7px 0 0;white-space:nowrap;text-shadow:0 1px 1px rgba(0,0,0,.35)}
+.nf-right{position:relative;padding-bottom:10px;transform:translateX(-8px)}
+.nf-big{font-family:var(--serif);font-weight:800;font-size:50px;line-height:1;letter-spacing:.04em;white-space:nowrap;margin-top:-2px;background:linear-gradient(180deg,#f7e6b2,#d4ab5e);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
+.nf-gateline{position:absolute;left:1%;right:7%;bottom:-1px;height:6px;background:repeating-linear-gradient(90deg,var(--gold) 0 2px,transparent 2px 9px);opacity:.4}
 .hf-rule{position:relative;height:1px;margin:18px 0 0;background:linear-gradient(90deg,rgba(217,179,106,.3),rgba(217,179,106,.05) 75%,transparent)}
 .hf-stats{position:relative;display:flex;align-items:stretch;padding:11px 0 12px}
 .hf-stats .s{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;line-height:1}
 .hf-stats .s:first-child{align-items:center}
 .hf-stats .s:last-child{align-items:center}
-.hf-stats b{font-family:var(--serif);font-weight:800;font-size:17px;color:var(--ink-strong);letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.hf-stats b{font-family:var(--serif);font-weight:800;font-size:20px;color:var(--ink-strong);letter-spacing:.02em;font-variant-numeric:tabular-nums}
 .hf-stats b.kin{color:var(--kin)}
 .hf-stats span{font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;color:var(--ink-dim);margin-top:6px;text-transform:uppercase}
 .hf-div{flex:none;width:1px;background:var(--line);align-self:stretch}
 .hf-prog{position:relative;height:3px;margin:0 -18px;border-radius:0 0 7px 7px;overflow:hidden;background:rgba(217,179,106,.1)}
 .hf-prog i{display:block;height:100%;background:linear-gradient(90deg,#9c7838,var(--gold));transition:width .5s}
 .hf-prog i.kin{background:linear-gradient(90deg,#b88f3e,var(--kin))}
-@media (min-width:430px){.hf-title{font-size:46px}.hf-stats b{font-size:17px}}
+@media (min-width:430px){.hf-title{font-size:46px}.hf-stats b{font-size:20px}}
 /* 章徽 常駐微光(金箔glint) */
 .av-medal.earned{position:relative;overflow:hidden}
 .av-medal.earned::after{content:"";position:absolute;top:-10%;bottom:-10%;left:0;width:60%;background:linear-gradient(115deg,transparent 42%,rgba(242,220,160,.55) 50%,transparent 58%);transform:translateX(-150%);pointer-events:none;animation:medalGlint 6s ease-in-out infinite}
