@@ -4563,7 +4563,7 @@ export default function App() {
                       <div className="hf-eye">CLASSIFIED</div>
                       <h1 className="nf-gunpla">ガンプラ</h1>
                     </div>
-                    <div className="nf-right"><div className="nf-big">大図鑑</div><span className="nf-gateline" aria-hidden="true" /></div>
+                    <div className="nf-right"><span className="nf-run-top" aria-hidden="true" /><div className="nf-big">大図鑑</div><span className="nf-gate-r" aria-hidden="true" /><span className="nf-run-bot" aria-hidden="true" /></div>
                   </div>
                   <div className="hf-rule" />
                   <div className="hf-stats">
@@ -6840,7 +6840,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .form .f-sec span{font-family:var(--mono);font-size:8.5px;letter-spacing:.28em;color:var(--ink-dim);text-transform:uppercase}
 .form .fld>span{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--ink-mid);text-transform:uppercase}
 /* ═══ ランナー枠ヘッダー ═══ */
-.head .hf{position:relative;border:1.6px solid var(--gold);border-radius:8px;padding:14px 18px 0;background:linear-gradient(160deg,rgba(217,179,106,.05),transparent 58%);cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;transition:transform .14s ease,box-shadow .14s ease}
+.head .hf{position:relative;border:2.6px solid var(--gold);border-radius:8px;padding:14px 18px 0;background:linear-gradient(160deg,rgba(217,179,106,.05),transparent 58%);cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;transition:transform .14s ease,box-shadow .14s ease}
 .head .hf:active{transform:scale(.99);box-shadow:inset 0 3px 11px rgba(0,0,0,.55)}
 .head .hf::after{content:"";position:absolute;inset:4px;border:1px solid rgba(217,179,106,.16);border-radius:5px;pointer-events:none;transition:inset .14s ease,border-color .14s ease}
 .head .hf:active::after{inset:6px;border-color:rgba(217,179,106,.28)}
@@ -6854,7 +6854,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .hf-vbar{flex:none;position:relative;margin-left:5px;display:flex;align-items:center;justify-content:center;transform:translateY(-2px)}
 .hf-vbar-t{writing-mode:vertical-rl;font-family:var(--serif);font-weight:800;font-size:28px;letter-spacing:.1em;line-height:1.05;background:linear-gradient(180deg,#f2dca0,#b8924a);-webkit-background-clip:text;background-clip:text;color:transparent}
 .hf-vbar::before{content:"";position:absolute;left:-7px;top:0;bottom:0;width:1.5px;border-radius:1px;background:linear-gradient(180deg,transparent,rgba(217,179,106,.55) 16%,rgba(217,179,106,.55) 84%,transparent)}
-.hf-main{display:flex;align-items:flex-start;gap:14px;min-width:0;flex:1}
+.hf-main{display:flex;align-items:flex-end;gap:14px;min-width:0;flex:1}
 .hf-rcol{flex:1;min-width:0}
 .hf-eye{font-family:var(--mono);font-size:9px;letter-spacing:.26em;color:var(--ink-mid);text-transform:uppercase}
 .hf-title{position:relative;font-family:var(--serif);font-weight:800;font-size:37px;letter-spacing:.02em;color:var(--ink-strong);line-height:.98;margin-top:6px;white-space:nowrap;text-shadow:0 1px 1px rgba(0,0,0,.35)}
@@ -6862,10 +6862,13 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .hf-gateline{position:absolute;left:6%;right:30%;bottom:-9px;height:7px;background:repeating-linear-gradient(90deg,var(--gold) 0 2px,transparent 2px 9px);opacity:.42}
 /* ── 提案V2 二欄タイトル(左:CLASSIFIED＋ガンプラ / 右:大図鑑) ── */
 .nf-left{flex:none;display:flex;flex-direction:column}
-.nf-gunpla{font-family:var(--serif);font-weight:800;font-size:39px;line-height:1;letter-spacing:-0.5px;color:var(--ink-strong);margin:8px 0 0;white-space:nowrap;text-shadow:0 1px 1px rgba(0,0,0,.35)}
-.nf-right{position:relative;padding-bottom:10px;transform:translateX(-8px)}
-.nf-big{font-family:var(--serif);font-weight:800;font-size:50px;line-height:1;letter-spacing:.04em;white-space:nowrap;margin-top:-1px;transform:translateX(-1px);background:linear-gradient(180deg,#f7e6b2,#d4ab5e);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
-.nf-gateline{position:absolute;left:1%;right:7%;bottom:-2px;height:6px;background:repeating-linear-gradient(90deg,var(--gold) 0 2px,transparent 2px 9px);opacity:.4;transform:translateX(1px)}
+.nf-gunpla{font-family:var(--serif);font-weight:800;font-size:40px;line-height:1;letter-spacing:-1px;color:var(--ink-strong);margin:9px 0 0;white-space:nowrap;text-shadow:0 1px 1px rgba(0,0,0,.35);transform:translateX(-2px)}
+.nf-right{position:relative;transform:translateX(-12px)}
+.nf-big{font-family:var(--serif);font-weight:800;font-size:50px;line-height:1;letter-spacing:.04em;white-space:nowrap;background:linear-gradient(180deg,#f7e6b2,#d4ab5e);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
+/* 大図鑑まわりの湯口/ランナー */
+.nf-run-top{position:absolute;left:0;right:0;top:-9px;height:5px;background:repeating-linear-gradient(90deg,var(--gold) 0 2px,transparent 2px 9px);opacity:.4}
+.nf-run-bot{position:absolute;left:-130px;right:0;bottom:-9px;height:5px;background:repeating-linear-gradient(90deg,var(--gold) 0 2px,transparent 2px 9px);opacity:.4}
+.nf-gate-r{position:absolute;right:-7px;top:50%;width:7px;height:13px;transform:translateY(-50%);background:linear-gradient(90deg,#f7e6b2,#b8924a);opacity:.55;clip-path:polygon(0 0,100% 24%,100% 76%,0 100%)}
 .hf-rule{position:relative;height:1px;margin:18px 0 0;background:linear-gradient(90deg,rgba(217,179,106,.3),rgba(217,179,106,.05) 75%,transparent)}
 .hf-stats{position:relative;display:flex;align-items:stretch;padding:11px 0 12px}
 .hf-stats .s{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;line-height:1}
