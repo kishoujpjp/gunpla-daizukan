@@ -6866,9 +6866,9 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .nf-right{position:relative;transform:translateX(-12px)}
 .nf-big{font-family:var(--serif);font-weight:800;font-size:50px;line-height:1;letter-spacing:.04em;white-space:nowrap;background:linear-gradient(180deg,#f7e6b2,#d4ab5e);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
 /* 大図鑑まわりの湯口/ランナー */
-.nf-run-top{position:absolute;left:0;right:0;top:-9px;height:5px;background:repeating-linear-gradient(90deg,var(--gold) 0 2px,transparent 2px 9px);opacity:.4}
-.nf-run-bot{position:absolute;left:-130px;right:0;bottom:-9px;height:5px;background:repeating-linear-gradient(90deg,var(--gold) 0 2px,transparent 2px 9px);opacity:.4}
-.nf-gate-r{position:absolute;right:-7px;top:50%;width:7px;height:13px;transform:translateY(-50%);background:linear-gradient(90deg,#f7e6b2,#b8924a);opacity:.55;clip-path:polygon(0 0,100% 24%,100% 76%,0 100%)}
+.nf-run-top{position:absolute;left:-55px;right:10px;top:-9px;height:5px;background:repeating-linear-gradient(90deg,var(--gold) 0 2px,transparent 2px 9px);opacity:.4}
+.nf-run-bot{position:absolute;left:-130px;right:10px;bottom:-9px;height:5px;background:repeating-linear-gradient(90deg,var(--gold) 0 2px,transparent 2px 9px);opacity:.4}
+.nf-gate-r{position:absolute;right:-7px;top:50%;width:7px;height:13px;transform:translateY(-50%);background:linear-gradient(90deg,#f7e6b2,#b8924a);opacity:.55;clip-path:polygon(0 24%,100% 0,100% 100%,0 76%)}
 .hf-rule{position:relative;height:1px;margin:18px 0 0;background:linear-gradient(90deg,rgba(217,179,106,.3),rgba(217,179,106,.05) 75%,transparent)}
 .hf-stats{position:relative;display:flex;align-items:stretch;padding:11px 0 12px}
 .hf-stats .s{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;line-height:1}
