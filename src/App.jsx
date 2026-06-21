@@ -4734,8 +4734,8 @@ export default function App() {
               {anaMode === "record" ? (
               <>
               {(() => {
-                const UNIVERSES = [["all", "すべて"], ["UC", "U.C."], ["SEED", "SEED"], ["W", "W"], ["X", "X"], ["G", "G"], ["00", "00"], ["AGE", "A.G."], ["IBO", "P.D."], ["AS", "A.S."], ["RC", "R.C."], ["CC", "C.C."], ["BF", "BF"], ["other", "その他"]];
-                const UNI_PREFIX = { UC: "U.C.", SEED: "C.E.", W: "A.C.", X: "A.W.", G: "F.C.", "00": "A.D.", AGE: "A.G.", IBO: "P.D.", AS: "A.S.", RC: "R.C.", CC: "C.C.", BF: "BF", other: "" };
+                const UNIVERSES = [["all", "すべて"], ["UC", "U.C."], ["SEED", "SEED"], ["W", "W"], ["X", "X"], ["G", "G"], ["00", "00"], ["AGE", "A.G."], ["IBO", "P.D."], ["AS", "A.S."], ["RC", "R.C."], ["CC", "C.C."], ["GQX", "GQX"], ["BF", "BF"], ["other", "その他"]];
+                const UNI_PREFIX = { UC: "U.C.", SEED: "C.E.", W: "A.C.", X: "A.W.", G: "F.C.", "00": "A.D.", AGE: "A.G.", IBO: "P.D.", AS: "A.S.", RC: "R.C.", CC: "C.C.", GQX: "GQX", BF: "BF", other: "" };
                 const inUni = (t) => titleUniverse === "all" ? true : (t.universe || "UC") === titleUniverse;
                 const rank = (t) => (t.unlocked ? 3 : (t.needBuild ? 0 : (t.cur > 0 ? 1 : 2)));
                 const pool = titles.filter(inUni);

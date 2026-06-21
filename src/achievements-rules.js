@@ -1,6 +1,6 @@
-// AUTO-GENERATED achievement rules. 377 live achievements
-// (37 UC + 50 C.E. + 20 F.C. + 40 A.C. + 10 A.W. + 40 A.D. + 20 A.G. + 40 P.D. + 30 A.S. + 20 R.C. + 20 C.C. + 50 BF).
-// fields: id, universe(UC/SEED/W/X/G/00/AGE/IBO/AS/RC/CC/BF/other), no(1-based per universe), group, name, sub, hidden, scope?, rule
+// AUTO-GENERATED achievement rules. 407 live achievements
+// (37 UC + 50 C.E. + 20 F.C. + 40 A.C. + 10 A.W. + 40 A.D. + 20 A.G. + 40 P.D. + 30 A.S. + 20 R.C. + 20 C.C. + 30 GQX + 50 BF).
+// fields: id, universe(UC/SEED/W/X/G/00/AGE/IBO/AS/RC/CC/GQX/BF/other), no(1-based per universe), group, name, sub, hidden, scope?, rule
 export const ACHIEVEMENTS = [
   {
     "id": "trinity_x3",
@@ -6761,12 +6761,12 @@ export const ACHIEVEMENTS = [
     }
   },
   {
-    "id": "as_suletta",
+    "id": "as_escape_advance",
     "universe": "AS",
     "no": 1,
     "group": "combo",
-    "name": "スレッタ・マーキュリー",
-    "sub": "水星から来た不器用な少女スレッタの相棒、ガンダムエアリアル。素体と改修型。GUNDフォーマットを宿し、姉エリの意思を抱えて戦う、白い魔女。",
+    "name": "逃げたら一つ、進めば二つ",
+    "sub": "母の言葉を胸に前へ進むスレッタ。臆病だった少女が、エアリアルからキャリバーンへ——一歩踏み出すたび、新しい世界と仲間を掴んでいく。",
     "hidden": false,
     "scope": "full",
     "rule": {
@@ -6778,19 +6778,19 @@ export const ACHIEVEMENTS = [
         },
         {
           "match": {
-            "code": "XVX-016RN"
+            "code": "X-EX01"
           }
         }
       ]
     }
   },
   {
-    "id": "as_motto",
+    "id": "as_my_bride",
     "universe": "AS",
     "no": 2,
     "group": "combo",
-    "name": "逃げたら一つ、進めば二つ",
-    "sub": "母に贈られた言葉を胸に、前へ進み続けるスレッタ。エアリアルからキャリバーンへ。一歩踏み出すたび、彼女は新しい何かを掴んでいく。",
+    "name": "私の花嫁",
+    "sub": "入学初日の決闘でグエルを破り、図らずもミオリネの婚約者『ホルダー』となったスレッタ。素体、改修型、キャリバーン。すれ違いと和解を経て、二人は本当の伴侶になる。",
     "hidden": false,
     "scope": "full",
     "rule": {
@@ -6802,6 +6802,11 @@ export const ACHIEVEMENTS = [
         },
         {
           "match": {
+            "code": "XVX-016RN"
+          }
+        },
+        {
+          "match": {
             "code": "X-EX01"
           }
         }
@@ -6809,36 +6814,41 @@ export const ACHIEVEMENTS = [
     }
   },
   {
-    "id": "as_calibarn",
+    "id": "as_happy_birthday",
     "universe": "AS",
     "no": 3,
     "group": "combo",
-    "name": "ガンダム・キャリバーン",
-    "sub": "スレッタが自らの意思で選び取った最後の機体、キャリバーン。改修型エアリアルから受け継がれた、もう一つのガンダム。呪いを越える力。",
+    "name": "ハッピーバースデー",
+    "sub": "プロローグ、幼いエリクトの誕生日。父ナディムが歌う『ハッピーバースデー』——その直後、ヴァナディース事変が全てを奪う。後に、処分を待つ強化人士エランもまた、スレッタへ同じ歌を贈った。ルブリス、ファラクト、エアリアル。祝福の歌は、いつも喪失の隣にある。",
     "hidden": false,
     "scope": "full",
     "rule": {
       "all": [
         {
           "match": {
-            "code": "X-EX01"
+            "code": "XGF-02"
           }
         },
         {
           "match": {
-            "code": "XVX-016RN"
+            "code": "FP/A-77"
+          }
+        },
+        {
+          "match": {
+            "code": "XVX-016"
           }
         }
       ]
     }
   },
   {
-    "id": "as_permet",
+    "id": "as_gundam_curse",
     "universe": "AS",
     "no": 4,
     "group": "combo",
-    "name": "パーメットスコア",
-    "sub": "データストームの負荷と引き換えに性能を引き上げる、ガンダムの呪い。エアリアルのスコア6、キャリバーンのスコア5。命を削る、禁断の領域。",
+    "name": "ガンダムの呪い",
+    "sub": "性能と引き換えに身体を蝕むデータストーム。エアリアルのパーメットスコア6、キャリバーンのスコア5。GUNDフォーマットを使う者が背負う、命を削る代償。",
     "hidden": false,
     "scope": "full",
     "rule": {
@@ -6859,12 +6869,36 @@ export const ACHIEVEMENTS = [
     }
   },
   {
-    "id": "as_prospera",
+    "id": "as_quiet_zero",
     "universe": "AS",
     "no": 5,
     "group": "combo",
+    "name": "クワイエット・ゼロ",
+    "sub": "全人類の意識をパーメットで繋ぐ母プロスペラの計画。改修型エアリアルとキャリバーンで、スレッタはその果てへ挑む。憎しみの連鎖を、自らの手で断ち切るために。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XVX-016RN"
+          }
+        },
+        {
+          "match": {
+            "code": "X-EX01"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_prospera",
+    "universe": "AS",
+    "no": 6,
+    "group": "combo",
     "name": "プロスペラの復讐",
-    "sub": "21年前のヴァナディース事変。エルノラ(プロスペラ)が駆ったガンダムルブリスと、娘エリから生まれたエアリアル。母の執念が、物語を動かす。",
+    "sub": "21年前に全てを奪われた女エルノラ——仮面の下のプロスペラ。彼女が駆ったルブリスと、娘の意思から生んだエアリアル。執念が、静かに物語を動かす。",
     "hidden": false,
     "scope": "full",
     "rule": {
@@ -6883,65 +6917,36 @@ export const ACHIEVEMENTS = [
     }
   },
   {
-    "id": "as_gundarm",
-    "universe": "AS",
-    "no": 6,
-    "group": "combo",
-    "name": "GUND-ARMの開発史",
-    "sub": "義肢技術GUNDから生まれた兵器、ガンダム。ルブリス量産試作モデル、ジウ、ガンドノード。呪われた技術が辿った、知られざる試作の系譜。",
-    "hidden": false,
-    "scope": "full",
-    "rule": {
-      "all": [
-        {
-          "match": {
-            "nameIncludes": "量産試作"
-          }
-        },
-        {
-          "match": {
-            "nameIncludes": "ジウ"
-          }
-        },
-        {
-          "match": {
-            "code": "XGF-E3"
-          }
-        }
-      ]
-    }
-  },
-  {
-    "id": "as_sophie_norea",
+    "id": "as_aerial_is_eri",
     "universe": "AS",
     "no": 7,
     "group": "combo",
-    "name": "ソフィーとノレア",
-    "sub": "地球を解放せんとする過激派の少女たち、ソフィーとノレア。ルブリスウルとルブリスソーン。歪んだ世界が生んだ、もう一組の『魔女』。",
+    "name": "エアリアルはエリ",
+    "sub": "エアリアルに宿る人格——それはスレッタの姉、亡きエリクト。素体と改修型。データストームの海に溶けた少女が、妹を守る『ガンダム』として生き続ける。",
     "hidden": false,
     "scope": "full",
     "rule": {
       "all": [
         {
           "match": {
-            "code": "EDM-GA-01"
+            "code": "XVX-016"
           }
         },
         {
           "match": {
-            "code": "EDM-GA-02"
+            "code": "XVX-016RN"
           }
         }
       ]
     }
   },
   {
-    "id": "as_lfrith",
+    "id": "as_vanadis",
     "universe": "AS",
     "no": 8,
     "group": "combo",
-    "name": "ガンダムルブリス",
-    "sub": "全てのガンダムの祖、ルブリス。素体と、強化されたアノクタ。GUND-ARMの原点が、ベネリットの闇とエアリアルの誕生を繋ぐ。",
+    "name": "ヴァナディース事変",
+    "sub": "GUND-ARM社が魔女狩りの名のもとに殲滅された悲劇の夜。ルブリスと量産試作モデル。全ての始まりにして、プロスペラの復讐の原点となった惨劇。",
     "hidden": false,
     "scope": "full",
     "rule": {
@@ -6953,43 +6958,19 @@ export const ACHIEVEMENTS = [
         },
         {
           "match": {
-            "code": "AVP-03"
+            "nameIncludes": "量産試作"
           }
         }
       ]
     }
   },
   {
-    "id": "as_jeturk_bros",
+    "id": "as_guel_growth",
     "universe": "AS",
     "no": 9,
     "group": "combo",
-    "name": "ジェターク家の兄弟",
-    "sub": "名門ジェターク社の御曹司グエルと、弟ラウダ。揃いのディランザで戦場に立つ。誇りと確執が入り混じる、複雑な兄弟の絆。",
-    "hidden": false,
-    "scope": "full",
-    "rule": {
-      "all": [
-        {
-          "match": {
-            "code": "MD-0032G"
-          }
-        },
-        {
-          "match": {
-            "code": "MD-0031L"
-          }
-        }
-      ]
-    }
-  },
-  {
-    "id": "as_guel",
-    "universe": "AS",
-    "no": 10,
-    "group": "combo",
     "name": "グエルの成長譚",
-    "sub": "傲慢なホルダーから、苦難を経て成熟する男グエル・ジェターク。ディランザ、ダリルバルデ、そしてシュバルゼッテ。本作屈指の成長キャラ。",
+    "sub": "傲慢なホルダーから、地獄を見て成熟する男グエル・ジェターク。ディランザ、ダリルバルデ、シュバルゼッテ。本作で最も深く描かれた、一人の青年の再生。",
     "hidden": false,
     "scope": "full",
     "rule": {
@@ -7013,12 +6994,12 @@ export const ACHIEVEMENTS = [
     }
   },
   {
-    "id": "as_dilanza",
+    "id": "as_patricide",
     "universe": "AS",
-    "no": 11,
+    "no": 10,
     "group": "combo",
-    "name": "ディランザの系譜",
-    "sub": "ジェターク社の主力ディランザ。グエル機、一般機、そして特務のソル。武骨で堅実な機体が、ベネリットの戦力を支える。",
+    "name": "父を撃つ",
+    "sub": "戦場の混乱の中、グエルは敵機を撃つ。コックピットにいたのは——変装した実父ヴィム・ジェターク。グエル機と一般ディランザ。彼の全てを砕いた、最も残酷な一撃。",
     "hidden": false,
     "scope": "full",
     "rule": {
@@ -7032,29 +7013,48 @@ export const ACHIEVEMENTS = [
           "match": {
             "code": "MD-0031L"
           }
-        },
-        {
-          "match": {
-            "code": "MD-0031UL"
-          }
         }
       ]
     }
   },
   {
-    "id": "as_holder",
+    "id": "as_two_summits",
     "universe": "AS",
-    "no": 12,
+    "no": 11,
     "group": "combo",
-    "name": "ホルダーの決闘",
-    "sub": "アスティカシア学園の頂点を賭けた決闘。グエルのダリルバルデと、スレッタのエアリアル。婚約者をかけた戦いが、二人の運命を絡める。",
+    "name": "二人の到達点",
+    "sub": "全てを失い、自らの足で立ち上がったグエルのシュバルゼッテと、スレッタのキャリバーン。それぞれの地獄を越えた二人が、最後に肩を並べる。",
     "hidden": false,
     "scope": "full",
     "rule": {
       "all": [
         {
           "match": {
-            "code": "MD-0064"
+            "code": "MDX-0003"
+          }
+        },
+        {
+          "match": {
+            "code": "X-EX01"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_elan",
+    "universe": "AS",
+    "no": 12,
+    "group": "combo",
+    "name": "強化人士エラン",
+    "sub": "番号で管理され、使い捨てられる強化人間『エラン・ケレス』。ファラクトを駆る彼と、心を通わせかけたスレッタ。だが彼は静かに消され、別人と入れ替わる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "FP/A-77"
           }
         },
         {
@@ -7066,65 +7066,12 @@ export const ACHIEVEMENTS = [
     }
   },
   {
-    "id": "as_shaddiq",
+    "id": "as_peil",
     "universe": "AS",
     "no": 13,
     "group": "combo",
-    "name": "シャディクとグラスレー",
-    "sub": "静かな野心家シャディク・ゼネリのミカエリスと、グラスレー社のベギルベウ。スレッタの幼馴染が、革命のために暗躍する。",
-    "hidden": false,
-    "scope": "full",
-    "rule": {
-      "all": [
-        {
-          "match": {
-            "code": "CFK-029"
-          }
-        },
-        {
-          "match": {
-            "code": "CEK-040"
-          }
-        }
-      ]
-    }
-  },
-  {
-    "id": "as_beguir",
-    "universe": "AS",
-    "no": 14,
-    "group": "combo",
-    "name": "ベギルベウの系譜",
-    "sub": "宇宙議会連合とグラスレーが運用するベギルベウ。素体、ベギルペンデ、トルシュ。終盤の戦乱を彩る、量産ビット機の連なり。",
-    "hidden": false,
-    "scope": "full",
-    "rule": {
-      "all": [
-        {
-          "match": {
-            "code": "CEK-040"
-          }
-        },
-        {
-          "match": {
-            "code": "CEK-077"
-          }
-        },
-        {
-          "match": {
-            "code": "CEK-043"
-          }
-        }
-      ]
-    }
-  },
-  {
-    "id": "as_peil",
-    "universe": "AS",
-    "no": 15,
-    "group": "combo",
-    "name": "ペイル社の刺客",
-    "sub": "強化人士エランが駆るガンダムファラクトと、ペイル社の量産機ハインドリー。使い捨てられる強化人間たちの、哀しき戦い。",
+    "name": "ペイル社の闇",
+    "sub": "強化人士を量産し、人を部品として扱う企業ペイル・テクノロジーズ。ファラクトとハインドリー。効率の名のもとに踏み躙られる、命の重み。",
     "hidden": false,
     "scope": "full",
     "rule": {
@@ -7143,24 +7090,48 @@ export const ACHIEVEMENTS = [
     }
   },
   {
-    "id": "as_heindree",
+    "id": "as_shaddiq",
     "universe": "AS",
-    "no": 16,
+    "no": 14,
     "group": "combo",
-    "name": "ハインドリーの系譜",
-    "sub": "ペイル・テクノロジーズの量産機ハインドリーと、強化型シュトルム。エースから量産まで、技術屋の社風が滲む機体群。",
+    "name": "シャディクの叛逆",
+    "sub": "腐敗したベネリットを内側から壊そうとする男シャディク・ゼネリ。ミカエリスとベギルベウ。スレッタの幼馴染が選んだ、理想のための叛逆と破滅。",
     "hidden": false,
     "scope": "full",
     "rule": {
       "all": [
         {
           "match": {
-            "code": "CFP-010"
+            "code": "CFK-029"
           }
         },
         {
           "match": {
-            "code": "CFP-013"
+            "code": "CEK-040"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_tomato",
+    "universe": "AS",
+    "no": 15,
+    "group": "combo",
+    "name": "収穫の喜び",
+    "sub": "プラント・クエタ事変、第1期最終話。ミオリネを守るため、スレッタはエアリアルの腕で敵機をぐしゃりと握り潰す。飛び散る赤は、まるでトマトソース。ミオリネが慈しんで育てるトマトと重なる『収穫』——無邪気な笑顔の地獄落差が、本作の業を象徴する。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XVX-016"
+          }
+        },
+        {
+          "match": {
+            "code": "CEK-040"
           }
         }
       ]
@@ -7169,10 +7140,10 @@ export const ACHIEVEMENTS = [
   {
     "id": "as_earth_house",
     "universe": "AS",
-    "no": 17,
+    "no": 16,
     "group": "combo",
     "name": "地球寮の仲間たち",
-    "sub": "差別される地球出身の学生が集う地球寮。チュチュのデミトレーナー、一般機、デミバーディング。スレッタが初めて得た、本当の居場所。",
+    "sub": "差別される地球出身者が身を寄せ合う地球寮。チュチュのデミトレーナー、一般機、デミバーディング。スレッタが初めて得た、本当の居場所と友。",
     "hidden": false,
     "scope": "full",
     "rule": {
@@ -7198,10 +7169,10 @@ export const ACHIEVEMENTS = [
   {
     "id": "as_chuchu",
     "universe": "AS",
-    "no": 18,
+    "no": 17,
     "group": "combo",
-    "name": "チュチュの相棒",
-    "sub": "気が強く面倒見の良いチュチュ・パンランチ。専用デミトレーナーと、支援機デミギャリソン。地球寮の姉貴分が、仲間を守って前に出る。",
+    "name": "チュチュの誇り",
+    "sub": "地球人への差別に真っ向から怒るチュチュ・パンランチ。彼女のデミと、スレッタのエアリアル。立場の壁を越えて結ばれていく、不器用な友情。",
     "hidden": false,
     "scope": "full",
     "rule": {
@@ -7213,31 +7184,80 @@ export const ACHIEVEMENTS = [
         },
         {
           "match": {
-            "code": "MSJ-OP122"
+            "code": "XVX-016"
           }
         }
       ]
     }
   },
   {
-    "id": "as_zowort",
+    "id": "as_nika",
     "universe": "AS",
-    "no": 19,
+    "no": 18,
     "group": "combo",
-    "name": "ザウォートの系譜",
-    "sub": "宇宙空間用の量産機ザウォートと、重装のザウォートヘヴィ。学園の外、本物の戦場で投入される、武骨な実戦機たち。",
+    "name": "ニカの祈り",
+    "sub": "地球寮の心優しき整備士ニカ・ナナウラ。差別なき世界を願うあまり、過激派の手引きに加担してしまう。彼女のデミと、繋がってしまったルブリスソーン。善意の代償。",
     "hidden": false,
     "scope": "full",
     "rule": {
       "all": [
         {
           "match": {
-            "code": "F/D-19"
+            "code": "MSJ-121"
           }
         },
         {
           "match": {
-            "code": "F/D-20"
+            "code": "EDM-GA-02"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_sophie_norea",
+    "universe": "AS",
+    "no": 19,
+    "group": "combo",
+    "name": "ソフィーとノレア",
+    "sub": "地球の解放を叫ぶ過激派オクス・アースの少女たち、ソフィーとノレア。ルブリスウルとルブリスソーン。歪んだ世界が生んだ、もう一組の哀しき『魔女』。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "EDM-GA-01"
+          }
+        },
+        {
+          "match": {
+            "code": "EDM-GA-02"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_norea_nion",
+    "universe": "AS",
+    "no": 20,
+    "group": "combo",
+    "name": "地球の解放を",
+    "sub": "親友ソフィーを喪い、憎しみに身を委ねるノレア。ルブリスウルから、暴走するガンダムナイオンへ。データストームに呑まれてなお、地球の自由を叫び続ける。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "EDM-GA-01"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ナイオン",
+            "accessory": true
           }
         }
       ]
@@ -7246,10 +7266,10 @@ export const ACHIEVEMENTS = [
   {
     "id": "as_benerit",
     "universe": "AS",
-    "no": 20,
+    "no": 21,
     "group": "combo",
-    "name": "ベネリット・グループ",
-    "sub": "巨大企業連合ベネリットを支える御三家のガンダム。ジェタークのダリルバルデ、グラスレーのミカエリス、ペイルのファラクト。利権の象徴。",
+    "name": "ベネリット・グループ御三家",
+    "sub": "巨大企業連合を支える御三家のガンダム。ジェタークのダリルバルデ、グラスレーのミカエリス、ペイルのファラクト。利権と陰謀の、きらびやかな象徴。",
     "hidden": false,
     "scope": "full",
     "rule": {
@@ -7273,213 +7293,41 @@ export const ACHIEVEMENTS = [
     }
   },
   {
-    "id": "as_space_assembly",
+    "id": "as_plant_quetta",
     "universe": "AS",
-    "no": 21,
+    "no": 22,
     "group": "combo",
-    "name": "宇宙議会連合",
-    "sub": "地球と宇宙の対立に介入する宇宙議会連合。ガンヴォルヴァとルブリスウル。EDM系の機体が、終盤の混沌に拍車をかける。",
+    "name": "プラント・クエタ強襲",
+    "sub": "オクス・アースがガンダムで仕掛けた無差別テロ。ルブリスソーン、ルブリスウル、迎え撃つエアリアル。学園の平穏が砕け、スレッタが初めて『誰かを殺める』夜。",
     "hidden": false,
     "scope": "full",
     "rule": {
       "all": [
         {
           "match": {
-            "code": "EDM-GB"
+            "code": "EDM-GA-02"
           }
         },
         {
           "match": {
             "code": "EDM-GA-01"
           }
-        }
-      ]
-    }
-  },
-  {
-    "id": "as_grunts",
-    "universe": "AS",
-    "no": 22,
-    "group": "combo",
-    "name": "量産機の戦列",
-    "sub": "ガンダムの陰で数を揃える量産機たち。ベギルベウ、ザウォート、ハインドリー。各社の思想が宿る機体が、戦場を埋め尽くす。",
-    "hidden": false,
-    "scope": "full",
-    "rule": {
-      "all": [
-        {
-          "match": {
-            "code": "CEK-040"
-          }
         },
         {
           "match": {
-            "code": "F/D-19"
-          }
-        },
-        {
-          "match": {
-            "code": "CFP-010"
+            "code": "XVX-016"
           }
         }
       ]
     }
   },
   {
-    "id": "as_desruter",
+    "id": "as_duels",
     "universe": "AS",
     "no": 23,
     "group": "combo",
-    "name": "デスルターとハイングラ",
-    "sub": "終盤の戦乱に投入される機体、デスルターとハイングラ。物語のクライマックスを彩る、知られざる量産・支援機たち。",
-    "hidden": false,
-    "scope": "full",
-    "rule": {
-      "all": [
-        {
-          "match": {
-            "code": "MD-0021"
-          }
-        },
-        {
-          "match": {
-            "code": "CCP-068"
-          }
-        }
-      ]
-    }
-  },
-  {
-    "id": "as_schwarzette",
-    "universe": "AS",
-    "no": 24,
-    "group": "combo",
-    "name": "二人の到達点",
-    "sub": "グエルのシュバルゼッテと、スレッタのキャリバーン。それぞれの苦難を越えた二人が、最後の戦いで肩を並べる。成長の果ての共闘。",
-    "hidden": false,
-    "scope": "full",
-    "rule": {
-      "all": [
-        {
-          "match": {
-            "code": "MDX-0003"
-          }
-        },
-        {
-          "match": {
-            "code": "X-EX01"
-          }
-        }
-      ]
-    }
-  },
-  {
-    "id": "as_tickbalan",
-    "universe": "AS",
-    "no": 25,
-    "group": "combo",
-    "name": "戦場の脇役たち",
-    "sub": "ティックバランとガンヴォルヴァ。主役機の陰で戦場を支える、移動要塞や量産機。細部まで作り込まれた、Ad Stellaの世界観。",
-    "hidden": false,
-    "scope": "full",
-    "rule": {
-      "all": [
-        {
-          "match": {
-            "nameIncludes": "ティックバラン",
-            "accessory": true
-          }
-        },
-        {
-          "match": {
-            "code": "EDM-GB"
-          }
-        }
-      ]
-    }
-  },
-  {
-    "id": "as_begilpende",
-    "universe": "AS",
-    "no": 26,
-    "group": "combo",
-    "name": "宇宙議会の尖兵",
-    "sub": "ベギルペンデとベギルベウトルシュ。宇宙議会連合が繰り出す改良型ビット機。終盤の派閥抗争を象徴する、洗練された量産兵器。",
-    "hidden": false,
-    "scope": "full",
-    "rule": {
-      "all": [
-        {
-          "match": {
-            "code": "CEK-077"
-          }
-        },
-        {
-          "match": {
-            "code": "CEK-043"
-          }
-        }
-      ]
-    }
-  },
-  {
-    "id": "as_mgsd",
-    "universe": "AS",
-    "no": 27,
-    "group": "combo",
-    "name": "エアリアル、二つのスケール",
-    "sub": "看板機エアリアルを、MGSDとFM/HGで。新世代の主役機を、異なる縮尺で並べる。シールドビットの展開ギミックを、心ゆくまで。",
-    "hidden": false,
-    "scope": "full",
-    "rule": {
-      "all": [
-        {
-          "match": {
-            "code": "XVX-016",
-            "grade": "MGSD"
-          }
-        },
-        {
-          "match": {
-            "code": "XVX-016",
-            "grade": "FM"
-          }
-        }
-      ]
-    }
-  },
-  {
-    "id": "as_clear",
-    "universe": "AS",
-    "no": 28,
-    "group": "combo",
-    "name": "透き通る魔女",
-    "sub": "エアリアルのソリッドクリアと、キャリバーンのクリアカラー。透明な装甲の下に、GUNDフォーマットの輝きを透かし見る。商魂と造形美の交差。",
-    "hidden": false,
-    "scope": "full",
-    "rule": {
-      "all": [
-        {
-          "match": {
-            "nameIncludes": "ソリッドクリア"
-          }
-        },
-        {
-          "match": {
-            "nameIncludes": "クリアカラー",
-            "series": "水星"
-          }
-        }
-      ]
-    }
-  },
-  {
-    "id": "as_duelists",
-    "universe": "AS",
-    "no": 29,
-    "group": "combo",
-    "name": "学園の決闘者たち",
-    "sub": "アスティカシア高等専門学園のガンダム使い。エアリアル、ダリルバルデ、ミカエリス、ファラクト。祝福と呪いを背負う、若き決闘者たち。",
+    "name": "祝福の決闘",
+    "sub": "アスティカシア学園の頂点ホルダーを賭けた決闘。エアリアル、ダリルバルデ、ミカエリス、ファラクト。祝福の名のもとに、若者たちが己の誇りをぶつけ合う。",
     "hidden": false,
     "scope": "full",
     "rule": {
@@ -7508,12 +7356,169 @@ export const ACHIEVEMENTS = [
     }
   },
   {
+    "id": "as_space_assembly",
+    "universe": "AS",
+    "no": 24,
+    "group": "combo",
+    "name": "宇宙議会連合の介入",
+    "sub": "地球と宇宙の対立に乗じる宇宙議会連合。ガンヴォルヴァとベギルベウトルシュ。EDM・CEK系の機体が、終盤の混沌をさらに深い泥沼へと引きずり込む。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "EDM-GB"
+          }
+        },
+        {
+          "match": {
+            "code": "CEK-043"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_grunts",
+    "universe": "AS",
+    "no": 25,
+    "group": "combo",
+    "name": "戦場の量産機",
+    "sub": "学園の決闘とは違う、本物の戦場で消耗する量産機たち。ザウォート、ハインドリー、ザウォートヘヴィ。名もなき機体が、企業戦争の現実を映し出す。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "F/D-19"
+          }
+        },
+        {
+          "match": {
+            "code": "CFP-010"
+          }
+        },
+        {
+          "match": {
+            "code": "F/D-20"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_gundarm",
+    "universe": "AS",
+    "no": 26,
+    "group": "combo",
+    "name": "GUND-ARMの系譜",
+    "sub": "義肢技術GUNDから生まれた呪われた兵器、ガンダム。ルブリス、アノクタ、ガンドノード。エアリアルへと至る、知られざる試作機の連なり。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XGF-02"
+          }
+        },
+        {
+          "match": {
+            "code": "AVP-03"
+          }
+        },
+        {
+          "match": {
+            "code": "XGF-E3"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_mgsd",
+    "universe": "AS",
+    "no": 27,
+    "group": "combo",
+    "name": "エアリアル、二つのスケール",
+    "sub": "新世代の看板機エアリアルを、MGSDとFM/HGで。シールドビットが舞い踊る展開ギミックを、異なる縮尺で心ゆくまで堪能する。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XVX-016",
+            "grade": "MGSD"
+          }
+        },
+        {
+          "match": {
+            "code": "XVX-016",
+            "grade": "FM"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_lauda_rage",
+    "universe": "AS",
+    "no": 28,
+    "group": "combo",
+    "name": "ラウダの暴走",
+    "sub": "失踪した兄グエルの死をスレッタのせいと思い込み、憎しみに駆られる弟ラウダ。彼のディランザが、エアリアルへ牙を剥く。すれ違いが生んだ、痛ましい同士討ち。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "MD-0031L"
+          }
+        },
+        {
+          "match": {
+            "code": "XVX-016"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_clear",
+    "universe": "AS",
+    "no": 29,
+    "group": "combo",
+    "name": "透き通る魔女",
+    "sub": "エアリアルのソリッドクリアと、キャリバーンのクリアカラー。透明な装甲の下に、GUNDフォーマットの輝きを透かし見る。商魂と造形美の交差点。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ソリッドクリア"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "クリアカラー",
+            "series": "水星"
+          }
+        }
+      ]
+    }
+  },
+  {
     "id": "as_master",
     "universe": "AS",
     "no": 30,
     "group": "count",
     "name": "A.S.の魔女",
-    "sub": "水星の魔女の機体を20機。ガンダムの呪いも、ベネリットの企業戦争も、地球寮の絆も。Ad Stellaの群像劇を、君は丸ごと棚に収めた。",
+    "sub": "水星の魔女の機体を20機。ガンダムの呪いも、企業の陰謀も、地球寮の絆も、スレッタとミオリネの物語も。Ad Stellaの群像劇を、君は丸ごと棚に収めた。",
     "hidden": false,
     "scope": "full",
     "rule": {
@@ -8565,6 +8570,802 @@ export const ACHIEVEMENTS = [
         "accessory": true
       },
       "gte": 4
+    }
+  },
+  {
+    "id": "gqx_char_steals",
+    "universe": "GQX",
+    "no": 1,
+    "group": "combo",
+    "name": "赤い彗星、ガンダムを駆る",
+    "sub": "サイド7。本来連邦に渡るはずだった試作機を、赤い彗星シャア・アズナブルが奪い去る。乗り慣れたザクを捨て、赤いガンダムへ——たった一つの『if』が、一年戦争の全てを書き換える。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "gMS-α"
+          }
+        },
+        {
+          "match": {
+            "code": "MS-06S",
+            "series": "ジークアクス"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_show_me",
+    "universe": "GQX",
+    "no": 2,
+    "group": "combo",
+    "name": "見せてもらおうか",
+    "sub": "「見せてもらおうか、ガンダムの性能とやらを」——正史では連邦機へ向けられた台詞が、ここでは反転する。赤いガンダムと白いガンダム。撃つ者と撃たれる者が、入れ替わった世界。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "gMS-α"
+          }
+        },
+        {
+          "match": {
+            "code": "RX-78-02",
+            "series": "ジークアクス"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_vs_canon",
+    "universe": "GQX",
+    "no": 3,
+    "group": "combo",
+    "name": "正史への問いかけ",
+    "sub": "赤いガンダムと、正史の白いガンダムRX-78-2。もしもアムロではなくシャアがガンダムに乗っていたら——並べて初めて見えてくる、『あったかもしれない歴史』との対話。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "gMS-α"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "RX-78-2"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_if_war",
+    "universe": "GQX",
+    "no": 4,
+    "group": "combo",
+    "name": "もしもの一年戦争",
+    "sub": "赤いガンダムと、正史のシャアザク、量産ザク。エースが連邦の象徴を駆る世界では、ジオンが優勢のまま戦争が進む。歴史の歯車が、静かに軋みを上げる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "gMS-α"
+          }
+        },
+        {
+          "match": {
+            "code": "MS-06S",
+            "nameExcludes": "(GQ)"
+          }
+        },
+        {
+          "match": {
+            "code": "MS-06",
+            "nameExcludes": [
+              "(GQ)",
+              "軍警"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_proto",
+    "universe": "GQX",
+    "no": 5,
+    "group": "combo",
+    "name": "ガンダム開発系譜",
+    "sub": "試作機01ガンダムと、白いガンダム(RX-78-02)。V作戦の知られざる試作の連なりが、この世界でも確かに刻まれている。正史と地続きの、開発の足跡。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "RX-78-01",
+            "series": "ジークアクス"
+          }
+        },
+        {
+          "match": {
+            "code": "RX-78-02",
+            "series": "ジークアクス"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_red_expand",
+    "universe": "GQX",
+    "no": 6,
+    "group": "combo",
+    "name": "拡張された赤",
+    "sub": "赤いガンダムと、その拡張セット。奪われた試作機が、新たな武装で『if』の戦場に最適化されていく。正史にはない、もう一つの進化形。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "gMS-α"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "赤いガンダム用",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_machu",
+    "universe": "GQX",
+    "no": 7,
+    "group": "combo",
+    "name": "マチュのジークアクス",
+    "sub": "平凡な少女アマテ・ユズリハ——『マチュ』が出会う、謎のモビルスーツGQuuuuuuX。素体と、エンディミオン・ユニット覚醒形態。日常が、地下の戦いへと反転する。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "GQuuuuuuX",
+            "nameExcludes": "エンディミオン",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "エンディミオン",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_endymion",
+    "universe": "GQX",
+    "no": 8,
+    "group": "combo",
+    "name": "エンディミオン・ユニット覚醒",
+    "sub": "GQuuuuuuXに秘められた力、エンディミオン・ユニットの覚醒。赤いガンダムと対峙し、マチュの中の何かが目覚める。少女が『パイロット』になる、決定的な瞬間。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "エンディミオン",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "code": "gMS-α"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_machu_shuji",
+    "universe": "GQX",
+    "no": 9,
+    "group": "combo",
+    "name": "マチュとシュウジ",
+    "sub": "GQuuuuuuXのマチュと、赤いガンダムの謎の少年シュウジ。敵か味方か——惹かれ合いながらも、二人は世界の秘密の中心へと引き寄せられていく。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "GQuuuuuuX",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "code": "gMS-α"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_nyaan",
+    "universe": "GQX",
+    "no": 10,
+    "group": "combo",
+    "name": "ニャアンと難民の街",
+    "sub": "マチュの相棒、難民の少女ニャアン。ジオン統治下のコロニーで、軍警ザクが睨みを利かせる薄暗い街。持たざる者たちの視点が、この物語に影を落とす。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "GQuuuuuuX",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "code": "MS-06-SSP"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_clan_battle",
+    "universe": "GQX",
+    "no": 11,
+    "group": "combo",
+    "name": "クランバトル",
+    "sub": "コロニーの地下で繰り広げられる非合法モビルスーツ闘技、クランバトル。スガイ機、ボカタ機のゲルググ。賞金と意地を賭けた、熱狂と退廃の祭り。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "gMS-01",
+            "nameIncludes": "スガイ"
+          }
+        },
+        {
+          "match": {
+            "code": "gMS-01",
+            "nameIncludes": "ボカタ"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_two_red_zaku",
+    "universe": "GQX",
+    "no": 12,
+    "group": "combo",
+    "name": "もう一つの赤いザク",
+    "sub": "この世界のシャア専用ザクと、正史のシャアザク。同じ赤、同じ三倍——だが歩む先は違う。並べた瞬間、二つの歴史の分岐がくっきりと浮かび上がる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "MS-06S",
+            "series": "ジークアクス"
+          }
+        },
+        {
+          "match": {
+            "code": "MS-06S",
+            "nameExcludes": "(GQ)"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_boy",
+    "universe": "GQX",
+    "no": 13,
+    "group": "combo",
+    "name": "坊やだからさ",
+    "sub": "「なぜ殴った!」「殴られて、当たり前だ」——シャアの冷徹は、この世界でも変わらない。シャア専用ザクと量産ザク。エースと兵卒を隔てる、才能と非情の距離。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "MS-06S",
+            "series": "ジークアクス"
+          }
+        },
+        {
+          "match": {
+            "code": "MS-06",
+            "series": "ジークアクス"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_char_machines",
+    "universe": "GQX",
+    "no": 14,
+    "group": "combo",
+    "name": "シャアという男",
+    "sub": "if世界のシャアザクと、正史で彼が乗り継いだゲルググ、ジオング。どの歴史でも、この男は赤き栄光と破滅へ突き進む。シャア・アズナブルという、変わらぬ業。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "MS-06S",
+            "series": "ジークアクス"
+          }
+        },
+        {
+          "match": {
+            "code": "MS-14S"
+          }
+        },
+        {
+          "match": {
+            "code": "MSN-02"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_seira",
+    "universe": "GQX",
+    "no": 15,
+    "group": "combo",
+    "name": "セイラの軽キャノン",
+    "sub": "正史では戦いを厭うた女性セイラ(セイラ・マス)が、この世界では軽キャノンを駆る。専用機と一般機。穏やかな彼女がトリガーを引く——『if』が見せる、もう一つの貌。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "セイラ"
+          }
+        },
+        {
+          "match": {
+            "code": "RGM-79",
+            "series": "ジークアクス",
+            "nameExcludes": "セイラ"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_mass_siblings",
+    "universe": "GQX",
+    "no": 16,
+    "group": "combo",
+    "name": "マス家の兄妹",
+    "sub": "セイラの軽キャノンと、赤いガンダム。キャスバルとアルテイシア——数奇な運命に引き裂かれた兄と妹が、この世界では再び戦場で交差する。血の絆と、すれ違い。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "セイラ"
+          }
+        },
+        {
+          "match": {
+            "code": "gMS-α"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_tristars",
+    "universe": "GQX",
+    "no": 17,
+    "group": "combo",
+    "name": "黒い三連星",
+    "sub": "ガイア、オルテガ、そして正史から駆けつけるもう一機のリック・ドム。three が織りなすジェットストリームアタックは、世界が変わっても健在。連携の美学。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "MS-09",
+            "series": "ジークアクス",
+            "nameIncludes": "ガイア"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "MS-09",
+            "nameExcludes": "(GQ)"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_shalia",
+    "universe": "GQX",
+    "no": 18,
+    "group": "combo",
+    "name": "シャリア・ブルの邂逅",
+    "sub": "正史では戦死した木星帰りのニュータイプ、シャリア・ブル。この世界では専用リック・ドムを駆り、マチュのGQuuuuuuXと感応し合う。死なずに生きた男が見る、新しい光。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "MS-09",
+            "series": "ジークアクス",
+            "nameIncludes": "シャリア"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "GQuuuuuuX",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_newtype",
+    "universe": "GQX",
+    "no": 19,
+    "group": "combo",
+    "name": "ニュータイプの覚醒",
+    "sub": "エンディミオン覚醒のGQuuuuuuXと、シャリアのリック・ドム。革新者たちが空間を超えて呼び交わす。戦争の時代に、人はどこまで分かり合えるのか——永遠の問い。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "エンディミオン",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "code": "MS-09",
+            "series": "ジークアクス",
+            "nameIncludes": "シャリア"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_exabe_gyan",
+    "universe": "GQX",
+    "no": 20,
+    "group": "combo",
+    "name": "エグザベのギャン",
+    "sub": "正史ではマ・クベの一点物だったギャンが、この世界ではエグザベの愛機としてクランバトルを駆ける。ハクジ装備の白兵戦機と、ゲルググ。日陰の名機に当たる、もう一度の光。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "MS-15/H"
+          }
+        },
+        {
+          "match": {
+            "code": "gMS-01",
+            "nameExcludes": [
+              "スガイ",
+              "ボカタ"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_hambrabi",
+    "universe": "GQX",
+    "no": 21,
+    "group": "combo",
+    "name": "ハンブラビの謎",
+    "sub": "本来ならグリプス戦役の機体ハンブラビが、なぜここに——時代を超えて現れる異物が、この世界の歴史の歪みを暗示する。GQuuuuuuXと対峙する、不吉な三つ目。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "ORX-139"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "GQuuuuuuX",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_gfred",
+    "universe": "GQX",
+    "no": 22,
+    "group": "combo",
+    "name": "GFreDの戦い",
+    "sub": "クランバトルに姿を見せる独自機GFreDと、ゲルググ・スガイ機。正史には存在しない機体たちが、地下闘技場の熱気の中でぶつかり合う。if世界ならではの顔ぶれ。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "gMS-κ"
+          }
+        },
+        {
+          "match": {
+            "code": "gMS-01",
+            "nameIncludes": "スガイ"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_zaku_horde",
+    "universe": "GQX",
+    "no": 23,
+    "group": "combo",
+    "name": "ザクの群れ",
+    "sub": "ジオンが優勢なこの世界、コロニーはザクで溢れる。一般機、軍警ザク、そしてシャア専用ザク。緑と赤の量産機が、勝者の論理を体現する。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "MS-06",
+            "series": "ジークアクス"
+          }
+        },
+        {
+          "match": {
+            "code": "MS-06-SSP"
+          }
+        },
+        {
+          "match": {
+            "code": "MS-06S",
+            "series": "ジークアクス"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_v_operation",
+    "universe": "GQX",
+    "no": 24,
+    "group": "combo",
+    "name": "連邦の白いやつ",
+    "sub": "白いガンダムと、正史のガンキャノン、ガンタンク。奪われなかった『もう一つの』V作戦の機体たち。正史機を傍らに置けば、失われた歴史の輪郭が見えてくる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "RX-78-02",
+            "series": "ジークアクス"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "RX-77"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "RX-75"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_three_times",
+    "universe": "GQX",
+    "no": 25,
+    "group": "combo",
+    "name": "通常の三倍",
+    "sub": "赤いガンダムと、正史のシャア専用ゲルググ。『通常の三倍』の速度で駆ける赤——機体が変わっても、赤い彗星の伝説だけは色褪せない。シャアの代名詞、二つの時代に。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "gMS-α"
+          }
+        },
+        {
+          "match": {
+            "code": "MS-14S"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_zeong_ghost",
+    "universe": "GQX",
+    "no": 26,
+    "group": "combo",
+    "name": "ジオングの亡霊",
+    "sub": "GQuuuuuuXと、正史でシャアが最後に乗ったジオング。サイコミュとニュータイプ——正史で辿り着いた未完の到達点が、if世界のマチュの機体に影を重ねる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "GQuuuuuuX",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "code": "MSN-02"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_rick_dom",
+    "universe": "GQX",
+    "no": 27,
+    "group": "combo",
+    "name": "リック・ドム隊",
+    "sub": "ガイア/オルテガ機と、シャリア専用機。この世界のリック・ドムたちが、宇宙の闇を黒く塗りつぶす。正史のエースたちが、別の運命で再集結する。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "MS-09",
+            "series": "ジークアクス",
+            "nameIncludes": "ガイア"
+          }
+        },
+        {
+          "match": {
+            "code": "MS-09",
+            "series": "ジークアクス",
+            "nameIncludes": "シャリア"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_two_worlds",
+    "universe": "GQX",
+    "no": 28,
+    "group": "combo",
+    "name": "二つのガンダム、二つの世界",
+    "sub": "赤いガンダム、白いガンダム、01ガンダム。奪われた者と、奪われなかった者と、その原型。三機を並べれば、この『if』が正史とどこで枝分かれしたのかが見えてくる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "gMS-α"
+          }
+        },
+        {
+          "match": {
+            "code": "RX-78-02",
+            "series": "ジークアクス"
+          }
+        },
+        {
+          "match": {
+            "code": "RX-78-01",
+            "series": "ジークアクス"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_aces",
+    "universe": "GQX",
+    "no": 29,
+    "group": "combo",
+    "name": "if線のエースたち",
+    "sub": "エグザベのギャン、シャリアのリック・ドム、スガイのゲルググ。正史の脇役や戦死者が、この世界では主役級の見せ場を得る。『もしも』が照らす、もう一つの群像。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "MS-15/H"
+          }
+        },
+        {
+          "match": {
+            "code": "MS-09",
+            "series": "ジークアクス",
+            "nameIncludes": "シャリア"
+          }
+        },
+        {
+          "match": {
+            "code": "gMS-01",
+            "nameIncludes": "スガイ"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "gqx_master",
+    "universe": "GQX",
+    "no": 30,
+    "group": "count",
+    "name": "ジークアクスの世界",
+    "sub": "GQuuuuuuXの機体を12機。シャアが奪ったガンダムも、マチュのジークアクスも、正史から迷い込んだエースたちも。『if』が描く一年戦争を、君は丸ごと棚に収めた。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "count": {
+        "series": "ジークアクス",
+        "accessory": true
+      },
+      "gte": 12
     }
   },
   {
