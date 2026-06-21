@@ -3,6 +3,84 @@ import { mergeRecMap, mergeArrStamped, stampRec, stampRecAll } from "./merge.js"
 import { ACHIEVEMENTS } from "./achievements-rules.js";
 import { evaluateAchievements, explainAchievement } from "./achievements-engine.js";
 
+const UNI_EMBLEM = {
+  /* UC = 地球儀(経線3・緯線3のみ) */
+  UC:`<circle class="s2" cx="32" cy="32" r="19" style="stroke-width:2.4"/>
+      <line class="s2" x1="32" y1="13" x2="32" y2="51" style="stroke-width:1.7"/>
+      <ellipse class="s2" cx="32" cy="32" rx="9" ry="19" style="stroke-width:1.7"/>
+      <line class="s2" x1="13" y1="32" x2="51" y2="32" style="stroke-width:1.7"/>
+      <ellipse class="s2" cx="32" cy="32" rx="19" ry="9" style="stroke-width:1.7"/>`,
+
+  /* SEED(C.E.) = 殖民地 PLANT(蝶ネクタイ型) */
+  SEED:`<path class="m" d="M15 13L49 13L32 32Z"/>
+        <path class="m" d="M15 51L49 51L32 32Z"/>`,
+
+  /* X(A.W.) = 月(三日月＋星) */
+  X:`<path class="m" d="M32 9A23 23 0 1 0 32 55A19 23 0 0 1 32 9Z"/>
+     <path class="m" d="M45 15l1.6 4.3 4.4 1.6-4.4 1.6-1.6 4.3-1.6-4.3-4.4-1.6 4.4-1.6Z"/>`,
+
+  /* W(A.C.) = 「W」字標 */
+  W:`<path class="gl" d="M10 16L19 48L32 26L45 48L54 16"/>`,
+
+  /* CC(∀) = 逆Aの文字符号(角度拡大) */
+  CC:`<path class="gl" d="M15 17L32 49L49 17"/><path class="gl" d="M22 33H42"/>`,
+
+  /* F.C.(G) = 「G」字標 */
+  G:`<path class="gl" style="stroke-width:7" d="M45 22A15 15 0 1 0 45 42M45 42V32H33"/>`,
+
+  /* 00(A.D.) = 「OO」二重環の字標 */
+  "00":`<path class="m" fill-rule="evenodd" d="M23 21a11 11 0 1 0 0 22a11 11 0 1 0 0-22Z M23 27a5 5 0 1 0 0 10a5 5 0 1 0 0-10Z"/>
+        <path class="m" fill-rule="evenodd" d="M41 21a11 11 0 1 0 0 22a11 11 0 1 0 0-22Z M41 27a5 5 0 1 0 0 10a5 5 0 1 0 0-10Z"/>`,
+
+  /* A.G.(AGE) = 「AG」字標 */
+  AGE:`<path class="gl" d="M10 48L18 16L26 48M13.5 36H22.5"/>
+       <path class="gl" d="M53 25A11.5 11.5 0 1 0 53 40M53 40V32.5H45"/>`,
+
+  /* P.D.(鉄血) = 鎚と剣の交差(剣を錘と同等の長さに) */
+  IBO:`<path class="m" d="M48 52L52 48L25 21L21 25Z"/>
+       <rect class="m" x="10" y="12" width="15" height="9" rx="1.5" transform="rotate(-45 17.5 16.5)"/>
+       <g transform="rotate(-45 32 32)">
+         <path class="m" d="M5 32L13 29.5H40V34.5H13Z"/>
+         <rect class="m" x="38" y="23" width="4.5" height="18" rx="1"/>
+         <rect class="m" x="42.5" y="29.5" width="10" height="5" rx="1.5"/>
+         <circle class="m" cx="55" cy="32" r="3.4"/>
+       </g>`,
+
+  /* A.S.(水星の魔女) = 水星 ☿(1.5倍)【提案】 */
+  AS:`<g transform="translate(32 34) scale(1.5) translate(-32 -34)"><circle class="s" cx="32" cy="33" r="8"/><path class="s" d="M25 23a7 7 0 0 0 14 0"/><path class="s" d="M32 41V53 M26 47H38"/></g>`,
+
+  /* R.C.(G-Reco) = 軌道塔【提案】 */
+  RC:`<path class="m" d="M27 52L30 20H34L37 52Z"/>
+      <rect class="m" x="23" y="52" width="18" height="4.5" rx="1.5"/>
+      <circle class="m" cx="32" cy="17" r="3.4"/>
+      <ellipse class="s2" cx="32" cy="17" rx="12" ry="4"/>`,
+
+  /* GQX = 「IF」の字標(if/もしも) */
+  GQX:`<rect class="m" x="16" y="16" width="6" height="32"/>
+       <rect class="m" x="11" y="16" width="16" height="5.5" rx="1"/>
+       <rect class="m" x="11" y="42.5" width="16" height="5.5" rx="1"/>
+       <rect class="m" x="35" y="16" width="6" height="32"/>
+       <rect class="m" x="35" y="16" width="17" height="5.5" rx="1"/>
+       <rect class="m" x="35" y="29" width="13" height="5.5" rx="1"/>`,
+
+  /* BF = ニッパー寄り(刃を短く厚い斜刃に) */
+  BF:`<path class="m" d="M32 32L22 21L28 19L33 29Z"/>
+      <path class="m" d="M32 32L42 21L36 19L31 29Z"/>
+      <path class="m" d="M31 34L23 46L26 48L34 37Z"/>
+      <path class="m" d="M33 34L41 46L38 48L30 37Z"/>
+      <path class="m" fill-rule="evenodd" d="M22 44a7 7 0 1 0 0.1 0Z M22 47.6a3.6 3.6 0 1 0 0.1 0Z"/>
+      <path class="m" fill-rule="evenodd" d="M42 44a7 7 0 1 0 0.1 0Z M42 47.6a3.6 3.6 0 1 0 0.1 0Z"/>
+      <circle class="m" cx="32" cy="32.5" r="2.6"/>`,
+};
+
+/* 世界別エンブレム(単色 currentColor / 金=tier2・銀=tier1・灰=tier0) */
+function Emblem({ universe, tier }) {
+  const fin = tier === 2 ? "gold" : tier === 1 ? "silver" : "ghost";
+  return <svg viewBox="0 0 64 64" className={"av-emblem fin-" + fin} aria-hidden="true"
+    dangerouslySetInnerHTML={{ __html: UNI_EMBLEM[universe] || UNI_EMBLEM.UC }} />;
+}
+
+
 /* ─────────────────────────────────────────────────────────
    MG GUNPLA 図鑑・蒐集帖 v2
    ・収録254件(一般販売 No.001–223 + Ver.Ka 01–30、MGEX含む)
@@ -4737,7 +4815,7 @@ export default function App() {
                 const UNIVERSES = [["all", "すべて"], ["UC", "U.C."], ["SEED", "SEED"], ["W", "W"], ["X", "X"], ["G", "G"], ["00", "00"], ["AGE", "A.G."], ["IBO", "P.D."], ["AS", "A.S."], ["RC", "R.C."], ["CC", "C.C."], ["GQX", "GQX"], ["BF", "BF"], ["other", "その他"]];
                 const UNI_PREFIX = { UC: "U.C.", SEED: "C.E.", W: "A.C.", X: "A.W.", G: "F.C.", "00": "A.D.", AGE: "A.G.", IBO: "P.D.", AS: "A.S.", RC: "R.C.", CC: "C.C.", GQX: "GQX", BF: "BF", other: "" };
                 const inUni = (t) => titleUniverse === "all" ? true : (t.universe || "UC") === titleUniverse;
-                const rank = (t) => (t.unlocked ? 3 : (t.needBuild ? 0 : (t.cur > 0 ? 1 : 2)));
+                const rank = (t) => (t.tier === 1 ? 0 : (t.tier === 0 ? (t.cur > 0 ? 1 : 2) : 3));
                 const pool = titles.filter(inUni);
                 const list = pool.slice().sort((a, b) => {
                   const r = rank(a) - rank(b);
@@ -4749,22 +4827,7 @@ export default function App() {
                 const newN = pool.filter(titleIsNew).length;
                 const pct = Math.round(got / Math.max(1, pool.length) * 100);
                 const curUni = UNIVERSES.find(([v]) => v === titleUniverse);
-                const medal = (cls) => cls === "earned" ? (
-                  <svg viewBox="0 0 64 64" aria-hidden="true">
-                    <polygon points="32,7 49,16 49,40 32,57 15,40 15,16" fill="none" stroke="url(#avGold)" strokeWidth="2" />
-                    <polygon points="32,12 44,19 44,38 32,50 20,38 20,19" fill="rgba(217,179,106,.12)" stroke="url(#avGold)" strokeWidth="2.4" />
-                    <text x="32" y="39" textAnchor="middle" fontFamily="Shippori Mincho,serif" fontWeight="800" fontSize="20" fill="url(#avGold)">章</text>
-                  </svg>
-                ) : cls === "todo" ? (
-                  <svg viewBox="0 0 64 64" aria-hidden="true">
-                    <polygon points="32,12 44,19 44,38 32,50 20,38 20,19" fill="none" stroke="#d9b36a" strokeWidth="1.6" strokeDasharray="3 3" />
-                  </svg>
-                ) : (
-                  <svg viewBox="0 0 64 64" aria-hidden="true">
-                    <polygon points="32,7 49,16 49,40 32,57 15,40 15,16" fill="none" stroke="#404a5e" strokeWidth="1" />
-                    <polygon points="32,12 44,19 44,38 32,50 20,38 20,19" fill="none" stroke="#2f3848" strokeWidth="2" />
-                  </svg>
-                );
+                /* 称号メダルは <Emblem universe tier/> で描画 */
                 return (
                   <section className="ana-sec av-sec">
                     <svg className="av-defs" width="0" height="0" aria-hidden="true"><defs>
@@ -4799,21 +4862,21 @@ export default function App() {
                         const isNew = titleIsNew(t);
                         const hiddenLocked = t.hidden && !t.unlocked;
                         const remain = Math.max(0, t.need - t.cur);
-                        const cls = t.unlocked ? "earned" : (t.needBuild ? "todo" : "locked");
+                        const cls = t.tier === 2 ? "gold" : (t.tier === 1 ? "silver" : "locked");
                         return (
                           <button key={t.id} className={"av-entry " + cls + (isNew ? " new" : "") + (achvPop === "t:" + t.id ? " pop" : "")}
                             onClick={() => { haptic(); ackTitle(t.id); setTitleDetail(t); }}>
-                            <span className={"av-medal " + cls}>{medal(cls)}</span>
+                            <span className={"av-medal " + cls}><Emblem universe={t.universe || "UC"} tier={t.tier} /></span>
                             <span className="av-ebody">
                               <span className="av-eno">{(UNI_PREFIX[t.universe] || t.universe || "U.C.")} · No.{String(t.no || 0).padStart(3, "0")}</span>
                               <span className="av-ename">{hiddenLocked ? "？？？" : t.name}</span>
-                              {t.unlocked && <span className="av-ehair" />}
-                              {t.unlocked && <span className="av-eflavor">{t.sub}</span>}
-                              {!t.unlocked && t.needBuild && <span className="av-etag">要完成 · 1体制作で叙勲</span>}
-                              {!t.unlocked && !t.needBuild && t.need > 1 && (
+                              {t.tier >= 1 && <span className="av-ehair" />}
+                              {t.tier >= 1 && <span className="av-eflavor">{t.sub}</span>}
+                              {t.tier === 1 && <span className="av-etag silver">あと {Math.max(0, (t.builtNeed || 1) - (t.builtCur || 0))} 体完成で金章</span>}
+                              {t.tier === 0 && t.need > 1 && (
                                 <span className="av-eprog"><span className="av-ebar"><i style={{ width: `${Math.round(t.cur / t.need * 100)}%` }} /></span><span className="av-erem">あと {remain}</span></span>
                               )}
-                              {!t.unlocked && !t.needBuild && t.need === 1 && <span className="av-etag locked">未叙勲</span>}
+                              {t.tier === 0 && t.need === 1 && <span className="av-etag locked">未叙勲</span>}
                             </span>
                             {isNew && <i className="av-dot" />}
                           </button>
@@ -5342,13 +5405,11 @@ export default function App() {
           <div className="modal-bg" onClick={() => setTitleDetail(null)}>
             <div className="modal title-modal" onClick={(e) => e.stopPropagation()}>
               <div className="modal-form-head">
-                <span>{t.unlocked ? "達成した称号" : "称号の条件"}</span>
+                <span>{t.tier === 2 ? "金章 — 全入手・全完成" : t.tier === 1 ? "銀章 — 全入手" : "称号の条件"}</span>
                 <button className="modal-x static" onClick={() => setTitleDetail(null)}>✕</button>
               </div>
               <div className="tm-head">
-                {t.unlocked
-                  ? <span className="av-medal earned big"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="avGoldM" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#f2dca0" /><stop offset="1" stopColor="#9c7838" /></linearGradient></defs><polygon points="32,7 49,16 49,40 32,57 15,40 15,16" fill="none" stroke="url(#avGoldM)" strokeWidth="2" /><polygon points="32,12 44,19 44,38 32,50 20,38 20,19" fill="rgba(217,179,106,.12)" stroke="url(#avGoldM)" strokeWidth="2.4" /><text x="32" y="39" textAnchor="middle" fontFamily="Shippori Mincho,serif" fontWeight="800" fontSize="20" fill="url(#avGoldM)">章</text></svg></span>
-                  : <span className="av-medal locked big"><svg viewBox="0 0 64 64" aria-hidden="true"><polygon points="32,7 49,16 49,40 32,57 15,40 15,16" fill="none" stroke="#404a5e" strokeWidth="1" /><polygon points="32,12 44,19 44,38 32,50 20,38 20,19" fill="none" stroke="#2f3848" strokeWidth="2" /></svg></span>}
+                <span className={"av-medal big " + (t.tier === 2 ? "gold" : t.tier === 1 ? "silver" : "locked")}><Emblem universe={t.universe || "UC"} tier={t.tier} /></span>
                 <div className="tm-headbody">
                   <div className="tm-name">{t.name}</div>
                   <div className="tm-sub">{t.sub}</div>
@@ -5431,8 +5492,8 @@ export default function App() {
                   <div className="tm-hint">制作条件</div>
                   <div className={"tm-piece" + (ex.buildGate.satisfied ? " ok" : " miss")}>
                     <i className="tm-mark">{ex.buildGate.satisfied ? "✓" : "✗"}</i>
-                    <span className="tm-pname">1体以上を完成(制作)
-                      {ex.buildGate.builtName ? <b className="tm-tag own">{ex.buildGate.builtName}</b> : null}</span>
+                    <span className="tm-pname">全機を完成(金章条件)
+                      {ex.buildGate.pendingCount > 0 ? <b className="tm-tag">未制作 {ex.buildGate.pendingCount}</b> : null}</span>
                   </div>
                 </div>
               )}
@@ -6706,8 +6767,16 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .av-entry.pop{animation:achvPop .45s ease}
 .av-medal{flex:none;width:60px;height:60px;display:flex;align-items:center;justify-content:center}
 .av-medal svg{width:100%;height:100%;display:block}
-.av-medal.earned svg{filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
-.av-medal.locked{opacity:.55}
+.av-medal.gold svg,.av-medal.silver svg{filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
+.av-emblem{width:100%;height:100%;display:block}
+.av-emblem .m{fill:currentColor}
+.av-emblem .s{fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.av-emblem .s2{fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.av-emblem .gl{fill:none;stroke:currentColor;stroke-width:6;stroke-linecap:round;stroke-linejoin:round}
+.av-emblem.fin-gold{color:#e6c478}
+.av-emblem.fin-silver{color:#cfd6df}
+.av-emblem.fin-ghost{color:#6f6d67}
+.av-medal.locked{opacity:.42}
 .av-ebody{flex:1;min-width:0;display:flex;flex-direction:column;padding-top:2px}
 .av-eno{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9.5px;letter-spacing:.20em;color:var(--ink-dim);text-transform:uppercase}
 .av-ename{font-family:var(--serif);font-weight:700;font-size:20px;line-height:1.3;color:var(--ink-strong);margin-top:3px}
@@ -6884,11 +6953,11 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .hf-prog i.kin{background:linear-gradient(90deg,#b88f3e,var(--kin))}
 @media (min-width:430px){.hf-title{font-size:46px}.hf-stats b{font-size:20px}}
 /* 章徽 常駐微光(金箔glint) */
-.av-medal.earned{position:relative;overflow:hidden}
-.av-medal.earned::after{content:"";position:absolute;top:-10%;bottom:-10%;left:0;width:60%;background:linear-gradient(115deg,transparent 42%,rgba(242,220,160,.55) 50%,transparent 58%);transform:translateX(-150%);pointer-events:none;animation:medalGlint 6s ease-in-out infinite}
+.av-medal.gold{position:relative;overflow:hidden}
+.av-medal.gold::after{content:"";position:absolute;top:-10%;bottom:-10%;left:0;width:60%;background:linear-gradient(115deg,transparent 42%,rgba(242,220,160,.55) 50%,transparent 58%);transform:translateX(-150%);pointer-events:none;animation:medalGlint 6s ease-in-out infinite}
 @keyframes medalGlint{0%,84%{transform:translateX(-150%)}93%{transform:translateX(230%)}100%{transform:translateX(230%)}}
-.av-entry:nth-child(3n) .av-medal.earned::after{animation-delay:2s}
-.av-entry:nth-child(3n+1) .av-medal.earned::after{animation-delay:4s}
+.av-entry:nth-child(3n) .av-medal.gold::after{animation-delay:2s}
+.av-entry:nth-child(3n+1) .av-medal.gold::after{animation-delay:4s}
 /* ═══ モーションA(CSS) ═══ */
 @keyframes fxIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 /* 初表示カスケード(先頭12のみ) */
