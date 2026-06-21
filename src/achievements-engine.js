@@ -112,11 +112,23 @@ export function evalRule(rule, owned) {
   return { unlocked: false, cur: 0, need: 1, ids: [] };
 }
 
-/* 全成就を評価。
+/* 全成就を評価。三段勲位(tier)で返す。
    ・評価池は既定で MG-class(gradeOf==="MG"。Ver.Ka/MGEX 含む)のみ。
      → UC 称号は MG コレクションを対象とする。
    ・rule.scope==="full" の時だけ全 grade を見る(親子丼・三段活用など跨 grade 用)。
-   ・rule.state==="built" の時は完成済み集合で判定(既定は owned)。 */
+
+   勲位(tier):
+     2 = 金章 … 全入手 かつ 全完成(条件機をすべて制作済み)
+     1 = 銀章 … 全入手のみ(まだ全完成していない)
+     0 = 灰  … 未入手(浮水印・反灰)
+
+   判定法:同じ rule を二度評価する。
+     ・入手プール(pool)        → collectionMet(全入手したか)
+     ・完成プール(builtPool)   → buildComplete(全完成したか)
+       完成プール = 入手済みのうち buildDate を持つ機体だけを残したもの。
+   こうすると combo / count / grades いずれの規則でも、
+   「制作済みの候補だけで条件を満たせるか」で全完成を自動判定でき、
+   貪欲指派(assignDistinct)が未完成機を割り当てて誤判定する事故を避けられる。 */
 export function evaluateAchievements(rules, allKits, getRec) {
   const isMG = (k) => gradeOf(k) === "MG";
   const ownedFull = allKits.filter((k) => getRec(k.id).owned);
@@ -124,20 +136,32 @@ export function evaluateAchievements(rules, allKits, getRec) {
   const builtSet = new Set(allKits.filter((k) => !!getRec(k.id).buildDate).map((k) => k.id));
   return rules.map((r) => {
     const pool = r.scope === "full" ? ownedFull : ownedMG;
-    const ev = evalRule(r.rule, pool);
-    const collectionMet = ev.unlocked;
-    const builtGate = collectionMet && (ev.ids || []).some((id) => builtSet.has(id));
+    const builtPool = pool.filter((k) => builtSet.has(k.id)); // 入手 ∩ 制作済み
+    const ev = evalRule(r.rule, pool);          // 入手だけで判定
+    const evBuilt = evalRule(r.rule, builtPool); // 制作済みだけで判定(=全完成)
+    const collectionMet = ev.unlocked;          // 全入手したか
+    const buildComplete = collectionMet && evBuilt.unlocked; // 全完成したか
+    const tier = !collectionMet ? 0 : (buildComplete ? 2 : 1); // 2金 / 1銀 / 0灰
     return { id: r.id, universe: r.universe || "UC", no: r.no, name: r.name, group: r.group,
              sub: r.sub, hidden: !!r.hidden,
-             cur: ev.cur, need: ev.need,
-             unlocked: collectionMet && builtGate,
-             collectionMet, builtGate, needBuild: collectionMet && !builtGate };
+             cur: ev.cur, need: ev.need,                 // 入手進捗
+             builtCur: evBuilt.cur, builtNeed: evBuilt.need, // 完成進捗
+             collectionMet, buildComplete, tier,
+             gold: tier === 2, silver: tier === 1,
+             // 後方互換: unlocked=「称号獲得(銀以上)」, needBuild=「銀(全入手だが未全完成)」
+             unlocked: collectionMet, needBuild: tier === 1 };
   });
 }
 
-/* 解錠差分(トースト用):前回 unlocked 集合 → 今回新たに解錠された id 配列。 */
+/* 解錠差分(トースト用):前回「銀以上(獲得済み)」集合 → 今回新たに獲得した id 配列。 */
 export function newlyUnlocked(prevUnlockedSet, evaluated) {
   return evaluated.filter((e) => e.unlocked && !prevUnlockedSet.has(e.id)).map((e) => e.id);
+}
+
+/* 昇格差分(金章トースト用):前回「金章」集合 → 今回新たに金章へ昇格した id 配列。
+   prevGoldSet を別途保存しておけば「銀→金」のお祝いトーストを出せる。 */
+export function newlyGold(prevGoldSet, evaluated) {
+  return evaluated.filter((e) => e.gold && !prevGoldSet.has(e.id)).map((e) => e.id);
 }
 
 /* ── 称号の内訳(条件ごとの達成/不足)を返す。自動ラベル(候補機体名そのまま)。 ──
@@ -198,7 +222,17 @@ export function explainAchievement(ach, allKits, getRec) {
     result = { kind: "unknown" };
   }
 
-  const builtId = satisfyingIds.find((id) => builtSet.has(id));
-  result.buildGate = { satisfied: !!builtId, builtName: builtId ? byId.get(builtId).name : null };
+  // ── 全完成ゲート(金章条件):条件機を「すべて」制作済みか ──
+  //   buildComplete は engine と同じ判定(完成プールで rule 再評価)。
+  //   pending は「入手済みだが未制作」の条件機名(UI のあと一押し表示用)。
+  const builtPool = owned.filter((k) => builtSet.has(k.id));
+  const buildComplete = evalRule(rule, builtPool).unlocked;
+  const builtIds = satisfyingIds.filter((id) => builtSet.has(id));
+  const pending = satisfyingIds.filter((id) => !builtSet.has(id)).map((id) => byId.get(id).name);
+  result.buildGate = {
+    satisfied: buildComplete,
+    pending, pendingCount: pending.length,
+    builtName: builtIds.length ? byId.get(builtIds[0]).name : null, // 後方互換
+  };
   return result;
 }
