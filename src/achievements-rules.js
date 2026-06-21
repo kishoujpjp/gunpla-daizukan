@@ -1,5 +1,6 @@
-// AUTO-GENERATED achievement rules. 107 live achievements (37 UC + 50 SEED/C.E. + 20 G/F.C.).
-// fields: id, universe(UC/SEED/W/X/G/00/BF/other), no(1-based per universe), group, name, sub, hidden, scope?, rule
+// AUTO-GENERATED achievement rules. 377 live achievements
+// (37 UC + 50 C.E. + 20 F.C. + 40 A.C. + 10 A.W. + 40 A.D. + 20 A.G. + 40 P.D. + 30 A.S. + 20 R.C. + 20 C.C. + 50 BF).
+// fields: id, universe(UC/SEED/W/X/G/00/AGE/IBO/AS/RC/CC/BF/other), no(1-based per universe), group, name, sub, hidden, scope?, rule
 export const ACHIEVEMENTS = [
   {
     "id": "trinity_x3",
@@ -2886,6 +2887,7073 @@ export const ACHIEVEMENTS = [
         {
           "match": {
             "code": "JDG-009X"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_heero",
+    "universe": "W",
+    "no": 1,
+    "group": "combo",
+    "name": "お前を殺す",
+    "sub": "ヒイロ・ユイの相棒。任務に殉じる完全兵士が駆るウイングガンダムと、ゼロシステムを宿すウイングゼロ。冷徹な台詞の裏に、守るべきものを見出していく。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XXXG-01W"
+          }
+        },
+        {
+          "match": {
+            "code": "XXXG-00W0"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_duo",
+    "universe": "W",
+    "no": 2,
+    "group": "combo",
+    "name": "俺は死神だ",
+    "sub": "デュオ・マックスウェル、自らを死神と名乗る陽気な戦士。隠密のデスサイズと、漆黒の翼を得たデスサイズヘル。闇に紛れて確実に仕留める。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XXXG-01D"
+          }
+        },
+        {
+          "match": {
+            "code": "XXXG-01D2"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_trowa",
+    "universe": "W",
+    "no": 3,
+    "group": "combo",
+    "name": "名もなき道化師",
+    "sub": "トロワ・バートン、サーカスに身を隠す寡黙な狙撃手。弾幕のヘビーアームズと、その改修機。無口な男の、無数の銃口が語る。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XXXG-01H"
+          }
+        },
+        {
+          "match": {
+            "code": "XXXG-01H2"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_quatre",
+    "universe": "W",
+    "no": 4,
+    "group": "combo",
+    "name": "砂漠の継承者",
+    "sub": "カトル・ラバーバ・ウィナー、心優しき大富豪の子。双剣のサンドロックと、その改修機。穏やかな少年が、仲間のために剣を取る。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XXXG-01SR"
+          }
+        },
+        {
+          "match": {
+            "code": "XXXG-01SR2"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_wufei",
+    "universe": "W",
+    "no": 5,
+    "group": "combo",
+    "name": "ナタク、征く",
+    "sub": "張五飛、亡き妻の名『ナタク』を機体に重ねる孤高の闘士。龍の如きシェンロンと、双頭のアルトロン。強き者との戦いに、己の正義を問い続ける。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XXXG-01S"
+          }
+        },
+        {
+          "match": {
+            "code": "XXXG-01S2"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_meteor",
+    "universe": "W",
+    "no": 6,
+    "group": "combo",
+    "name": "オペレーション・メテオ",
+    "sub": "コロニーから地球へ降下した5機のガンダム。ウイング・デスサイズ・ヘビーアームズ・サンドロック・シェンロン。5人の少年兵による、静かなる宣戦布告。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XXXG-01W"
+          }
+        },
+        {
+          "match": {
+            "code": "XXXG-01D"
+          }
+        },
+        {
+          "match": {
+            "code": "XXXG-01H"
+          }
+        },
+        {
+          "match": {
+            "code": "XXXG-01SR"
+          }
+        },
+        {
+          "match": {
+            "code": "XXXG-01S"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_ew_five",
+    "universe": "W",
+    "no": 7,
+    "group": "combo",
+    "name": "終わりなきワルツ",
+    "sub": "Endless Waltz の5機。ウイングゼロ・デスサイズヘル・ヘビーアームズ改・サンドロック改・アルトロン。少年たちが最後にもう一度、平和のために戦う。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XXXG-00W0"
+          }
+        },
+        {
+          "match": {
+            "code": "XXXG-01D2"
+          }
+        },
+        {
+          "match": {
+            "code": "XXXG-01H2"
+          }
+        },
+        {
+          "match": {
+            "code": "XXXG-01SR2"
+          }
+        },
+        {
+          "match": {
+            "code": "XXXG-01S2"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_gundanium",
+    "universe": "W",
+    "no": 8,
+    "group": "count",
+    "name": "ガンダニウム合金",
+    "sub": "宇宙でしか精製できぬ最硬の装甲材、ガンダニウム合金。それを纏う機体を5機。コロニーの技術者たちが地球へ送り込んだ、5つの牙。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "count": {
+        "codePrefix": "XXXG"
+      },
+      "gte": 5
+    }
+  },
+  {
+    "id": "w_zero_system",
+    "universe": "W",
+    "no": 9,
+    "group": "combo",
+    "name": "ゼロシステム",
+    "sub": "操縦者の精神を直接戦闘へ変換する、悪魔のシステム。これを宿す二機、ウイングゼロとエピオン。ヒイロとゼクスが交換し合った、呪われた力。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XXXG-00W0"
+          }
+        },
+        {
+          "match": {
+            "code": "OZ-13MS"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_descend",
+    "universe": "W",
+    "no": 10,
+    "group": "combo",
+    "name": "流星、舞い降りる",
+    "sub": "第1話。宇宙から落ちる流星に偽装し、ウイングガンダムが地球へ。迎え撃つOZのエース、トールギスを駆るゼクス・マーキス。宿命の二人の邂逅。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XXXG-01W"
+          }
+        },
+        {
+          "match": {
+            "code": "OZ-00MS"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_quatre_berserk",
+    "universe": "W",
+    "no": 11,
+    "group": "combo",
+    "name": "ゼロに飲まれて",
+    "sub": "ゼロシステムに精神を蝕まれ、カトルが暴走する。本来のサンドロックと、彼を狂わせたウイングゼロ。優しき少年の、最も昏い瞬間。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XXXG-00W0"
+          }
+        },
+        {
+          "match": {
+            "code": "XXXG-01SR"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_zechs",
+    "universe": "W",
+    "no": 12,
+    "group": "combo",
+    "name": "仮面の伯爵",
+    "sub": "ゼクス・マーキス——その正体はサンクキングダムの王子ミリアルド・ピースクラフト。最初のトールギスから、再起のトールギスIIIへ。仮面に隠した復讐と理想。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "OZ-00MS"
+          }
+        },
+        {
+          "match": {
+            "code": "OZ-00MS2B"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_tallgeese_line",
+    "universe": "W",
+    "no": 13,
+    "group": "combo",
+    "name": "トールギスの系譜",
+    "sub": "全てのモビルスーツの祖、トールギス。初号機、トレーズが駆るII、ゼクスのIII。人間の限界を超える加速を強いる、栄光と呪いの系譜。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "OZ-00MS"
+          }
+        },
+        {
+          "match": {
+            "code": "OZ-00MS2"
+          }
+        },
+        {
+          "match": {
+            "code": "OZ-00MS2B"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_treize",
+    "universe": "W",
+    "no": 14,
+    "group": "combo",
+    "name": "美しき野望",
+    "sub": "トレーズ・クシュリナーダ、戦いに美学を求める貴公子。彼が駆るトールギスIIと、ゼロシステムを与えたエピオン。理想のために自ら散る、最も人間的な敵。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "OZ-00MS2"
+          }
+        },
+        {
+          "match": {
+            "code": "OZ-13MS"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_leo_master",
+    "universe": "W",
+    "no": 15,
+    "group": "combo",
+    "name": "リーオーの名手",
+    "sub": "量産機リーオーひとつでガンダムと渡り合う、それがゼクスの腕。トールギスと並べれば分かる——名手は機体を選ばない。OZ随一のエースの矜持。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "OZ-00MS"
+          }
+        },
+        {
+          "match": {
+            "code": "OZ-06MS"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_wufei_treize",
+    "universe": "W",
+    "no": 16,
+    "group": "combo",
+    "name": "正義の在処",
+    "sub": "強さこそ正義と信じる五飛が、真に強き者トレーズに挑む。アルトロンとトールギスII。勝利の果てに残ったのは、虚しさだった。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XXXG-01S2"
+          }
+        },
+        {
+          "match": {
+            "code": "OZ-00MS2"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_tallgeese_f",
+    "universe": "W",
+    "no": 17,
+    "group": "combo",
+    "name": "トールギスF",
+    "sub": "『敗者たちの栄光』が描く、改修されたトールギスF。原典のトールギスと並べて、もう一つのA.C.史を辿る。栄光は、敗者にも宿る。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "トールギスF"
+          }
+        },
+        {
+          "match": {
+            "code": "OZ-00MS",
+            "nameExcludes": "トールギスF"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_maganac",
+    "universe": "W",
+    "no": 18,
+    "group": "combo",
+    "name": "砂漠の盟友マグアナック",
+    "sub": "カトルを慕う40人の戦士、マグアナック隊。サンドロックと量産機マグアナックが砂漠を駆ける。血の繋がりを超えた、もう一つの家族。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XXXG-01SR"
+          }
+        },
+        {
+          "match": {
+            "code": "WMS-03"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_trowa_doll",
+    "universe": "W",
+    "no": 19,
+    "group": "combo",
+    "name": "操縦者、トロワ",
+    "sub": "OZに潜入したトロワが、試作モビルドール『ヴァイエイト』のテストパイロットを務める。ヘビーアームズの主が、無人機の素体を操る皮肉。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XXXG-01H"
+          }
+        },
+        {
+          "match": {
+            "code": "OZ-13MSX1"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_mobile_doll",
+    "universe": "W",
+    "no": 20,
+    "group": "combo",
+    "name": "無人機の脅威",
+    "sub": "兵士の命を要さぬ無人機モビルドール。プロトタイプのヴァイエイト＆メリクリウスと、量産機リーオー。戦争を『作業』に変える、冷たい未来。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "OZ-13MSX1"
+          }
+        },
+        {
+          "match": {
+            "code": "OZ-06MS"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_quatre_trowa",
+    "universe": "W",
+    "no": 21,
+    "group": "combo",
+    "name": "静かなる二人",
+    "sub": "心を読むカトルと、心を閉ざすトロワ。サンドロックとヘビーアームズ。言葉少なな二人が、いつしか最も深く理解し合う。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XXXG-01SR"
+          }
+        },
+        {
+          "match": {
+            "code": "XXXG-01H"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_leo_corps",
+    "universe": "W",
+    "no": 22,
+    "group": "count",
+    "name": "OZの主力、リーオー",
+    "sub": "汎用量産機リーオー。宇宙仕様も飛行仕様も、外伝の派生機も——気づけば棚はOZ一色。3機で、地球圏統一機構の一兵卒に。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "count": {
+        "codePrefix": "OZ-06MS"
+      },
+      "gte": 3
+    }
+  },
+  {
+    "id": "w_heero_duo",
+    "universe": "W",
+    "no": 23,
+    "group": "combo",
+    "name": "潜入のヒイロとデュオ",
+    "sub": "ウイングゼロとデスサイズヘル。完全兵士と死神、相反する二人が背中を預け合う。口は悪いが、誰より頼れる相棒同士。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XXXG-00W0"
+          }
+        },
+        {
+          "match": {
+            "code": "XXXG-01D2"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_sanc",
+    "universe": "W",
+    "no": 24,
+    "group": "combo",
+    "name": "サンクキングダムの理想",
+    "sub": "完全平和主義を掲げたサンクキングダム。妹リリーナの理想を、兄ミリアルドは武力で守ろうとする。ウイングゼロとトールギスIII、交わらぬ平和への道。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XXXG-00W0"
+          }
+        },
+        {
+          "match": {
+            "code": "OZ-00MS2B"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_white_fang",
+    "universe": "W",
+    "no": 25,
+    "group": "combo",
+    "name": "ホワイトファングの叛旗",
+    "sub": "宇宙の独立を掲げる組織ホワイトファング。リーブラ要塞を巡る最終決戦——ウイングゼロ、エピオン、トールギスIII。理想と理想がぶつかり合う。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XXXG-00W0"
+          }
+        },
+        {
+          "match": {
+            "code": "OZ-13MS"
+          }
+        },
+        {
+          "match": {
+            "code": "OZ-00MS2B"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_geminass",
+    "universe": "W",
+    "no": 26,
+    "group": "combo",
+    "name": "G-UNITの双子",
+    "sub": "外伝『DUAL STORY G-UNIT』のガンダム、ジェミナス01と02。MO-Vを舞台に、オデル・バーネットらが戦う。本編とは別の宇宙世紀の物語。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "OZX-GU01A"
+          }
+        },
+        {
+          "match": {
+            "code": "OZX-GU02A"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_lo_booster",
+    "universe": "W",
+    "no": 27,
+    "group": "combo",
+    "name": "L.O.ブースター換装",
+    "sub": "ジェミナス01に高機動ユニットを装着したL.O.ブースター。素体と強化形態を並べ、G-UNITのメカニズムを堪能する玄人の一品。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "OZX-GU01A"
+          }
+        },
+        {
+          "match": {
+            "code": "OZX-GU01ALOB"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_leo_brothers",
+    "universe": "W",
+    "no": 28,
+    "group": "combo",
+    "name": "リーオー三兄弟",
+    "sub": "G-UNITに登場するリーオーの派生機、レオン・レオール・レオス。量産機にも個性と物語を与える、外伝ならではの渋い面々。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "OZ-06MS-SN3"
+          }
+        },
+        {
+          "match": {
+            "code": "OZ-06MS-SR2"
+          }
+        },
+        {
+          "match": {
+            "code": "OZ-06MS-SS1"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_oz_proto",
+    "universe": "W",
+    "no": 29,
+    "group": "combo",
+    "name": "OZ試作機の系譜",
+    "sub": "G-UNITのOZ試作可変機、アスクレプオスとバーンレプオス。本編には現れぬ、もう一つのOZ兵器開発の枝葉。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "OZ-10VMSX"
+          }
+        },
+        {
+          "match": {
+            "code": "OZ-10VMSX-2"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_griep",
+    "universe": "W",
+    "no": 30,
+    "group": "combo",
+    "name": "グリープの巨影",
+    "sub": "G-UNITの巨大モビルアーマー、グリープ。ジェミナス02と対峙させ、外伝の終局を立体で再現する。型録の最深部へようこそ。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "OZ-19MASX"
+          }
+        },
+        {
+          "match": {
+            "code": "OZX-GU02A"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_proto_zero",
+    "universe": "W",
+    "no": 31,
+    "group": "combo",
+    "name": "プロトゼロ",
+    "sub": "『敗者たちの栄光』が描く、ウイングゼロの原型機プロトゼロ。完成形のゼロと並べ、設計の試行錯誤を辿る。羽根を得る前の、剥き出しの翼。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "プロトゼロ"
+          }
+        },
+        {
+          "match": {
+            "code": "XXXG-00W0",
+            "nameExcludes": "プロトゼロ"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_gol_equip",
+    "universe": "W",
+    "no": 32,
+    "group": "combo",
+    "name": "敗者たちの栄光・追加装備",
+    "sub": "『敗者たちの栄光』仕様の追加武装。サンドロックのアーマディロ、ヘビーアームズのイーゲル。本編では見られぬ、if の重装備。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "アーマディロ"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "イーゲル"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_gol_equip2",
+    "universe": "W",
+    "no": 33,
+    "group": "combo",
+    "name": "隠された武装",
+    "sub": "デスサイズのルーセット、シェンロンのタウヤー。『敗者たちの栄光』が与えた、玄人向けの追加装備。プレバンの沼は深い。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ルーセット"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "タウヤー"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_endless",
+    "universe": "W",
+    "no": 34,
+    "group": "combo",
+    "name": "終わりなきワルツ、最終章",
+    "sub": "マリーメイア事変。ウイングゼロ、デスサイズヘル、アルトロン——EW仕様の機体で、少年たちは『最後の戦争』に終止符を打つ。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XXXG-00W0"
+          }
+        },
+        {
+          "match": {
+            "code": "XXXG-01D2"
+          }
+        },
+        {
+          "match": {
+            "code": "XXXG-01S2"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_self_destruct",
+    "universe": "W",
+    "no": 35,
+    "group": "combo",
+    "name": "自爆こそ、我が任務",
+    "sub": "ヒイロは自らウイングを爆破し、トロワもヘビーアームズで散る覚悟を見せる。W名物・自爆の美学。少年兵たちの、あまりに重い決意。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XXXG-01W"
+          }
+        },
+        {
+          "match": {
+            "code": "XXXG-01H"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_three_aces",
+    "universe": "W",
+    "no": 36,
+    "group": "combo",
+    "name": "三人の頂点",
+    "sub": "ヒイロのウイングゼロ、ゼクスのトールギス、そしてエピオン。A.C.世界の最強を巡る三つ巴。剣・翼・加速、それぞれの極致。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XXXG-00W0"
+          }
+        },
+        {
+          "match": {
+            "code": "OZ-00MS"
+          }
+        },
+        {
+          "match": {
+            "code": "OZ-13MS"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_verka",
+    "universe": "W",
+    "no": 37,
+    "group": "combo",
+    "name": "カトキ立体の競演",
+    "sub": "カトキハジメによるVer.Ka。ウイングガンダムとウイングゼロ、二つのVer.Kaを並べる。緻密なディテールとプロポーション、設定画の理想像。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameAll": [
+              "ウイングガンダム",
+              "Ver.Ka"
+            ],
+            "nameExcludes": "ゼロ"
+          }
+        },
+        {
+          "match": {
+            "nameAll": [
+              "ゼロ",
+              "Ver.Ka"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_coating",
+    "universe": "W",
+    "no": 38,
+    "group": "count",
+    "name": "スペシャルコーティング商法",
+    "sub": "スペシャルコーティング、パールミラー、チタニウムフィニッシュ。同じ機体が光沢を変えて何度も並ぶ。2機で、メッキの誘惑に屈した証。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "count": {
+        "nameIncludes": "コーティング",
+        "series": "ガンダムW"
+      },
+      "gte": 2
+    }
+  },
+  {
+    "id": "w_epyon_duel",
+    "universe": "W",
+    "no": 39,
+    "group": "combo",
+    "name": "剣と鞭の決闘",
+    "sub": "近接特化のエピオンが、ヒート・ロッドの鞭とビームソードで斬りかかる。デスサイズヘルとの闇の斬り合い——白兵戦こそA.C.の華。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "OZ-13MS"
+          }
+        },
+        {
+          "match": {
+            "code": "XXXG-01D2"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "w_all_wing",
+    "universe": "W",
+    "no": 40,
+    "group": "count",
+    "name": "A.C.全機制覇",
+    "sub": "TVもEWも、敗者たちの栄光もG-UNITも。縮尺も版も問わず、After Colony の機体を18機。コロニーから地球まで、君の棚が戦場になる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "count": {
+        "series": "ガンダムW"
+      },
+      "gte": 18
+    }
+  },
+  {
+    "id": "x_garrod",
+    "universe": "X",
+    "no": 1,
+    "group": "combo",
+    "name": "ガロード・ランの軌跡",
+    "sub": "戦争を生き抜く少年ガロード・ランの愛機の変遷。ガンダムX、近接戦のディバイダー、そして双砲のダブルエックス。拾い屋の少年が、世界の運命を背負う。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GX-9900",
+            "nameExcludes": "3号機"
+          }
+        },
+        {
+          "match": {
+            "code": "GX-9900-DV"
+          }
+        },
+        {
+          "match": {
+            "code": "GX-9901-DX"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "x_satellite",
+    "universe": "X",
+    "no": 2,
+    "group": "combo",
+    "name": "月は出ているか？",
+    "sub": "月面のマイクロウェーブ送信施設から力を得る、サテライトキャノン。ガンダムXとダブルエックスがGビットを展開し、月光をエネルギーに変える。発射の合言葉。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GX-9900",
+            "nameExcludes": "3号機"
+          }
+        },
+        {
+          "match": {
+            "code": "GX-9901-DX"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "x_divider",
+    "universe": "X",
+    "no": 3,
+    "group": "combo",
+    "name": "接近戦への換装",
+    "sub": "サテライトキャノンを失ったガンダムXが、ディバイダーへと姿を変える。背中の大盾とハーモニカ砲で接近戦を制す、ガロードの実戦的な選択。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GX-9900",
+            "nameExcludes": "3号機"
+          }
+        },
+        {
+          "match": {
+            "code": "GX-9900-DV"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "x_double_cannon",
+    "universe": "X",
+    "no": 4,
+    "group": "combo",
+    "name": "ツインサテライトキャノン",
+    "sub": "二門のサテライトキャノンを備えたガンダムダブルエックス。ディバイダーと並べ、ガロード機の到達点を堪能する。月の力、二倍の威力。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GX-9901-DX"
+          }
+        },
+        {
+          "match": {
+            "code": "GX-9900-DV"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "x_witz",
+    "universe": "X",
+    "no": 5,
+    "group": "combo",
+    "name": "ヴィッツの空戦",
+    "sub": "ガンダムチームの空の戦士ヴィッツ・スー。可変機ガンダムエアマスターと、強化形態エアマスターバースト。大空を駆ける、軽快な翼。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GW-9800"
+          }
+        },
+        {
+          "match": {
+            "code": "GW-9800-B"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "x_gundam_team",
+    "universe": "X",
+    "no": 6,
+    "group": "combo",
+    "name": "ガンダムチーム",
+    "sub": "宇宙海賊船フリーデンに集う、ガロードのガンダムX、ヴィッツのエアマスター、そしてダブルエックス。ニュータイプを巡る戦いに身を投じる、若き戦士たち。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GX-9900",
+            "nameExcludes": "3号機"
+          }
+        },
+        {
+          "match": {
+            "code": "GW-9800"
+          }
+        },
+        {
+          "match": {
+            "code": "GX-9901-DX"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "x_newtype",
+    "universe": "X",
+    "no": 7,
+    "group": "combo",
+    "name": "ニュータイプの果てに",
+    "sub": "ダブルエックスとエアマスターバースト、決戦の機体たち。ニュータイプとは何か——その問いに、ガロードとティファは『人と人の理解』で答えを出す。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GX-9901-DX"
+          }
+        },
+        {
+          "match": {
+            "code": "GW-9800-B"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "x_unit3",
+    "universe": "X",
+    "no": 8,
+    "group": "combo",
+    "name": "ガンダムX3号機",
+    "sub": "もう一機のガンダムX、3号機。原典のXと並べ、第7次宇宙戦争に投入された量産前提機の系譜を辿る。フリーデンの予備戦力。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "X3号機"
+          }
+        },
+        {
+          "match": {
+            "code": "GX-9900",
+            "nameExcludes": "3号機"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "x_dortress",
+    "universe": "X",
+    "no": 9,
+    "group": "combo",
+    "name": "ニュータイプ狩り",
+    "sub": "新地球連邦の量産機ドートレスと、ガンダムX。ニュータイプを脅威とみなし狩り立てる軍と、それに抗うガンダム。15年後の世界の縮図。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "DT-6800"
+          }
+        },
+        {
+          "match": {
+            "code": "GX-9900",
+            "nameExcludes": "3号機"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "x_master",
+    "universe": "X",
+    "no": 10,
+    "group": "count",
+    "name": "A.W.の漂流者",
+    "sub": "機動新世紀ガンダムXの機体を6機。荒廃した戦後の地球を彷徨うフリーデンの旅路を、君は棚の上に再現する。ニュータイプ神話の、その先へ。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "count": {
+        "series": "機動新世紀ガンダムX",
+        "accessory": true
+      },
+      "gte": 6
+    }
+  },
+  {
+    "id": "oo_setsuna",
+    "universe": "00",
+    "no": 1,
+    "group": "combo",
+    "name": "俺がガンダムだ",
+    "sub": "刹那・F・セイエイの愛機の変遷。エクシア、ダブルオー、そしてダブルオークアンタ。ガンダムに救われた少年が、自らガンダムとなり、対話の象徴となる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GN-001"
+          }
+        },
+        {
+          "match": {
+            "code": "GN-0000"
+          }
+        },
+        {
+          "match": {
+            "code": "GNT-0000"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_lockon",
+    "universe": "00",
+    "no": 2,
+    "group": "combo",
+    "name": "狙い撃つぜ",
+    "sub": "二人のロックオン・ストラトス。兄ニールのデュナメスから、弟ライルのケルディム、そしてザバーニャへ。ディランディ兄弟が受け継ぐ、狙撃の誇り。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GN-002"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "GN-006"
+          }
+        },
+        {
+          "match": {
+            "code": "GN-010"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_allelujah",
+    "universe": "00",
+    "no": 3,
+    "group": "combo",
+    "name": "アレルヤとマリー",
+    "sub": "アレルヤ・ハプティズムの可変機の系譜。キュリオス、アリオス、そしてマリーと共に駆るハルート。二つの人格と、二人で一つの物語。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GN-003"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "GN-007"
+          }
+        },
+        {
+          "match": {
+            "code": "GN-011"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_tieria",
+    "universe": "00",
+    "no": 4,
+    "group": "combo",
+    "name": "ティエリアの祈り",
+    "sub": "イノベイド、ティエリア・アーデの機体。重装のヴァーチェ、巨腕のセラヴィー、そして劇場版のラファエル。ヴェーダと共に在る者の、静かな献身。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GN-005"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "GN-008"
+          }
+        },
+        {
+          "match": {
+            "code": "CB-002"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_s1_meisters",
+    "universe": "00",
+    "no": 5,
+    "group": "combo",
+    "name": "我々は、武力介入を行う",
+    "sub": "第1世代ガンダム——エクシア、デュナメス、キュリオス、ヴァーチェ。戦争根絶を掲げ、世界に牙を剥いたソレスタルビーイングの始まり。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GN-001"
+          }
+        },
+        {
+          "match": {
+            "code": "GN-002"
+          }
+        },
+        {
+          "match": {
+            "code": "GN-003"
+          }
+        },
+        {
+          "match": {
+            "code": "GN-005"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_s2_meisters",
+    "universe": "00",
+    "no": 6,
+    "group": "combo",
+    "name": "第2世代、再臨",
+    "sub": "4年の沈黙を経て甦った第2世代——ダブルオー、ケルディム、アリオス、セラヴィー。アロウズの抑圧に抗い、マイスターたちが再び集う。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GN-0000"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "GN-006"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "GN-007"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "GN-008"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_movie_meisters",
+    "universe": "00",
+    "no": 7,
+    "group": "combo",
+    "name": "トレイルブレイザー",
+    "sub": "劇場版、未知との対話。クアンタ、ザバーニャ、ハルート、ラファエル。武力では届かぬ相手ELSと、刹那たちは新たな道を切り拓く。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GNT-0000"
+          }
+        },
+        {
+          "match": {
+            "code": "GN-010"
+          }
+        },
+        {
+          "match": {
+            "code": "GN-011"
+          }
+        },
+        {
+          "match": {
+            "code": "CB-002"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_raiser",
+    "universe": "00",
+    "no": 8,
+    "group": "combo",
+    "name": "ダブルオー、ライザー！",
+    "sub": "二つの太陽炉が共鳴するツインドライヴ・システム。ダブルオーガンダムとオーライザーが合体し、奇跡の出力を生む。刹那の到達点の一つ。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ダブルオーガンダム",
+            "nameExcludes": [
+              "ライザー",
+              "セブンソード",
+              "クアンタ"
+            ]
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "オーライザー",
+            "nameExcludes": "ダブルオー"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_seven_sword",
+    "universe": "00",
+    "no": 9,
+    "group": "combo",
+    "name": "セブンソード",
+    "sub": "ダブルオーガンダム セブンソード/G。七つの剣で武装した接近戦特化形態と、ダブルオーライザー。外伝が描く、刹那機のもう一つの可能性。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "セブンソード"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ダブルオーライザー"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_exia_line",
+    "universe": "00",
+    "no": 10,
+    "group": "combo",
+    "name": "エクシアの系譜",
+    "sub": "刹那の原点エクシアと、その姿を変えた機体たち。アヴァランチエクシア、リペア。傷つき、組み直されてなお戦い続ける、GNソードの剣士。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GN-001"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "GN-001/hs"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "GN-001RE"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_zero_gundam",
+    "universe": "00",
+    "no": 11,
+    "group": "combo",
+    "name": "0ガンダムとの邂逅",
+    "sub": "戦場の少年だった刹那が見た、白いガンダム——0ガンダム。後にエクシアを駆る彼の運命を決めた、全ての始まりの機体。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GN-000"
+          }
+        },
+        {
+          "match": {
+            "code": "GN-001"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_lockon_revenge",
+    "universe": "00",
+    "no": 12,
+    "group": "combo",
+    "name": "兄の仇",
+    "sub": "家族を奪った男アリー・アル・サーシェスを追う、ニール・ロックオン。デュナメスのスナイパーライフルが、スローネツヴァイを狙う。復讐の引き金。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GN-002"
+          }
+        },
+        {
+          "match": {
+            "code": "GNW-002"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_gn_archer",
+    "universe": "00",
+    "no": 13,
+    "group": "combo",
+    "name": "ライルとフェルト",
+    "sub": "弟ライルのケルディムと、フェルトが駆るGNアーチャー。ケルディムから分離・支援するこの機体に、新たな仲間との絆が宿る。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "codePrefix": "GN-006"
+          }
+        },
+        {
+          "match": {
+            "code": "GNR-101A"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_graham_flag",
+    "universe": "00",
+    "no": 14,
+    "group": "combo",
+    "name": "グラハム・スペシャル",
+    "sub": "ユニオンの撃墜王グラハム・エーカー。量産機フラッグを、人機一体の妙技『グラハム・スペシャル』で乗りこなす。専用カスタムが、彼の誇り。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "SVMS-01"
+          }
+        },
+        {
+          "match": {
+            "code": "SVMS-01E"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_mr_bushido",
+    "universe": "00",
+    "no": 15,
+    "group": "combo",
+    "name": "我が名はミスター・ブシドー",
+    "sub": "仮面の侍ミスター・ブシドーへと変貌したグラハム。スサノオとマスラオ、武士道精神を宿した機体で、刹那との決着を求め続ける。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GNX-U02X"
+          }
+        },
+        {
+          "match": {
+            "code": "GNX-Y901TW"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_setsuna_vs_graham",
+    "universe": "00",
+    "no": 16,
+    "group": "combo",
+    "name": "宿命の好敵手",
+    "sub": "エクシアとグラハム専用フラッグ。最初の邂逅から最後まで、刹那とグラハムは互いを高め合う宿敵であり続けた。ガンダムを巡る、終わらぬ問答。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GN-001"
+          }
+        },
+        {
+          "match": {
+            "code": "SVMS-01E"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_brave",
+    "universe": "00",
+    "no": 17,
+    "group": "combo",
+    "name": "ブレイヴ、出撃",
+    "sub": "劇場版でグラハムが駆る最新鋭機ブレイヴ。指揮官用と一般用の試験機。地球連邦の刃として、ELSとの最終決戦に身を投じる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GNX-903VW"
+          }
+        },
+        {
+          "match": {
+            "code": "GNX-903VS"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_trinity",
+    "universe": "00",
+    "no": 18,
+    "group": "combo",
+    "name": "トリニティ三兄妹",
+    "sub": "第2のソレスタルビーイングを騙る兄妹、トリニティ。スローネ・アイン、ツヴァイ、ドライ。無差別な『武力介入』が、世界に混沌をもたらす。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GNW-001"
+          }
+        },
+        {
+          "match": {
+            "code": "GNW-002"
+          }
+        },
+        {
+          "match": {
+            "code": "GNW-003"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_ali_arche",
+    "universe": "00",
+    "no": 19,
+    "group": "combo",
+    "name": "戦争の亡霊",
+    "sub": "戦場を渡り歩く傭兵アリー・アル・サーシェス。スローネツヴァイを乗り回し、後にアルケーガンダムで暴れ狂う。憎しみの連鎖を体現する男。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GNW-20000"
+          }
+        },
+        {
+          "match": {
+            "code": "GNW-002"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_reborns",
+    "universe": "00",
+    "no": 20,
+    "group": "combo",
+    "name": "リボンズ・アルマーク",
+    "sub": "イノベイターを率いる黒幕リボンズ。かつて0ガンダムを駆り、最後はリボーンズガンダムで刹那に挑む。人類を導くと信じた者の、傲慢。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "CB-0000G/C"
+          }
+        },
+        {
+          "match": {
+            "code": "GN-000"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_innovators",
+    "universe": "00",
+    "no": 21,
+    "group": "combo",
+    "name": "イノベイターの尖兵",
+    "sub": "リボンズに従うイノベイターたちの機体。ガデッサ、ガラッゾ、ガッデス。疑似太陽炉を積み、念じるままに動く——人を超えた者たちの戦い。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GNZ-003"
+          }
+        },
+        {
+          "match": {
+            "code": "GNZ-005"
+          }
+        },
+        {
+          "match": {
+            "code": "GNZ-007"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_final_battle",
+    "universe": "00",
+    "no": 22,
+    "group": "combo",
+    "name": "決戦、刹那 vs リボンズ",
+    "sub": "ダブルオーライザーとリボーンズガンダム。世界の行く末を賭けた最終決戦。導く者と、対話を選ぶ者——二つの未来が激突する。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ダブルオーライザー"
+          }
+        },
+        {
+          "match": {
+            "code": "CB-0000G/C"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_pseudo_drive",
+    "universe": "00",
+    "no": 23,
+    "group": "combo",
+    "name": "疑似太陽炉",
+    "sub": "ソレスタルビーイングの技術を奪い、国連が量産したジンクスとアヘッド。疑似太陽炉という劣化コピーが、ガンダムの優位を切り崩していく。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GNX-603T"
+          }
+        },
+        {
+          "match": {
+            "code": "GNX-704T"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_gnx_line",
+    "universe": "00",
+    "no": 24,
+    "group": "combo",
+    "name": "ジンクスの系譜",
+    "sub": "ジンクス、アドヴァンスド、III、IV。世代を重ねて進化する量産GN機。数の暴力で、ガンダムを追い詰める連邦・アロウズの主力。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GNX-603T"
+          }
+        },
+        {
+          "match": {
+            "code": "GNX-604T"
+          }
+        },
+        {
+          "match": {
+            "code": "GNX-609T"
+          }
+        },
+        {
+          "match": {
+            "code": "GNX-803T"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_ahead",
+    "universe": "00",
+    "no": 25,
+    "group": "combo",
+    "name": "アヘッドの強者たち",
+    "sub": "アロウズの新主力アヘッド。一般機、ブシドー専用、スマルトロン。エースたちが乗り込み、第2世代マイスターの前に立ちはだかる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GNX-704T"
+          }
+        },
+        {
+          "match": {
+            "code": "GNX-704T/AC"
+          }
+        },
+        {
+          "match": {
+            "code": "GNX-704T/SP"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_three_nations",
+    "universe": "00",
+    "no": 26,
+    "group": "combo",
+    "name": "三大国家群",
+    "sub": "ソレスタルビーイングに対抗する世界の三勢力。ユニオンのフラッグ、AEUのイナクト、人類革新連盟のティエレン。それぞれの正義がぶつかる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "SVMS-01"
+          }
+        },
+        {
+          "match": {
+            "code": "AEU-09"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "MSJ-06II"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_tieren",
+    "universe": "00",
+    "no": 27,
+    "group": "combo",
+    "name": "人類革新連盟の鋼",
+    "sub": "重厚な人型兵器ティエレン。地上型、宇宙型、タオツー。泥臭くも堅実なHRLの主力が、戦場を埋め尽くす。リアルロボットの趣。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "MSJ-06II-A"
+          }
+        },
+        {
+          "match": {
+            "code": "MSJ-06II-E"
+          }
+        },
+        {
+          "match": {
+            "code": "MSJ-06II-SP"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_sergei",
+    "universe": "00",
+    "no": 28,
+    "group": "combo",
+    "name": "ロシアの英雄、セルゲイ",
+    "sub": "歴戦の勇士セルゲイ・スミルノフ専用ティエレンタオツーと、一般機。『鋼鉄の薔薇』と呼ばれた老兵の、誇り高き戦いぶり。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "MSJ-06III-A"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "MSJ-06II"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_ali_enact",
+    "universe": "00",
+    "no": 29,
+    "group": "combo",
+    "name": "傭兵稼業",
+    "sub": "サーシェス専用AEUイナクトカスタムと、スローネツヴァイ。金と戦場を渡り歩くアリーが乗り捨ててきた、数々の機体。戦争という商売。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "codePrefix": "AEU-09Y812"
+          }
+        },
+        {
+          "match": {
+            "code": "GNW-002"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_astraea",
+    "universe": "00",
+    "no": 30,
+    "group": "combo",
+    "name": "第1世代の試作機",
+    "sub": "外伝『00P/00F』が描く、エクシアの前身ガンダムアストレア。素体とタイプF。ソレスタルビーイング黎明期の、知られざる開発史。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GNY-001"
+          }
+        },
+        {
+          "match": {
+            "code": "GNY-001F",
+            "nameExcludes": "1.5"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_plutone",
+    "universe": "00",
+    "no": 31,
+    "group": "combo",
+    "name": "プルトーネの悲劇",
+    "sub": "外伝『00P』の機体ガンダムプルトーネと、アストレア。太陽炉の暴走事故という、ソレスタルビーイングが背負った最初の犠牲。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "codePrefix": "GNY-004"
+          }
+        },
+        {
+          "match": {
+            "code": "GNY-001"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_onefive",
+    "universe": "00",
+    "no": 32,
+    "group": "combo",
+    "name": "1.5ガンダム",
+    "sub": "第1世代と第2世代の橋渡し、1.5(アイズ)ガンダム。アストレアタイプFと並べ、ガンダム開発の系統樹を埋める外伝の妙味。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GNY-001F",
+            "nameIncludes": "1.5"
+          }
+        },
+        {
+          "match": {
+            "code": "GNY-001F",
+            "nameExcludes": "1.5"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_qant_fullsaber",
+    "universe": "00",
+    "no": 33,
+    "group": "combo",
+    "name": "クアンタ、完全武装",
+    "sub": "外伝『00V戦記』のダブルオークアンタフルセイバー。本来のクアンタに重武装を施した、もしもの完全戦闘形態。GNソードの極致。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GNT-0000/FS"
+          }
+        },
+        {
+          "match": {
+            "code": "GNT-0000"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_quantum_burst",
+    "universe": "00",
+    "no": 34,
+    "group": "combo",
+    "name": "クアンタムバースト",
+    "sub": "ダブルオークアンタとダブルオーライザー。ツインドライヴが生む量子の波が、人と人の意識を繋ぐ。刹那がイノベイターへと変革する、その瞬間。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GNT-0000"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ダブルオーライザー"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_nadleeh_seraphim",
+    "universe": "00",
+    "no": 35,
+    "group": "combo",
+    "name": "秘めたる素顔",
+    "sub": "ヴァーチェの中に隠されたナドレ、セラヴィーの中のセラフィム。ティエリアの機体は、装甲の下にもう一つの顔を持つ。トライアル・システムの番人。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GN-004"
+          }
+        },
+        {
+          "match": {
+            "code": "GN-009"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_gnhw",
+    "universe": "00",
+    "no": 36,
+    "group": "combo",
+    "name": "GNHW、武装強化",
+    "sub": "第2世代の追加武装形態GNHW。ケルディムのR、アリオスのM、セラヴィーのB。継戦能力を高めた、決戦仕様の重装たち。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "GNHW/R"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "GNHW/M"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "GNHW/B"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "oo_transam",
+    "universe": "00",
+    "no": 37,
+    "group": "count",
+    "name": "トランザム！",
+    "sub": "GN粒子を一時的に爆発させる赤い加速、トランザム。その瞬間を捉えたモードVer.を3機。真紅に染まった機体が、限界を超える。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "count": {
+        "nameIncludes": "トランザム",
+        "series": "機動戦士ガンダム00"
+      },
+      "gte": 3
+    }
+  },
+  {
+    "id": "oo_gn_drive",
+    "universe": "00",
+    "no": 38,
+    "group": "count",
+    "name": "太陽炉の輝き",
+    "sub": "GN粒子を生む太陽炉を積んだ機体を20機。ソレスタルビーイングも国連も、この緑の光を巡って戦った。A.D.の戦史が、棚に広がる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "count": {
+        "codePrefix": "GN",
+        "series": "機動戦士ガンダム00"
+      },
+      "gte": 20
+    }
+  },
+  {
+    "id": "oo_master",
+    "universe": "00",
+    "no": 39,
+    "group": "count",
+    "name": "A.D.の探究者",
+    "sub": "GN粒子の機体を30機。1期も2期も劇場版も外伝も、ガンダム00という物語を、君は丸ごと組み上げた。対話の先へ。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "count": {
+        "codePrefix": "GN",
+        "series": "機動戦士ガンダム00"
+      },
+      "gte": 30
+    }
+  },
+  {
+    "id": "oo_gross",
+    "universe": "00",
+    "no": 40,
+    "group": "count",
+    "name": "グロスインジェクション商法",
+    "sub": "トランザムモードのグロスインジェクションVer.を3機。同じ機体が艶めく赤で何度も並ぶ——光沢の誘惑に、つい財布が緩む。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "count": {
+        "nameIncludes": "グロスインジェクション",
+        "series": "機動戦士ガンダム00"
+      },
+      "gte": 3
+    }
+  },
+  {
+    "id": "age_asuno_three",
+    "universe": "AGE",
+    "no": 1,
+    "group": "combo",
+    "name": "アスノ三代の物語",
+    "sub": "祖父フリット、父アセム、孫キオ。三世代に渡ってガンダムを受け継ぐアスノ家。AGE-1・AGE-2・AGE-3——百年戦争を貫く、一つの血脈の叙事詩。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "AGE-1"
+          }
+        },
+        {
+          "match": {
+            "code": "AGE-2"
+          }
+        },
+        {
+          "match": {
+            "code": "AGE-3"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "age_wear_system",
+    "universe": "AGE",
+    "no": 2,
+    "group": "combo",
+    "name": "AGEシステム、起動",
+    "sub": "戦況に応じて姿を変えるウェアシステム。AGE-1のノーマル、剛腕のタイタス、俊足のスパロー。少年フリットの願いが生んだ、進化するガンダム。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "AGE-1"
+          }
+        },
+        {
+          "match": {
+            "code": "AGE-1T"
+          }
+        },
+        {
+          "match": {
+            "code": "AGE-1S"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "age_flit",
+    "universe": "AGE",
+    "no": 3,
+    "group": "combo",
+    "name": "フリットの執念",
+    "sub": "ユリンを喪い、ヴェイガンへの憎しみを抱き続けた男フリット。AGE-1ノーマルから、老いてなお駆るフルグランサへ。執念が、三世代を動かす。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "AGE-1"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "AGE-1G"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "age_asem",
+    "universe": "AGE",
+    "no": 4,
+    "group": "combo",
+    "name": "キャプテン・アッシュ",
+    "sub": "父を超えられぬと悩んだアセムが、宇宙海賊『キャプテン・アッシュ』として生きる。AGE-2ノーマル、ダブルバレット、そして黒きダークハウンド。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "AGE-2"
+          }
+        },
+        {
+          "match": {
+            "code": "AGE-2DB"
+          }
+        },
+        {
+          "match": {
+            "code": "AGE-2DH"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "age_kio",
+    "universe": "AGE",
+    "no": 5,
+    "group": "combo",
+    "name": "キオの選択",
+    "sub": "憎しみの連鎖を断とうとする第三世代キオ。AGE-3のノーマル、フォートレス、オービタル。祖父とは違う道——和解を信じる、少年の理想。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "AGE-3"
+          }
+        },
+        {
+          "match": {
+            "code": "AGE-3F"
+          }
+        },
+        {
+          "match": {
+            "code": "AGE-3O"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "age_fx",
+    "universe": "AGE",
+    "no": 6,
+    "group": "combo",
+    "name": "AGE-FX、Cファンネル",
+    "sub": "AGEシステムの到達点、ガンダムAGE-FX。Cファンネルを操る最終機と、その前身AGE-3。Xラウンダー・キオの力を、極限まで引き出す。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "AGE-FX"
+          }
+        },
+        {
+          "match": {
+            "code": "AGE-3"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "age_zeheart",
+    "universe": "AGE",
+    "no": 7,
+    "group": "combo",
+    "name": "ゼハートのレジルス",
+    "sub": "ヴェイガンの切り札ゼハート・ガレット。ゼイドラから、白きガンダムレギルスへ。理想のために祖国に殉じる、もう一人の主人公。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "xvm-zgc"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "xvm-fzc"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "age_academy",
+    "universe": "AGE",
+    "no": 8,
+    "group": "combo",
+    "name": "アカデミーの友",
+    "sub": "士官学校で親友だったアセムとゼハート。AGE-2とゼイドラ。地球とヴェイガン、立場が二人を引き裂く。友情と使命の、痛切な対立。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "AGE-2"
+          }
+        },
+        {
+          "match": {
+            "code": "xvm-zgc"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "age_yurin",
+    "universe": "AGE",
+    "no": 9,
+    "group": "combo",
+    "name": "ユリンの想い",
+    "sub": "フリットを慕い、Xラウンダーの力で彼を守った少女ユリン。AGE-1と、彼女が乗せられたファルシア。叶わぬ初恋が、一つの戦いを終わらせる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "AGE-1"
+          }
+        },
+        {
+          "match": {
+            "code": "xvd-xd"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "age_desil",
+    "universe": "AGE",
+    "no": 10,
+    "group": "combo",
+    "name": "デシルの哄笑",
+    "sub": "幼くしてエースだったヴェイガンの少年デシル・ガレット。ゼイドラでユリンを手にかけ、フリットの心に消えぬ憎しみを刻む。AGE-1との因縁。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "AGE-1"
+          }
+        },
+        {
+          "match": {
+            "code": "xvm-zgc"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "age_xrounder",
+    "universe": "AGE",
+    "no": 11,
+    "group": "combo",
+    "name": "Xラウンダー",
+    "sub": "空間を超えて感応する力、Xラウンダー。キオのAGE-FXとゼハートのレギルス。最高位の感応者同士がぶつかり、戦いの果てに理解へと至る。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "AGE-FX"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "xvm-fzc"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "age_vagan_vanguard",
+    "universe": "AGE",
+    "no": 12,
+    "group": "combo",
+    "name": "ヴェイガンの牙",
+    "sub": "謎の敵UE——その正体は火星の棄民ヴェイガン。可変機ガフラン、重装ゼダス、飛行ドラド。怨念を抱いた者たちが、地球へ牙を剥く。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "ovv-f"
+          }
+        },
+        {
+          "match": {
+            "code": "xvv-xc"
+          }
+        },
+        {
+          "match": {
+            "code": "OVM-E"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "age_zedas",
+    "universe": "AGE",
+    "no": 13,
+    "group": "combo",
+    "name": "ゼダスの系譜",
+    "sub": "ヴェイガンのエース格ゼダスと、改良型ゼダスR。鋭い爪と機動力で、ガンダムに食らいつく。世代を重ねて磨かれた、敵機の意地。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "xvv-xc"
+          }
+        },
+        {
+          "match": {
+            "code": "xvv-xcr"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "age_danazine",
+    "universe": "AGE",
+    "no": 14,
+    "group": "combo",
+    "name": "竜の機体ダナジン",
+    "sub": "キオ編に現れる竜型モビルスーツ、ダナジンとギラーガ。獣のような機体で襲い来るヴェイガン精鋭。火星の怒りが、異形となって顕れる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "codePrefix": "ovv-af"
+          }
+        },
+        {
+          "match": {
+            "code": "xvt-zgc"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "age_farsia",
+    "universe": "AGE",
+    "no": 15,
+    "group": "combo",
+    "name": "ファルシアの系譜",
+    "sub": "Xラウンダー専用のビット機ファルシアと、フォーンファルシア。感応波で誘導される無数の刃。少女たちが背負わされた、悲しき兵器。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "xvd-xd"
+          }
+        },
+        {
+          "match": {
+            "code": "xvb-fnc"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "age_fed_three",
+    "universe": "AGE",
+    "no": 16,
+    "group": "combo",
+    "name": "連邦三世代の量産機",
+    "sub": "百年の戦いを支えた連邦の量産機。フリット世代のジェノアス、アセム世代のアデル、キオ世代のクランシェ。技術は、世代と共に進む。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "RGE-B790"
+          }
+        },
+        {
+          "match": {
+            "code": "RGE-G1100"
+          }
+        },
+        {
+          "match": {
+            "code": "RGE-G2100"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "age_genoace",
+    "universe": "AGE",
+    "no": 17,
+    "group": "combo",
+    "name": "ジェノアスの系譜",
+    "sub": "連邦軍の初期主力ジェノアス。一般機、カスタム、そしてジェノアスII。ガンダムの影で地道に戦い続けた、名もなき兵士たちの相棒。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "RGE-B790"
+          }
+        },
+        {
+          "match": {
+            "code": "RGE-B790CW"
+          }
+        },
+        {
+          "match": {
+            "code": "RGE-B890"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "age_gexes",
+    "universe": "AGE",
+    "no": 18,
+    "group": "combo",
+    "name": "ウルフのGエグゼス",
+    "sub": "『白い狼』ウルフ・エニアクルが駆るGエグゼスと、発展機ジャックエッジ。フリットの師にして憧れ。エースの矜持を体現する、軽快な機体。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "WMS-GEX1"
+          }
+        },
+        {
+          "match": {
+            "code": "BMS-004"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "age_sid",
+    "universe": "AGE",
+    "no": 19,
+    "group": "combo",
+    "name": "追憶のシド",
+    "sub": "外伝『追憶のシド』が描く、AGEシステムの起源を巡る物語。シャルドール ローグとGサイフォス。本編の遥か前、伝説の機体『シド』の真実。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "BMS-003"
+          }
+        },
+        {
+          "match": {
+            "code": "BMS-005"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "age_master",
+    "universe": "AGE",
+    "no": 20,
+    "group": "count",
+    "name": "A.G.の語り部",
+    "sub": "ガンダムAGEの機体を15機。アスノ家の三世代も、ヴェイガンの怨念も、連邦の量産機も。百年に渡る戦いの物語を、君は丸ごと棚に収めた。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "count": {
+        "series": "ガンダムAGE",
+        "accessory": true
+      },
+      "gte": 15
+    }
+  },
+  {
+    "id": "ibo_barbatos_forms",
+    "universe": "IBO",
+    "no": 1,
+    "group": "combo",
+    "name": "鉄と血と",
+    "sub": "三日月・オーグスの相棒バルバトスの変遷。素体から、ルプス、ルプスレクスへ。戦うたびに鋭く、獣のように変わりゆく、鉄華団の魂。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "バルバトス",
+            "nameExcludes": [
+              "ルプス",
+              "第6形態",
+              "アダプト",
+              "クリア",
+              "コーティング",
+              "拡張"
+            ]
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ルプス",
+            "nameExcludes": [
+              "レクス",
+              "クリア",
+              "拡張"
+            ]
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ルプスレクス"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_dont_stop",
+    "universe": "IBO",
+    "no": 2,
+    "group": "combo",
+    "name": "止まるんじゃねぞ…",
+    "sub": "オルガ・イツカの最期の言葉。彼が掲げた鉄華団の旗を、三日月のバルバトスが背負って突き進む。リーダーの獅電と、戦士の獣——二人の絆。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ルプスレクス"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "獅電",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_tekkadan",
+    "universe": "IBO",
+    "no": 3,
+    "group": "combo",
+    "name": "鉄華団、見参",
+    "sub": "少年たちが立ち上げた武装組織、鉄華団。三日月のバルバトス、昭弘のグシオン、シノのフラウロス。火星の砂から這い上がる、鉄の華。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "ASW-G-08"
+          }
+        },
+        {
+          "match": {
+            "code": "ASW-G-11"
+          }
+        },
+        {
+          "match": {
+            "code": "ASW-G-64"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_alaya_vijnana",
+    "universe": "IBO",
+    "no": 4,
+    "group": "combo",
+    "name": "阿頼耶識の代償",
+    "sub": "脊髄に埋め込む人機接続システム、阿頼耶識。バルバトス・グシオン・獅電——その力と引き換えに、少年兵たちは身体を蝕まれていく。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "ASW-G-08"
+          }
+        },
+        {
+          "match": {
+            "code": "ASW-G-11"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "獅電",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_72_demons",
+    "universe": "IBO",
+    "no": 5,
+    "group": "count",
+    "name": "ソロモン72柱の悪魔",
+    "sub": "厄祭戦の決戦兵器、ガンダム・フレーム。バルバトス、グシオン、キマリス、バエル……全てソロモンの悪魔の名を冠する。6柱を集め、伝説を呼び覚ませ。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "count": {
+        "codePrefix": "ASW-G"
+      },
+      "gte": 6
+    }
+  },
+  {
+    "id": "ibo_gundam_frames",
+    "universe": "IBO",
+    "no": 6,
+    "group": "combo",
+    "name": "ガンダム・フレーム勢揃い",
+    "sub": "バルバトス・グシオン・キマリス・バエル・フラウロス・アスタロト。厄祭戦を戦い抜いた72機のうち、選ばれし悪魔たちの競演。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "ASW-G-08"
+          }
+        },
+        {
+          "match": {
+            "code": "ASW-G-11"
+          }
+        },
+        {
+          "match": {
+            "code": "ASW-G-26"
+          }
+        },
+        {
+          "match": {
+            "code": "ASW-G-01"
+          }
+        },
+        {
+          "match": {
+            "code": "ASW-G-64"
+          }
+        },
+        {
+          "match": {
+            "code": "ASW-G-29"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_akihiro_gusion",
+    "universe": "IBO",
+    "no": 7,
+    "group": "combo",
+    "name": "昭弘の咆哮",
+    "sub": "ブルワーズ出身、阿頼耶識の達人アキヒロ・アルトランド。鹵獲したグシオンを、リベイク、リベイクフルシティへと魔改造。重き拳で兄弟の仇を討つ。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "グシオン",
+            "nameExcludes": [
+              "リベイク"
+            ]
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "グシオンリベイク",
+            "nameExcludes": "フルシティ"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "フルシティ"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_shino_flauros",
+    "universe": "IBO",
+    "no": 8,
+    "group": "combo",
+    "name": "流星号、駆ける",
+    "sub": "ノルバ・シノの長距離砲撃機フラウロス、愛称『流星号』。厄祭戦の頃から現代まで、二つの時代を翔ける狙撃の悪魔。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "フラウロス",
+            "nameExcludes": "厄祭戦"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "厄祭戦"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_mcgillis_bael",
+    "universe": "IBO",
+    "no": 9,
+    "group": "combo",
+    "name": "バエルを掲げよ",
+    "sub": "ギャラルホルンの腐敗を覆さんとする男、マクギリス・ファリド。始祖アグニカの遺機バエルと、自らのシュヴァルベグレイズ。革命の狼煙を上げる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "ASW-G-01"
+          }
+        },
+        {
+          "match": {
+            "nameAll": [
+              "シュヴァルベグレイズ"
+            ],
+            "nameExcludes": "ガエリオ",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_last_lie",
+    "universe": "IBO",
+    "no": 10,
+    "group": "combo",
+    "name": "最後の嘘",
+    "sub": "バエルさえ掲げれば全てが従う——その幻想に賭けたマクギリスの叛乱。バエルと、ガエリオのヘルムヴィーゲ・リンカー。親友同士の、最後の激突。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "ASW-G-01"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ヘルムヴィーゲ",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_friends_parted",
+    "universe": "IBO",
+    "no": 11,
+    "group": "combo",
+    "name": "袂を分かつ親友",
+    "sub": "マクギリスのシュヴァルベグレイズと、ガエリオのキマリス。同じ理想を語り合った二人が、いつしか相容れぬ道を歩む。鉄血屈指の悲劇。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "シュヴァルベグレイズ",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "code": "ASW-G-26"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_gaelio_revenge",
+    "universe": "IBO",
+    "no": 12,
+    "group": "combo",
+    "name": "ガエリオの復讐",
+    "sub": "親友に裏切られ、死の淵から甦った男ガエリオ・ボードウィン。キマリスから、仮面のヴィダール、そしてキマリスヴィダールへ。憎しみが彼を駆る。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "ASW-G-26"
+          }
+        },
+        {
+          "match": {
+            "code": "ASW-G-XX"
+          }
+        },
+        {
+          "match": {
+            "code": "ASW-G-66"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_vidar_ein",
+    "universe": "IBO",
+    "no": 13,
+    "group": "combo",
+    "name": "二つの魂、ヴィダール",
+    "sub": "仮面の騎士ヴィダールには、阿頼耶識で繋がれたアインの魂が宿る。ヴィダールとグレイズアイン——憎しみと忠誠が、一つの機体に融け合う。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "ASW-G-XX"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "グレイズアイン"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_ein_loyalty",
+    "universe": "IBO",
+    "no": 14,
+    "group": "combo",
+    "name": "アインの忠誠",
+    "sub": "クランク二尉とガエリオに心酔した青年アイン・ダルトン。彼が辿り着いた、人機一体のグレイズアイン。歪んだ忠義が、悲劇を加速させる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "グレイズアイン"
+          }
+        },
+        {
+          "match": {
+            "code": "ASW-G-26"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_kimaris_trooper",
+    "universe": "IBO",
+    "no": 15,
+    "group": "combo",
+    "name": "誇り高き騎士",
+    "sub": "ギャラルホルンの名門ボードウィン家の御曹司、ガエリオ。素体キマリスから、突撃形態キマリストルーパーへ。騎士道を信じた、若き日の彼。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "キマリス",
+            "nameExcludes": [
+              "トルーパー",
+              "ヴィダール"
+            ]
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "キマリストルーパー"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_graze_mass",
+    "universe": "IBO",
+    "no": 16,
+    "group": "combo",
+    "name": "ギャラルホルンの量産機",
+    "sub": "治安維持組織ギャラルホルンの主力、グレイズ。一般機、改修機、エースのリッター。整った装備と数で、火星の反乱者を押し潰す。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "EB-06"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "EB-06/tc"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "EB-06r"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_graze_corps",
+    "universe": "IBO",
+    "no": 17,
+    "group": "count",
+    "name": "グレイズの群れ",
+    "sub": "グレイズ系を3機。一般機からシュヴァルベ、リッター、アインまで——ギャラルホルンの量産思想が、棚を埋め尽くす。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "count": {
+        "codePrefix": "EB-0"
+      },
+      "gte": 3
+    }
+  },
+  {
+    "id": "ibo_rustal",
+    "universe": "IBO",
+    "no": 18,
+    "group": "combo",
+    "name": "アリアンロッドの勝者",
+    "sub": "冷徹な戦略家ラスタル・エリオンと、その懐刀ジュリエッタ。レギンレイズジュリアとモビルレギンレイズ。正攻法で鉄華団を追い詰める、勝者の論理。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "レギンレイズジュリア"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "レギンレイズ",
+            "nameExcludes": "ジュリア"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_iok",
+    "universe": "IBO",
+    "no": 19,
+    "group": "combo",
+    "name": "イオク様の蛮勇",
+    "sub": "名門の出ながら空回りし続ける男、イオク・クジャン。レギンレイズとゲイレールを率いて突撃しては事態を悪化させる。視聴者を悶絶させた問題児。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "レギンレイズ",
+            "nameExcludes": "ジュリア"
+          }
+        },
+        {
+          "match": {
+            "code": "EB-04"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_carta",
+    "universe": "IBO",
+    "no": 20,
+    "group": "combo",
+    "name": "カルタの騎士団",
+    "sub": "ガエリオに想いを寄せる名家の令嬢カルタ・イシュー。彼女のグレイズリッターと、ガエリオのキマリス。儀礼と誇りに殉じた、悲しき騎士。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "codePrefix": "EB-06r"
+          }
+        },
+        {
+          "match": {
+            "code": "ASW-G-26"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_turbines",
+    "universe": "IBO",
+    "no": 21,
+    "group": "combo",
+    "name": "タービンズの女たち",
+    "sub": "名瀬・タービンと、彼を支える妻たちの一団タービンズ。百里と百錬、アミダ機。家族のために戦う、テイワズの誇り高き戦士たち。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "STH-14s"
+          }
+        },
+        {
+          "match": {
+            "code": "STH-05",
+            "nameExcludes": "アミダ"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "アミダ"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_teiwaz",
+    "universe": "IBO",
+    "no": 22,
+    "group": "combo",
+    "name": "テイワズの戦力",
+    "sub": "鉄華団の後ろ盾となった経済互助組織テイワズ。獅電、百錬、辟邪。火星と宇宙を股にかける、巨大組織の武力。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "獅電",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "code": "STH-05",
+            "nameExcludes": "アミダ"
+          }
+        },
+        {
+          "match": {
+            "code": "STH-20"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_hashmal",
+    "universe": "IBO",
+    "no": 23,
+    "group": "combo",
+    "name": "天使を狩る者",
+    "sub": "厄祭戦で人類が恐れた自律兵器、モビルアーマー・ハシュマル。眠りから覚めた古の脅威に、バルバトスが立ち向かう。ガンダムの存在理由を問う一戦。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ハシュマル",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "code": "ASW-G-08"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_astaroth",
+    "universe": "IBO",
+    "no": 24,
+    "group": "combo",
+    "name": "月鋼のアスタロト",
+    "sub": "外伝『月鋼』の主役機、ガンダムアスタロト。素体、オリジン、リナシメントへと姿を変える。本編の影で受け継がれる、もう一柱の悪魔。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "アスタロト",
+            "nameExcludes": [
+              "オリジン",
+              "リナシメント"
+            ]
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "オリジン"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "リナシメント"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_gekko_demons",
+    "universe": "IBO",
+    "no": 25,
+    "group": "combo",
+    "name": "月鋼の悪魔たち",
+    "sub": "外伝『月鋼』に集う悪魔フレーム。マルコシアス、ウヴァル、ダンタリオン。本編とは別の戦場で、72柱の物語が紡がれる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "ASW-G-35"
+          }
+        },
+        {
+          "match": {
+            "code": "ASW-G-47"
+          }
+        },
+        {
+          "match": {
+            "code": "ASW-G-71"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_urdr_hunt",
+    "universe": "IBO",
+    "no": 26,
+    "group": "combo",
+    "name": "ウルズハント",
+    "sub": "ゲーム発の外伝『ウルズハント』。アスモデウス、ザガン、そして端白星。火星の覇権を賭けた、もう一つのガンダム・フレームの争奪戦。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "ASW-G-32"
+          }
+        },
+        {
+          "match": {
+            "code": "ASW-G-61"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "端白星",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_brewers",
+    "universe": "IBO",
+    "no": 27,
+    "group": "combo",
+    "name": "宇宙鼠の巣",
+    "sub": "宇宙海賊ブルワーズが使役した量産機、マンロディとモンキーロディ。子供を兵器として消費する組織——昭弘とその弟が囚われた、暗い過去。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "UGY-R41"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "モンキー",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_human_debris",
+    "universe": "IBO",
+    "no": 28,
+    "group": "combo",
+    "name": "ヒューマン・デブリ",
+    "sub": "売買され、使い捨てられる子供たち『ヒューマン・デブリ』。鹵獲のグシオンとマンロディが象徴する、鉄血が描いた戦争の最も重い闇。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "ASW-G-11"
+          }
+        },
+        {
+          "match": {
+            "code": "UGY-R41"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_akihiro_vs_ein",
+    "universe": "IBO",
+    "no": 29,
+    "group": "combo",
+    "name": "拳と忠義の激突",
+    "sub": "弟を奪われた昭弘のグシオンリベイクと、忠義に狂うアインのグレイズアイン。阿頼耶識の達人同士が、火花を散らす。憎しみのぶつかり合い。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "グシオンリベイク"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "グレイズアイン"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_barbatos_vs_bael",
+    "universe": "IBO",
+    "no": 30,
+    "group": "combo",
+    "name": "獣と、始祖の機体",
+    "sub": "革命を掲げたマクギリスのバエルに、三日月のバルバトスルプスレクスが牙を剥く。理想を語る者と、ただ前へ進む者——その決着。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ルプスレクス"
+          }
+        },
+        {
+          "match": {
+            "code": "ASW-G-01"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_mika_vs_gaelio",
+    "universe": "IBO",
+    "no": 31,
+    "group": "combo",
+    "name": "三日月とガエリオ、決着",
+    "sub": "復讐に生きるガエリオのキマリスヴィダールと、三日月のバルバトスルプスレクス。二人の戦士が、それぞれの全てを賭けてぶつかり合う終盤の激闘。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "ASW-G-66"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ルプスレクス"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_funeral",
+    "universe": "IBO",
+    "no": 32,
+    "group": "combo",
+    "name": "葬送",
+    "sub": "鉄華団、最後の戦い。バルバトス、グシオン、獅電——少年たちが家族のために散っていく。救いの薄い結末が、深く胸を抉る。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ルプスレクス"
+          }
+        },
+        {
+          "match": {
+            "code": "ASW-G-11"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "獅電",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_shiden_team",
+    "universe": "IBO",
+    "no": 33,
+    "group": "combo",
+    "name": "鉄華団の獅電隊",
+    "sub": "テイワズから供与された量産機イオフレーム獅電。オルガ機、ライド機、団員機。ガンダムを持たぬ少年たちの、確かな相棒。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "オルガ機",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ライド機",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "獅電",
+            "nameExcludes": [
+              "オルガ",
+              "ライド"
+            ],
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_kimaris_line",
+    "universe": "IBO",
+    "no": 34,
+    "group": "combo",
+    "name": "キマリスの系譜",
+    "sub": "ガエリオが乗り継いだキマリスの全形態。素体、トルーパー、そして復讐の果てのキマリスヴィダール。騎士の誇りから、憎悪の刃へ。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "キマリス",
+            "nameExcludes": [
+              "トルーパー",
+              "ヴィダール"
+            ]
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "キマリストルーパー"
+          }
+        },
+        {
+          "match": {
+            "code": "ASW-G-66"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_barbatos_scales",
+    "universe": "IBO",
+    "no": 35,
+    "group": "combo",
+    "name": "三日月、二つのスケール",
+    "sub": "看板機バルバトスを、MGSDとMG/HGで。同じ獣を異なる縮尺で並べ、鉄華団の象徴を堪能する。可動と密度、それぞれの魅力。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "ASW-G-08",
+            "grade": "MGSD"
+          }
+        },
+        {
+          "match": {
+            "code": "ASW-G-08",
+            "grade": "MG"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_iron_coating",
+    "universe": "IBO",
+    "no": 36,
+    "group": "combo",
+    "name": "鉄血の光沢",
+    "sub": "アイアンブラッドコーティングのバルバトスと、通常版。鉄と血の物語を、メタリックな輝きで再構築する。商魂と原作愛の交差点。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "コーティング",
+            "series": "鉄血",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "code": "ASW-G-08",
+            "nameExcludes": [
+              "コーティング",
+              "クリア"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ibo_clear_color",
+    "universe": "IBO",
+    "no": 37,
+    "group": "count",
+    "name": "クリアカラー商法",
+    "sub": "クリアカラー版の鉄血機を2機。透き通る装甲の下にも、変わらぬ鉄華団の魂が宿る——と信じて、つい手が伸びる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "count": {
+        "nameIncludes": "クリアカラー",
+        "series": "鉄血",
+        "accessory": true
+      },
+      "gte": 2
+    }
+  },
+  {
+    "id": "ibo_scrap",
+    "universe": "IBO",
+    "no": 38,
+    "group": "count",
+    "name": "火星の鉄屑",
+    "sub": "鉄血の機体を20機。ガンダム・フレームも量産機も、火星の砂にまみれた鋼の群れ。少年たちが生きた証を、君は集める。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "count": {
+        "series": "鉄血",
+        "accessory": true
+      },
+      "gte": 20
+    }
+  },
+  {
+    "id": "ibo_master",
+    "universe": "IBO",
+    "no": 39,
+    "group": "count",
+    "name": "鉄血の覇者",
+    "sub": "鉄血の機体を35機。本編も外伝も、テイワズもギャラルホルンも。Post Disaster の戦史そのものを、君は組み上げた。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "count": {
+        "series": "鉄血",
+        "accessory": true
+      },
+      "gte": 35
+    }
+  },
+  {
+    "id": "ibo_gjallarhorn_elite",
+    "universe": "IBO",
+    "no": 40,
+    "group": "combo",
+    "name": "ギャラルホルンの精鋭",
+    "sub": "腐敗の中にも誇りはあった。ガエリオのグリムゲルデ、マクギリスのシュヴァルベ、カルタのグレイズリッター。治安維持組織の、名門の意地。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "V08-1228"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "シュヴァルベグレイズ",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "EB-06r"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_suletta",
+    "universe": "AS",
+    "no": 1,
+    "group": "combo",
+    "name": "スレッタ・マーキュリー",
+    "sub": "水星から来た不器用な少女スレッタの相棒、ガンダムエアリアル。素体と改修型。GUNDフォーマットを宿し、姉エリの意思を抱えて戦う、白い魔女。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XVX-016"
+          }
+        },
+        {
+          "match": {
+            "code": "XVX-016RN"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_motto",
+    "universe": "AS",
+    "no": 2,
+    "group": "combo",
+    "name": "逃げたら一つ、進めば二つ",
+    "sub": "母に贈られた言葉を胸に、前へ進み続けるスレッタ。エアリアルからキャリバーンへ。一歩踏み出すたび、彼女は新しい何かを掴んでいく。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XVX-016"
+          }
+        },
+        {
+          "match": {
+            "code": "X-EX01"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_calibarn",
+    "universe": "AS",
+    "no": 3,
+    "group": "combo",
+    "name": "ガンダム・キャリバーン",
+    "sub": "スレッタが自らの意思で選び取った最後の機体、キャリバーン。改修型エアリアルから受け継がれた、もう一つのガンダム。呪いを越える力。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "X-EX01"
+          }
+        },
+        {
+          "match": {
+            "code": "XVX-016RN"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_permet",
+    "universe": "AS",
+    "no": 4,
+    "group": "combo",
+    "name": "パーメットスコア",
+    "sub": "データストームの負荷と引き換えに性能を引き上げる、ガンダムの呪い。エアリアルのスコア6、キャリバーンのスコア5。命を削る、禁断の領域。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XVX-016",
+            "nameIncludes": "パーメットスコア"
+          }
+        },
+        {
+          "match": {
+            "code": "X-EX01",
+            "nameIncludes": "パーメットスコア"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_prospera",
+    "universe": "AS",
+    "no": 5,
+    "group": "combo",
+    "name": "プロスペラの復讐",
+    "sub": "21年前のヴァナディース事変。エルノラ(プロスペラ)が駆ったガンダムルブリスと、娘エリから生まれたエアリアル。母の執念が、物語を動かす。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XGF-02"
+          }
+        },
+        {
+          "match": {
+            "code": "XVX-016"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_gundarm",
+    "universe": "AS",
+    "no": 6,
+    "group": "combo",
+    "name": "GUND-ARMの開発史",
+    "sub": "義肢技術GUNDから生まれた兵器、ガンダム。ルブリス量産試作モデル、ジウ、ガンドノード。呪われた技術が辿った、知られざる試作の系譜。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "量産試作"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ジウ"
+          }
+        },
+        {
+          "match": {
+            "code": "XGF-E3"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_sophie_norea",
+    "universe": "AS",
+    "no": 7,
+    "group": "combo",
+    "name": "ソフィーとノレア",
+    "sub": "地球を解放せんとする過激派の少女たち、ソフィーとノレア。ルブリスウルとルブリスソーン。歪んだ世界が生んだ、もう一組の『魔女』。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "EDM-GA-01"
+          }
+        },
+        {
+          "match": {
+            "code": "EDM-GA-02"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_lfrith",
+    "universe": "AS",
+    "no": 8,
+    "group": "combo",
+    "name": "ガンダムルブリス",
+    "sub": "全てのガンダムの祖、ルブリス。素体と、強化されたアノクタ。GUND-ARMの原点が、ベネリットの闇とエアリアルの誕生を繋ぐ。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XGF-02"
+          }
+        },
+        {
+          "match": {
+            "code": "AVP-03"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_jeturk_bros",
+    "universe": "AS",
+    "no": 9,
+    "group": "combo",
+    "name": "ジェターク家の兄弟",
+    "sub": "名門ジェターク社の御曹司グエルと、弟ラウダ。揃いのディランザで戦場に立つ。誇りと確執が入り混じる、複雑な兄弟の絆。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "MD-0032G"
+          }
+        },
+        {
+          "match": {
+            "code": "MD-0031L"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_guel",
+    "universe": "AS",
+    "no": 10,
+    "group": "combo",
+    "name": "グエルの成長譚",
+    "sub": "傲慢なホルダーから、苦難を経て成熟する男グエル・ジェターク。ディランザ、ダリルバルデ、そしてシュバルゼッテ。本作屈指の成長キャラ。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "MD-0032G"
+          }
+        },
+        {
+          "match": {
+            "code": "MD-0064"
+          }
+        },
+        {
+          "match": {
+            "code": "MDX-0003"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_dilanza",
+    "universe": "AS",
+    "no": 11,
+    "group": "combo",
+    "name": "ディランザの系譜",
+    "sub": "ジェターク社の主力ディランザ。グエル機、一般機、そして特務のソル。武骨で堅実な機体が、ベネリットの戦力を支える。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "MD-0032G"
+          }
+        },
+        {
+          "match": {
+            "code": "MD-0031L"
+          }
+        },
+        {
+          "match": {
+            "code": "MD-0031UL"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_holder",
+    "universe": "AS",
+    "no": 12,
+    "group": "combo",
+    "name": "ホルダーの決闘",
+    "sub": "アスティカシア学園の頂点を賭けた決闘。グエルのダリルバルデと、スレッタのエアリアル。婚約者をかけた戦いが、二人の運命を絡める。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "MD-0064"
+          }
+        },
+        {
+          "match": {
+            "code": "XVX-016"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_shaddiq",
+    "universe": "AS",
+    "no": 13,
+    "group": "combo",
+    "name": "シャディクとグラスレー",
+    "sub": "静かな野心家シャディク・ゼネリのミカエリスと、グラスレー社のベギルベウ。スレッタの幼馴染が、革命のために暗躍する。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "CFK-029"
+          }
+        },
+        {
+          "match": {
+            "code": "CEK-040"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_beguir",
+    "universe": "AS",
+    "no": 14,
+    "group": "combo",
+    "name": "ベギルベウの系譜",
+    "sub": "宇宙議会連合とグラスレーが運用するベギルベウ。素体、ベギルペンデ、トルシュ。終盤の戦乱を彩る、量産ビット機の連なり。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "CEK-040"
+          }
+        },
+        {
+          "match": {
+            "code": "CEK-077"
+          }
+        },
+        {
+          "match": {
+            "code": "CEK-043"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_peil",
+    "universe": "AS",
+    "no": 15,
+    "group": "combo",
+    "name": "ペイル社の刺客",
+    "sub": "強化人士エランが駆るガンダムファラクトと、ペイル社の量産機ハインドリー。使い捨てられる強化人間たちの、哀しき戦い。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "FP/A-77"
+          }
+        },
+        {
+          "match": {
+            "code": "CFP-010"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_heindree",
+    "universe": "AS",
+    "no": 16,
+    "group": "combo",
+    "name": "ハインドリーの系譜",
+    "sub": "ペイル・テクノロジーズの量産機ハインドリーと、強化型シュトルム。エースから量産まで、技術屋の社風が滲む機体群。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "CFP-010"
+          }
+        },
+        {
+          "match": {
+            "code": "CFP-013"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_earth_house",
+    "universe": "AS",
+    "no": 17,
+    "group": "combo",
+    "name": "地球寮の仲間たち",
+    "sub": "差別される地球出身の学生が集う地球寮。チュチュのデミトレーナー、一般機、デミバーディング。スレッタが初めて得た、本当の居場所。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "MSJ-105CC"
+          }
+        },
+        {
+          "match": {
+            "code": "MSJ-121"
+          }
+        },
+        {
+          "match": {
+            "code": "MSJ-R122"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_chuchu",
+    "universe": "AS",
+    "no": 18,
+    "group": "combo",
+    "name": "チュチュの相棒",
+    "sub": "気が強く面倒見の良いチュチュ・パンランチ。専用デミトレーナーと、支援機デミギャリソン。地球寮の姉貴分が、仲間を守って前に出る。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "MSJ-105CC"
+          }
+        },
+        {
+          "match": {
+            "code": "MSJ-OP122"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_zowort",
+    "universe": "AS",
+    "no": 19,
+    "group": "combo",
+    "name": "ザウォートの系譜",
+    "sub": "宇宙空間用の量産機ザウォートと、重装のザウォートヘヴィ。学園の外、本物の戦場で投入される、武骨な実戦機たち。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "F/D-19"
+          }
+        },
+        {
+          "match": {
+            "code": "F/D-20"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_benerit",
+    "universe": "AS",
+    "no": 20,
+    "group": "combo",
+    "name": "ベネリット・グループ",
+    "sub": "巨大企業連合ベネリットを支える御三家のガンダム。ジェタークのダリルバルデ、グラスレーのミカエリス、ペイルのファラクト。利権の象徴。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "MD-0064"
+          }
+        },
+        {
+          "match": {
+            "code": "CFK-029"
+          }
+        },
+        {
+          "match": {
+            "code": "FP/A-77"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_space_assembly",
+    "universe": "AS",
+    "no": 21,
+    "group": "combo",
+    "name": "宇宙議会連合",
+    "sub": "地球と宇宙の対立に介入する宇宙議会連合。ガンヴォルヴァとルブリスウル。EDM系の機体が、終盤の混沌に拍車をかける。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "EDM-GB"
+          }
+        },
+        {
+          "match": {
+            "code": "EDM-GA-01"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_grunts",
+    "universe": "AS",
+    "no": 22,
+    "group": "combo",
+    "name": "量産機の戦列",
+    "sub": "ガンダムの陰で数を揃える量産機たち。ベギルベウ、ザウォート、ハインドリー。各社の思想が宿る機体が、戦場を埋め尽くす。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "CEK-040"
+          }
+        },
+        {
+          "match": {
+            "code": "F/D-19"
+          }
+        },
+        {
+          "match": {
+            "code": "CFP-010"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_desruter",
+    "universe": "AS",
+    "no": 23,
+    "group": "combo",
+    "name": "デスルターとハイングラ",
+    "sub": "終盤の戦乱に投入される機体、デスルターとハイングラ。物語のクライマックスを彩る、知られざる量産・支援機たち。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "MD-0021"
+          }
+        },
+        {
+          "match": {
+            "code": "CCP-068"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_schwarzette",
+    "universe": "AS",
+    "no": 24,
+    "group": "combo",
+    "name": "二人の到達点",
+    "sub": "グエルのシュバルゼッテと、スレッタのキャリバーン。それぞれの苦難を越えた二人が、最後の戦いで肩を並べる。成長の果ての共闘。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "MDX-0003"
+          }
+        },
+        {
+          "match": {
+            "code": "X-EX01"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_tickbalan",
+    "universe": "AS",
+    "no": 25,
+    "group": "combo",
+    "name": "戦場の脇役たち",
+    "sub": "ティックバランとガンヴォルヴァ。主役機の陰で戦場を支える、移動要塞や量産機。細部まで作り込まれた、Ad Stellaの世界観。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ティックバラン",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "code": "EDM-GB"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_begilpende",
+    "universe": "AS",
+    "no": 26,
+    "group": "combo",
+    "name": "宇宙議会の尖兵",
+    "sub": "ベギルペンデとベギルベウトルシュ。宇宙議会連合が繰り出す改良型ビット機。終盤の派閥抗争を象徴する、洗練された量産兵器。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "CEK-077"
+          }
+        },
+        {
+          "match": {
+            "code": "CEK-043"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_mgsd",
+    "universe": "AS",
+    "no": 27,
+    "group": "combo",
+    "name": "エアリアル、二つのスケール",
+    "sub": "看板機エアリアルを、MGSDとFM/HGで。新世代の主役機を、異なる縮尺で並べる。シールドビットの展開ギミックを、心ゆくまで。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XVX-016",
+            "grade": "MGSD"
+          }
+        },
+        {
+          "match": {
+            "code": "XVX-016",
+            "grade": "FM"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_clear",
+    "universe": "AS",
+    "no": 28,
+    "group": "combo",
+    "name": "透き通る魔女",
+    "sub": "エアリアルのソリッドクリアと、キャリバーンのクリアカラー。透明な装甲の下に、GUNDフォーマットの輝きを透かし見る。商魂と造形美の交差。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ソリッドクリア"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "クリアカラー",
+            "series": "水星"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_duelists",
+    "universe": "AS",
+    "no": 29,
+    "group": "combo",
+    "name": "学園の決闘者たち",
+    "sub": "アスティカシア高等専門学園のガンダム使い。エアリアル、ダリルバルデ、ミカエリス、ファラクト。祝福と呪いを背負う、若き決闘者たち。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "XVX-016"
+          }
+        },
+        {
+          "match": {
+            "code": "MD-0064"
+          }
+        },
+        {
+          "match": {
+            "code": "CFK-029"
+          }
+        },
+        {
+          "match": {
+            "code": "FP/A-77"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "as_master",
+    "universe": "AS",
+    "no": 30,
+    "group": "count",
+    "name": "A.S.の魔女",
+    "sub": "水星の魔女の機体を20機。ガンダムの呪いも、ベネリットの企業戦争も、地球寮の絆も。Ad Stellaの群像劇を、君は丸ごと棚に収めた。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "count": {
+        "series": "水星の魔女",
+        "accessory": true
+      },
+      "gte": 20
+    }
+  },
+  {
+    "id": "rc_bellri",
+    "universe": "RC",
+    "no": 1,
+    "group": "combo",
+    "name": "ベルリのG-セルフ",
+    "sub": "キャピタル・ガードの天才候補生ベルリ・ゼナム。大気圏用、アサルト、パーフェクト——状況に応じてパックを換装するG-セルフ。彼の好奇心が、世界を巡る旅へ。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "YG-111",
+            "nameIncludes": "大気圏用"
+          }
+        },
+        {
+          "match": {
+            "code": "YG-111",
+            "nameIncludes": "アサルト"
+          }
+        },
+        {
+          "match": {
+            "code": "YG-111",
+            "nameIncludes": "パーフェクト"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "rc_pack_system",
+    "universe": "RC",
+    "no": 2,
+    "group": "combo",
+    "name": "パック換装システム",
+    "sub": "用途ごとに背部ユニットを載せ替えるG-セルフ。大気圏用、リフレクター、そして宇宙用パック。一機で全領域に対応する、フォトン技術の結晶。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "YG-111",
+            "nameIncludes": "大気圏用"
+          }
+        },
+        {
+          "match": {
+            "code": "YG-111",
+            "nameIncludes": "リフレクター"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "宇宙用パック",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "rc_perfect",
+    "universe": "RC",
+    "no": 3,
+    "group": "combo",
+    "name": "パーフェクトパック",
+    "sub": "G-セルフの最強形態、パーフェクトパック装備型。全てのパックの機能を統合し、フォトン・トルクの真価を解き放つ。ベルリの到達点。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "YG-111",
+            "nameIncludes": "パーフェクト"
+          }
+        },
+        {
+          "match": {
+            "code": "MSAM-033"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "rc_aida",
+    "universe": "RC",
+    "no": 4,
+    "group": "combo",
+    "name": "アイーダのG-アルケイン",
+    "sub": "海賊部隊を率いる女性士官アイーダ・スルガン。ガンダムG-アルケインと、ベルリのG-セルフ。敵味方として出会った二人が、やがて重大な秘密で結ばれる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "MSAM-033"
+          }
+        },
+        {
+          "match": {
+            "code": "YG-111",
+            "nameIncludes": "大気圏用"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "rc_klim",
+    "universe": "RC",
+    "no": 5,
+    "group": "combo",
+    "name": "クリム・ニックの機体",
+    "sub": "アメリア軍のエースにして自信家、クリム・ニック。専用モンテーロと宇宙用ジャハナム。『謎よね』と笑う彼が、戦況を引っ掻き回す。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "MSAM-YM03"
+          }
+        },
+        {
+          "match": {
+            "code": "MSAM-034a"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "rc_amerian",
+    "universe": "RC",
+    "no": 6,
+    "group": "combo",
+    "name": "アメリアの戦力",
+    "sub": "地球の独立勢力アメリア。G-アルケイン、モンテーロ、量産型ジャハナム。MSAM系の機体が、キャピタルとの戦いに身を投じる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "MSAM-033"
+          }
+        },
+        {
+          "match": {
+            "code": "MSAM-YM03"
+          }
+        },
+        {
+          "match": {
+            "code": "MSAM-034"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "rc_mask",
+    "universe": "RC",
+    "no": 7,
+    "group": "combo",
+    "name": "仮面の男マスク",
+    "sub": "クンタラの出自を隠し、仮面を被って戦う男マスク——その正体はルイン・リー。エルフ・ブルックからマックナイフへ。ベルリへの劣等感が、彼を駆る。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "CAMS-03",
+            "nameIncludes": "マスク"
+          }
+        },
+        {
+          "match": {
+            "code": "CAMS-05",
+            "nameIncludes": "マスク"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "rc_kuntala",
+    "universe": "RC",
+    "no": 8,
+    "group": "combo",
+    "name": "クンタラの恨み",
+    "sub": "差別された階級クンタラの怒りを背負うマスクのマックナイフと、ベルリのG-セルフ。社会の歪みが生んだ因縁が、二人を戦いへと駆り立てる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "CAMS-05",
+            "nameIncludes": "マスク"
+          }
+        },
+        {
+          "match": {
+            "code": "YG-111",
+            "nameIncludes": "大気圏用"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "rc_elfbullock",
+    "universe": "RC",
+    "no": 9,
+    "group": "combo",
+    "name": "エルフ・ブルックの群れ",
+    "sub": "キャピタル・アーミィの量産機エルフ・ブルック。マスク専用機と量産機。フォトン・アーマーを纏った機体が、隊列を組んで押し寄せる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "CAMS-03",
+            "nameIncludes": "マスク"
+          }
+        },
+        {
+          "match": {
+            "code": "CAMS-03",
+            "nameIncludes": "量産"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "rc_mackknife",
+    "universe": "RC",
+    "no": 10,
+    "group": "combo",
+    "name": "マックナイフの群れ",
+    "sub": "キャピタル・アーミィの高機動機マックナイフ。マスク専用機と量産機。鋭い機動でアメリアを翻弄する、月由来の技術が光る機体。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "CAMS-05",
+            "nameIncludes": "マスク"
+          }
+        },
+        {
+          "match": {
+            "code": "CAMS-05",
+            "nameIncludes": "量産"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "rc_capital",
+    "universe": "RC",
+    "no": 11,
+    "group": "combo",
+    "name": "キャピタル・アーミィ",
+    "sub": "宗教国家キャピタル・テリトリィの軍。エルフ・ブルック、マックナイフ、カットシー。CAMS系の機体が、フォトンの覇権を握ろうと動く。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "CAMS-03"
+          }
+        },
+        {
+          "match": {
+            "code": "CAMS-05"
+          }
+        },
+        {
+          "match": {
+            "code": "CAMS-02"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "rc_towasanga",
+    "universe": "RC",
+    "no": 12,
+    "group": "combo",
+    "name": "トワサンガの機体",
+    "sub": "月の裏側に住まう人々トワサンガ。ジャイオーン、ダハック、ジャスティマ。VGMM系の機体が、地球圏に降下し争乱を広げる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "VGMM-Gb03"
+          }
+        },
+        {
+          "match": {
+            "code": "VGMM-La01b"
+          }
+        },
+        {
+          "match": {
+            "code": "VGMM-Sc02"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "rc_kabakali",
+    "universe": "RC",
+    "no": 13,
+    "group": "combo",
+    "name": "ジット団のカバカーリー",
+    "sub": "金星から来た技術者集団ジット団のカバカーリーと、ベルリのG-セルフ。さらなる高みの技術が、レコンギスタ(再征服)の戦いに加わる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "VGMM-Git01"
+          }
+        },
+        {
+          "match": {
+            "code": "YG-111",
+            "nameIncludes": "大気圏用"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "rc_glucifer",
+    "universe": "RC",
+    "no": 14,
+    "group": "combo",
+    "name": "G-ルシファー",
+    "sub": "トワサンガが擁するガンダムタイプ、G-ルシファーと、ベルリのG-セルフ。同じ『G』の血を引く機体同士が、月と地球の境界でぶつかり合う。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "VGMM-Gf10"
+          }
+        },
+        {
+          "match": {
+            "code": "YG-111",
+            "nameIncludes": "パーフェクト"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "rc_three_g",
+    "universe": "RC",
+    "no": 15,
+    "group": "combo",
+    "name": "三つのGガンダム",
+    "sub": "レコンギスタを象徴する『G』の機体。G-セルフ、G-アルケイン、G-ルシファー。失われた技術の結晶たちが、それぞれの陣営で輝く。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "YG-111",
+            "nameIncludes": "大気圏用"
+          }
+        },
+        {
+          "match": {
+            "code": "MSAM-033"
+          }
+        },
+        {
+          "match": {
+            "code": "VGMM-Gf10"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "rc_war",
+    "universe": "RC",
+    "no": 16,
+    "group": "combo",
+    "name": "アメリア対キャピタル",
+    "sub": "フォトン・バッテリーの覇権を巡る戦争。アメリアのG-アルケインと、キャピタル・アーミィのエルフ・ブルック。エネルギーが、戦の火種となる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "MSAM-033"
+          }
+        },
+        {
+          "match": {
+            "code": "CAMS-03"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "rc_grimoire",
+    "universe": "RC",
+    "no": 17,
+    "group": "combo",
+    "name": "グリモアの脅威",
+    "sub": "物語の幕開けを飾る謎の機体グリモアと、迎え撃つG-セルフ。キャピタル・ガードの日常を打ち破った襲撃が、ベルリの運命を動かし始める。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GH-001"
+          }
+        },
+        {
+          "match": {
+            "code": "YG-111",
+            "nameIncludes": "大気圏用"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "rc_klim_jahannam",
+    "universe": "RC",
+    "no": 18,
+    "group": "combo",
+    "name": "ジャハナムの空",
+    "sub": "宇宙用ジャハナムのクリム専用機と量産機。アメリア軍の主力可変機が、宇宙世紀ならぬリギルド・センチュリーの空を駆ける。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "MSAM-034a"
+          }
+        },
+        {
+          "match": {
+            "code": "MSAM-034"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "rc_voyage",
+    "universe": "RC",
+    "no": 19,
+    "group": "combo",
+    "name": "レコンギスタの航海",
+    "sub": "地球から宇宙、月、そして金星へ。ベルリの旅に連なる機体たち。G-セルフ、モンテーロ、グリモア。世界の真実を求める、果てしない冒険。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "YG-111",
+            "nameIncludes": "アサルト"
+          }
+        },
+        {
+          "match": {
+            "code": "MSAM-YM03"
+          }
+        },
+        {
+          "match": {
+            "code": "GH-001"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "rc_master",
+    "universe": "RC",
+    "no": 20,
+    "group": "count",
+    "name": "R.C.の探究者",
+    "sub": "Gのレコンギスタの機体を12機。キャピタルもアメリアもトワサンガも。富野作品らしい奔放な群像と機体群を、君は丸ごと棚に収めた。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "count": {
+        "series": "レコンギスタ",
+        "accessory": true
+      },
+      "gte": 12
+    }
+  },
+  {
+    "id": "cc_white_doll",
+    "universe": "CC",
+    "no": 1,
+    "group": "combo",
+    "name": "ホワイトドール",
+    "sub": "村が御神体として祀っていた白い像——その正体は∀ガンダムだった。少年ロランが掘り起こした機体と、背に秘めた月光蝶。神話が、兵器として目覚める。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ターンエー",
+            "nameExcludes": "月光蝶"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "月光蝶",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "cc_two_turns",
+    "universe": "CC",
+    "no": 2,
+    "group": "combo",
+    "name": "二つのターンタイプ",
+    "sub": "∀ガンダムとターンX。文明を一度リセットするために生まれた、対となる二機。髭の白騎士と、無骨な破壊者。宿命づけられた、最後の戦い。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ターンエー"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ターンX"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "cc_moonlight",
+    "universe": "CC",
+    "no": 3,
+    "group": "combo",
+    "name": "月光蝶",
+    "sub": "あらゆる文明をナノマシンで分解し尽くす究極兵器、月光蝶。ターンXがその翅を広げ、世界を白紙へと還す。黒歴史を生んだ、終末の輝き。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ターンX"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "月光蝶",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "cc_reset",
+    "universe": "CC",
+    "no": 4,
+    "group": "combo",
+    "name": "文明のリセット",
+    "sub": "∀とターンX、二つの月光蝶が共鳴する時、歴史は終わる。繭に包まれ眠りにつく二機——人類が幾度も繰り返した過ちを、そっと封印する。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ターンエー",
+            "nameExcludes": "月光蝶"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ターンX"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "月光蝶",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "cc_harry",
+    "universe": "CC",
+    "no": 5,
+    "group": "combo",
+    "name": "ハリー・オードの忠誠",
+    "sub": "ディアナ様に一身を捧げる騎士ハリー・オード。黄金のモビルスモーで、時に∀と斬り結ぶ。敵味方を超えて貫かれる、武人の誇り。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "スモー"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ターンエー"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "cc_moon_warrior",
+    "universe": "CC",
+    "no": 6,
+    "group": "combo",
+    "name": "月の戦士",
+    "sub": "月から来た民、ムーンレィスの精鋭機モビルスモーと、ギンガナム艦隊のターンX。地球に降りた月の力が、新たな戦火を呼ぶ。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "スモー"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ターンX"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "cc_gold_memory",
+    "universe": "CC",
+    "no": 7,
+    "group": "combo",
+    "name": "黄金の記憶",
+    "sub": "黄金に輝くモビルスモーと、黒歴史の金獅子・百式。時代を越えて受け継がれる『金色の機体』の系譜——栄光は、世代を超えて甦る。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "スモー"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "百式",
+            "nameExcludes": [
+              "百万",
+              "百式壊",
+              "ライズ",
+              "アンベリール"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "cc_origin",
+    "universe": "CC",
+    "no": 8,
+    "group": "combo",
+    "name": "黒歴史・元祖の発掘",
+    "sub": "マウンテンサイクルから掘り出された、伝説の白い機体——元祖ガンダムRX-78。∀の遥か過去、最初の戦争の記憶。歴史は、地層となって眠る。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ターンエー"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "RX-78-2"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "cc_borjarnon",
+    "universe": "CC",
+    "no": 9,
+    "group": "combo",
+    "name": "ボルジャーノン",
+    "sub": "地中から発掘され、現役で運用される量産機——その正体は、太古のザク。∀世界ではボルジャーノンと呼ばれる。黒歴史が、今も戦場を駆ける。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ターンエー"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "MS-06"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "cc_mountain_cycle",
+    "universe": "CC",
+    "no": 10,
+    "group": "combo",
+    "name": "マウンテンサイクル",
+    "sub": "過去の兵器が眠る埋蔵遺跡、マウンテンサイクル。∀と共に掘り起こされる元祖ガンダム、ザク、ダブルゼータ。地層に刻まれた、戦争の年輪。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ターンエー"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "RX-78-2"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "MS-06"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "MSZ-010"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "cc_psycommu",
+    "universe": "CC",
+    "no": 11,
+    "group": "combo",
+    "name": "サイコミュの亡霊",
+    "sub": "ターンXと、黒歴史のサイコミュ兵器ジオング。念じて操る古の技術が、Correct Centuryの空に甦る。人の業は、いつの時代も変わらない。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ターンX"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "MSN-02"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "cc_zeta",
+    "universe": "CC",
+    "no": 12,
+    "group": "combo",
+    "name": "黒歴史・Zの記憶",
+    "sub": "∀と、可変機Zガンダム。グリプス戦役という名の遠い過去が、地層の底から顔を覗かせる。誰も覚えていない、激しい戦いの残響。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ターンエー"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "MSZ-006"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "cc_zz",
+    "universe": "CC",
+    "no": 13,
+    "group": "combo",
+    "name": "黒歴史・ダブルゼータ",
+    "sub": "∀と、ハイメガキャノンの巨人ZZガンダム。派手な火力を誇った過去の英雄機も、Correct Centuryでは発掘品の一つに過ぎない。栄光の風化。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ターンエー"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "MSZ-010"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "cc_mk2",
+    "universe": "CC",
+    "no": 14,
+    "group": "combo",
+    "name": "黒歴史・Mk-IIの影",
+    "sub": "∀と、ティターンズの試作機ガンダムMk-II。連邦内戦の象徴も、月光蝶の前には等しく『黒歴史』。記録から消された、無数の物語の一片。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ターンエー"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "RX-178"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "cc_cca",
+    "universe": "CC",
+    "no": 15,
+    "group": "combo",
+    "name": "逆襲の残響",
+    "sub": "∀と共に甦る、νガンダムとサザビー。アクシズを巡る赤い彗星と白いニュータイプの決闘——その因縁すら、黒歴史の地層に埋もれている。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ターンエー"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "RX-93",
+            "nameExcludes": [
+              "Hi",
+              "ν2"
+            ]
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "MSN-04"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "cc_ginganum",
+    "universe": "CC",
+    "no": 16,
+    "group": "combo",
+    "name": "ギンガナムの渇望",
+    "sub": "戦いこそ生きる意味と信じる男ギム・ギンガナム。ターンXを駆り、黒歴史の核兵器GP02まで掘り起こす。破壊への純粋な飢えが、世界を脅かす。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ターンX"
+          }
+        },
+        {
+          "match": {
+            "code": "RX-78GP02A"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "cc_unearth_war",
+    "universe": "CC",
+    "no": 17,
+    "group": "combo",
+    "name": "戦いを掘り起こす者",
+    "sub": "眠れる過去の兵器を次々と起こすギンガナム。ターンXと、発掘されたザクの群れ。終わった戦争を、わざわざ蘇らせる愚——それもまた、人の性。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ターンX"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "MS-06"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "cc_amphibious",
+    "universe": "CC",
+    "no": 18,
+    "group": "combo",
+    "name": "水底からの帰還",
+    "sub": "∀と、海から引き揚げられた水陸両用機ズゴックやゴッグ。深海に沈んでいた一年戦争の遺物が、再び陽の光を浴びる。錆びた鋼の、第二の生。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ターンエー"
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "MSM"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "cc_gold_giant",
+    "universe": "CC",
+    "no": 19,
+    "group": "combo",
+    "name": "黄金の巨人",
+    "sub": "∀と、黒歴史の金獅子・百式。『変わらぬ強さの象徴』として、金色の機体は時代を越えて立ち続ける。クワトロの遺産、Correct Centuryに在り。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ターンエー"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "百式",
+            "nameExcludes": [
+              "百万",
+              "百式壊",
+              "ライズ",
+              "アンベリール"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "cc_master",
+    "universe": "CC",
+    "no": 20,
+    "group": "count",
+    "name": "正暦の語り部",
+    "sub": "∀ガンダムの立体物を4機。∀・ターンX・スモー・月光蝶。数は少なくとも、黒歴史の全てを内包する、最も巨大な物語の担い手。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "count": {
+        "series": "∀ガンダム",
+        "accessory": true
+      },
+      "gte": 4
+    }
+  },
+  {
+    "id": "bf_buildstrike",
+    "universe": "BF",
+    "no": 1,
+    "group": "combo",
+    "name": "ガンプラは自由だ",
+    "sub": "イオリ・セイが組み、レイジが駆るビルドストライク。下敷きは C.E. のストライク。換装で姿を変える原典を、少年の自由な発想がさらに塗り替える。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ビルドストライク",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "code": "GAT-X105"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_fenice",
+    "universe": "BF",
+    "no": 2,
+    "group": "combo",
+    "name": "情熱のイタリア、ウイング",
+    "sub": "リカルド・フェリーニの相棒ウイングガンダムフェニーチェ。A.C. のウイングを、ラテンの情熱と海賊の意匠で大胆にアレンジした一機。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "フェニーチェ",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "code": "XXXG-01W"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_darkmatter",
+    "universe": "BF",
+    "no": 3,
+    "group": "combo",
+    "name": "名人が染めた漆黒",
+    "sub": "メイジン・カワグチのエクシアダークマター。00 のエクシアを下敷きに、闇色のGN粒子『ダークマター』で覆った、王者の機体。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ダークマター",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "code": "GN-001"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_beargguy",
+    "universe": "BF",
+    "no": 4,
+    "group": "combo",
+    "name": "可愛さもまた、武器なり",
+    "sub": "コウサカ・チナのベアッガイ。U.C. のアッガイを愛らしい熊へ仕立てた、ビルドシリーズ屈指の癒やし枠。原典の丸さが、ここで花開く。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ベアッガイ",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "アッガイ",
+            "nameExcludes": "ベアッガイ"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_zaku_amazing",
+    "universe": "BF",
+    "no": 5,
+    "group": "combo",
+    "name": "ザクの怪物",
+    "sub": "ザクアメイジング。U.C. の量産機ザクを、名人が魔改造した変則機。緑の機体が、ガンプラバトルの常識を覆す。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ザクアメイジング",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "MS-06"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_shinobi",
+    "universe": "BF",
+    "no": 6,
+    "group": "combo",
+    "name": "忍法、変身の術",
+    "sub": "忍パルスガンダム。C.E. のインパルスを和風の忍者に仕立てた怪作。コアスプレンダーの合体ギミックを、忍術に見立てる遊び心。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "忍パルス",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "ZGMF-X56S"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_x_maou",
+    "universe": "BF",
+    "no": 7,
+    "group": "combo",
+    "name": "魔王、降臨",
+    "sub": "ガンダムX魔王。A.W. のガンダムXを下敷きにした、ユウキ・タツヤの『魔王』シリーズ。サテライトキャノンならぬ、邪悪な威容。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "X魔王",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "GX-9900"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_megashiki",
+    "universe": "BF",
+    "no": 8,
+    "group": "combo",
+    "name": "百式、百万の輝き",
+    "sub": "百万式(メガシキ)。U.C. の百式を、文字通り百万倍に盛った金ピカの巨砲機。原典の『金色』への、過剰なまでのオマージュ。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "百万式",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "百式",
+            "nameExcludes": [
+              "百万",
+              "百式壊",
+              "ライズ"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_lightning_z",
+    "universe": "BF",
+    "no": 9,
+    "group": "combo",
+    "name": "可変、雷光のZ",
+    "sub": "ライトニングZガンダム。U.C. のZガンダムを、ユウマ・コウサカのライトニングと融合させた可変機。ウェーブライダー変形は健在。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ライトニングZ",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "MSZ-006",
+            "nameExcludes": "ライトニング"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_crossbone_maou",
+    "universe": "BF",
+    "no": 10,
+    "group": "combo",
+    "name": "髑髏の魔王",
+    "sub": "クロスボーンガンダム魔王。U.C. 木星帝国のクロスボーンを下敷きにした『魔王』機。アンカーとビームザンバー、海賊の魂はそのまま。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "クロスボーンガンダム魔王",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "クロスボーン",
+            "nameExcludes": [
+              "魔王",
+              "TYPE.GBFT"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_kempfer_amazing",
+    "universe": "BF",
+    "no": 11,
+    "group": "combo",
+    "name": "強襲の魔改造",
+    "sub": "ケンプファーアメイジング。U.C. の強襲機ケンプファーを名人が再構築。使い捨ての武装てんこ盛りという原典の思想を、極限まで増幅する。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ケンプファーアメイジング",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "code": "MS-18E"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_miss_sazabi",
+    "universe": "BF",
+    "no": 12,
+    "group": "combo",
+    "name": "紅は、女性の色",
+    "sub": "ミスサザビー。U.C. のシャア専用サザビーを、しなやかな女性体に仕立てた異色機。赤い巨体の威圧を、優美なシルエットへ転生させる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ミスサザビー",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "MSN-04"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_gouf_r35",
+    "universe": "BF",
+    "no": 13,
+    "group": "combo",
+    "name": "蒼き巨星、R35",
+    "sub": "グフR35。U.C. のランバ・ラルの愛機グフを、レーサー風に磨き上げたカスタム。ヒートロッドの誇りは、世代を超えて受け継がれる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "グフR35",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "MS-07",
+            "nameExcludes": "R35"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_dom_r35",
+    "universe": "BF",
+    "no": 14,
+    "group": "combo",
+    "name": "黒い三連星、再び",
+    "sub": "ドムR35。U.C. の重MSドムを、流麗なレーサーへと仕立て直す。ジェットストリームアタックの記憶を、新たな塗装に宿して。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ドムR35",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "MS-09",
+            "nameExcludes": "R35"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_hinu_brave",
+    "universe": "BF",
+    "no": 15,
+    "group": "combo",
+    "name": "勇気のフィン・ファンネル",
+    "sub": "Hi-νガンダムヴレイブ。U.C. のHi-νを下敷きに、勇者の意匠を加えた一機。アムロの遺した名機が、ガンプラバトルで再び翔ぶ。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ヴレイブ",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "Hi-ν",
+            "nameExcludes": [
+              "ヴレイブ",
+              "インフラックス"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_weiss_sinanju",
+    "universe": "BF",
+    "no": 16,
+    "group": "combo",
+    "name": "白きシナンジュ",
+    "sub": "ヴァイスシナンジュ。U.C. のフロンタル機シナンジュを、純白に塗り替えた変則機。赤い彗星の意匠が、白の中で別の生を得る。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ヴァイスシナンジュ",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "MSN-06S"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_turn_a_shin",
+    "universe": "BF",
+    "no": 17,
+    "group": "combo",
+    "name": "ヒゲの新生",
+    "sub": "ターンエーガンダムシン。賛否を呼んだ∀の髭デザインを、シャープに再解釈した一機。原典への愛と挑戦が同居する、玄人向けの逸品。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ターンエーガンダムシン",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ターンエー",
+            "nameExcludes": "シン"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_amazing_sf",
+    "universe": "BF",
+    "no": 18,
+    "group": "combo",
+    "name": "名人の自由",
+    "sub": "アメイジングストライクフリーダム。C.E. のストライクフリーダムを名人が極めた機体。ドラグーンの全弾発射という原典の華を、さらに増幅する。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "アメイジングストライクフリーダム",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "code": "ZGMF-X20A"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_jiaen_altron",
+    "universe": "BF",
+    "no": 19,
+    "group": "combo",
+    "name": "双頭龍の継承",
+    "sub": "ガンダムジーエンアルトロン。A.C. のアルトロンを下敷きに、二匹の龍頭を備えたダイバーズ機。ナタクの牙が、電脳世界で甦る。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ジーエンアルトロン",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "code": "XXXG-01S2",
+            "nameExcludes": "ジーエン"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_nu_zeon",
+    "universe": "BF",
+    "no": 20,
+    "group": "combo",
+    "name": "νにジオンを",
+    "sub": "ν-ジオンガンダム。U.C. の到達点νガンダムに、あえてジオンの意匠を混ぜ込む禁断の融合。連邦と公国、二つの美学が一機に宿る。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ジオンガンダム",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "codePrefix": "RX-93",
+            "nameExcludes": [
+              "Hi",
+              "ν2"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_sei_reiji",
+    "universe": "BF",
+    "no": 21,
+    "group": "combo",
+    "name": "セイとレイジの原点",
+    "sub": "ビルダー・セイとファイター・レイジ、二人三脚の相棒機。ビルドストライクから、プラフスキーウイングを得たスタービルドストライクへ。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ビルドストライクガンダム",
+            "nameExcludes": [
+              "スター",
+              "ギャラクシー"
+            ],
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "スタービルドストライク",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_meijin_amazing",
+    "universe": "BF",
+    "no": 22,
+    "group": "combo",
+    "name": "名人カワグチの流儀",
+    "sub": "メイジン・カワグチが駆る『アメイジング』の系譜。エクシアダークマター、アメイジングエクシア、アメイジングレッドウォーリア。王者の魔改造。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ダークマター",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "アメイジングエクシア",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "アメイジングレッドウォーリア",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_burning_lineage",
+    "universe": "BF",
+    "no": 23,
+    "group": "combo",
+    "name": "燃える、ゴッドの系譜",
+    "sub": "Gガンダムへの愛が結晶した『バーニング』の血脈。ビルド・トライ・カミキ・神——爆熱ゴッドフィンガーの魂が、世代を越えて燃え続ける。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ビルドバーニング",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "トライバーニング",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "カミキバーニング",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "神バーニング",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_try_team",
+    "universe": "BF",
+    "no": 24,
+    "group": "combo",
+    "name": "トライ部隊、参上",
+    "sub": "セカイのトライバーニング、フミナのういにんぐ、ユウマのライトニング。中学生三人組が世界の頂を目指す、ビルドファイターズトライの主役機。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "トライバーニング",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ういにんぐふみな",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ライトニングガンダム",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_beargguy_family",
+    "universe": "BF",
+    "no": 25,
+    "group": "combo",
+    "name": "ベアッガイ一家",
+    "sub": "III、F、P——増え続ける熊の大家族。コウサカ家の愛と、ガンプラの可愛さが詰まった、シリーズ名物のほのぼの枠。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ベアッガイIII",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ベアッガイF",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ベアッガイP",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_fumina",
+    "universe": "BF",
+    "no": 26,
+    "group": "count",
+    "name": "ふみな姉さんの人気",
+    "sub": "すーぱーふみな、ういにんぐふみな、こまんどふみな……気づけば増殖する『ふみな』たち。美少女プラモ枠の、揺るぎなき主力。3体で殿堂入り。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "count": {
+        "nameIncludes": "ふみな",
+        "accessory": true
+      },
+      "gte": 3
+    }
+  },
+  {
+    "id": "bf_trion3",
+    "universe": "BF",
+    "no": 27,
+    "group": "combo",
+    "name": "合体せよ、トライオン3",
+    "sub": "ガンダムトライオン3とドライオンIII。三機が合体する巨大ロボという、70年代スーパーロボットへの全力オマージュ。ガンダムの枠を、軽々と超える。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "トライオン3",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ドライオン",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_lightning_line",
+    "universe": "BF",
+    "no": 28,
+    "group": "combo",
+    "name": "ユウマの雷光",
+    "sub": "ライトニングガンダム、ライトニングZ、スターバーニング。バックウェポンシステムを乗り換えながら戦う、ユウマ・コウサカの系譜。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ライトニングガンダム",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ライトニングZ",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "スターバーニング",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_maou_series",
+    "universe": "BF",
+    "no": 29,
+    "group": "combo",
+    "name": "魔王シリーズ",
+    "sub": "ガンダムX魔王、クロスボーン魔王、そしてX十魔王。原典を闇に落とすユウキ・タツヤの『魔王』コレクション。邪悪こそ、最高の遊び。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "X魔王",
+            "nameExcludes": "十魔王",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "クロスボーンガンダム魔王",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "十魔王",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_riku_00",
+    "universe": "BF",
+    "no": 30,
+    "group": "combo",
+    "name": "リクのダブルオー",
+    "sub": "ガンダムダブルオーダイバー、ダブルオースカイ、スカイメビウス。00 への愛を全身に纏った、ビルドダイバーズ主役機の進化。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ダブルオーダイバー",
+            "nameExcludes": [
+              "エース",
+              "アーク"
+            ],
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ダブルオースカイ",
+            "nameExcludes": "メビウス",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "スカイメビウス",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_hiroto_core",
+    "universe": "BF",
+    "no": 31,
+    "group": "combo",
+    "name": "コアガンダムの換装",
+    "sub": "ヒロトのコアガンダムが、アースリィ、アルスアースリィへと姿を変える。小さな核に外装を着せ替える、Re:RISE のビルド思想の到達点。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "アースリィガンダム",
+            "nameExcludes": "アルス",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "アルスアースリィ",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_divers_force",
+    "universe": "BF",
+    "no": 32,
+    "group": "combo",
+    "name": "ビルドダイバーズの仲間",
+    "sub": "フォース『ビルドダイバーズ』の面々。00スカイ、AGE-IIマグナム、ガルバルディリベイク、ジャスティスナイト。電脳世界で結ばれた絆。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ダブルオースカイ",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "マグナム",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ガルバルディリベイク",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ジャスティスナイト",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_00_love",
+    "universe": "BF",
+    "no": 33,
+    "group": "combo",
+    "name": "ダブルオーへの愛",
+    "sub": "00ダイバー、セラヴィーシェヘラザード、ダブルオーコマンドクアンタ。トランザムとGN粒子への、止まらぬオマージュの数々。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ダブルオーダイバー",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "シェヘラザード",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "コマンドクアンタ",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_metaverse",
+    "universe": "BF",
+    "no": 34,
+    "group": "combo",
+    "name": "メタバースの新星",
+    "sub": "神バーニング、ダブルオーダイバーアーク、プルタイン。最新作ビルドメタバースが描く、ガンプラバトルの新たな地平。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "神バーニング",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ダイバーアーク",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "プルタイン",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_battlogue",
+    "universe": "BF",
+    "no": 35,
+    "group": "combo",
+    "name": "ブレイカー バトローグ",
+    "sub": "ガンダムヘリオス、リヴランスヘブン、ブレイジング。ゲーム発のブレイカー バトローグから、玄人をうならせる異形のガンプラたち。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ヘリオス",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "リヴランスヘブン",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ブレイジングガンダム",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_cross_era",
+    "universe": "BF",
+    "no": 36,
+    "group": "combo",
+    "name": "跨時代の競演",
+    "sub": "C.E.のビルドストライク、A.C.のフェニーチェ、U.C.のライトニングZ、A.D.のダブルオーダイバー。全ての時代へ捧げる、ガンプラという愛の形。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ビルドストライク",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "フェニーチェ",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ライトニングZ",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ダブルオーダイバー",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_freedom_motto",
+    "universe": "BF",
+    "no": 37,
+    "group": "count",
+    "name": "ガンプラに、限界はない",
+    "sub": "ビルドシリーズの機体を15機。作品も時代も縦横無尽に飛び越えて、君の棚はガンプラバトルの闘技場と化す。「ガンプラは、自由だ!」",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "count": {
+        "series": "ガンダムビルド",
+        "accessory": true
+      },
+      "gte": 15
+    }
+  },
+  {
+    "id": "bf_all_build",
+    "universe": "BF",
+    "no": 38,
+    "group": "count",
+    "name": "ビルドの覇者",
+    "sub": "ファイターズ、トライ、ダイバーズ、Re:RISE、メタバース……ビルド系を40機。シリーズの歴史そのものを、君は組み上げた。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "count": {
+        "series": "ガンダムビルド",
+        "accessory": true
+      },
+      "gte": 40
+    }
+  },
+  {
+    "id": "bf_base_limited",
+    "universe": "BF",
+    "no": 39,
+    "group": "count",
+    "name": "ガンダムベースの戦利品",
+    "sub": "ガンダムベース限定カラーのビルド機を2機。店舗へ足を運んだ者だけが手にできる、特別塗装の証。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "count": {
+        "series": "ガンダムビルド",
+        "base": true,
+        "accessory": true
+      },
+      "gte": 2
+    }
+  },
+  {
+    "id": "bf_petitgguy",
+    "universe": "BF",
+    "no": 40,
+    "group": "count",
+    "name": "プチッガイ収集癖",
+    "sub": "手のひらサイズの『プチッガイ』を2体。集めだすと止まらない、ビルドシリーズの沼の入口。可愛さは、罪。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "count": {
+        "nameIncludes": "プチッガイ",
+        "accessory": true
+      },
+      "gte": 2
+    }
+  },
+  {
+    "id": "bf_psf",
+    "universe": "BF",
+    "no": 41,
+    "group": "combo",
+    "name": "完璧なる自由",
+    "sub": "ガンダムパーフェクトストライクフリーダムと、そのルージュ。C.E. の二つの名機を一機に統合する、究極の『全部乗せ』。原作愛の暴走。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "パーフェクトストライクフリーダム",
+            "nameExcludes": "ルージュ",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "パーフェクトストライクフリーダムルージュ",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_super_fumina",
+    "universe": "BF",
+    "no": 42,
+    "group": "combo",
+    "name": "すーぱーふみな",
+    "sub": "すーぱーふみなと、ういにんぐふみな。ガンプラ少女を擬人化…ではなく『ガンプラ化』した怪作。可動とプロポーションの探求は、ここに極まる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "すーぱーふみな",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ういにんぐふみな",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_crossbone_gbft",
+    "universe": "BF",
+    "no": 43,
+    "group": "combo",
+    "name": "髑髏の二つの顔",
+    "sub": "クロスボーン魔王と、X1フルクロス TYPE.GBFT。U.C. の海賊ガンダムが、ビルドの世界で二つの姿を得る。骸骨の意匠、健在。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "クロスボーンガンダム魔王",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "フルクロス TYPE.GBFT",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_transient",
+    "universe": "BF",
+    "no": 44,
+    "group": "combo",
+    "name": "トランジェントの煌めき",
+    "sub": "トランジェントガンダムと、その発展機グレイシャー。アジア圏の人気を背負った、ビルドファイターズトライの隠れた主役格。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "トランジェントガンダム",
+            "nameExcludes": "グレイシャー",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "グレイシャー",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_eldora",
+    "universe": "BF",
+    "no": 45,
+    "group": "combo",
+    "name": "エルドラの守護者",
+    "sub": "Re:RISE のエルドラ軍——ブルート、ドートレス、ウィンダム。少年たちが救おうとした、もう一つの世界の機体たち。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "エルドラブルート",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "エルドラドートレス",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "エルドラウィンダム",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_break",
+    "universe": "BF",
+    "no": 46,
+    "group": "combo",
+    "name": "ビルドダイバーズブレイク",
+    "sub": "シャイニングブレイク、G-エルス、ビルドガンマ。最新外伝ブレイクが描く、新世代ダイバーたちのガンプラ。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "シャイニングブレイク",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "G-エルス",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ビルドガンマ",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_rerise_final",
+    "universe": "BF",
+    "no": 47,
+    "group": "combo",
+    "name": "リライジング",
+    "sub": "アルスアースリィと、最終決戦機リライジングガンダム。Re:RISE の物語を締めくくる、ヒロトたちの集大成。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "アルスアースリィ",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "リライジングガンダム",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_knights",
+    "universe": "BF",
+    "no": 48,
+    "group": "combo",
+    "name": "騎士の系譜",
+    "sub": "ジャスティスナイトと、イージスナイト。SDガンダム外伝『ナイトガンダム』の意匠を、Re:RISE が現代に甦らせた、もう一つの原作愛。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ジャスティスナイト",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "イージスナイト",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_amazing_red",
+    "universe": "BF",
+    "no": 49,
+    "group": "combo",
+    "name": "紅の名人",
+    "sub": "ガンダムアメイジングレッドウォーリアと、エクシアダークマター。三代目名人カワグチが駆る、赤と黒——王者の二面性。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "アメイジングレッドウォーリア",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ダークマター",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bf_world_tournament",
+    "universe": "BF",
+    "no": 50,
+    "group": "combo",
+    "name": "ガンプラバトル世界選手権",
+    "sub": "ビルドストライク、フェニーチェ、戦国アストレイ、エクシアダークマター、ベアッガイ。世界の頂点を競った、ビルドファイターズ第一章の顔ぶれ。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "ビルドストライク",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "フェニーチェ",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "戦国アストレイ",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ダークマター",
+            "accessory": true
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "ベアッガイ",
+            "accessory": true
           }
         }
       ]
