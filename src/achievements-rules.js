@@ -1434,7 +1434,7 @@ export const ACHIEVEMENTS = [
     "no": 18,
     "group": "combo",
     "name": "型録の深淵",
-    "sub": "プレバン・外伝・MSVの濃いメンツ。エールカラミティ、ジングラディエイター、エクリプス2号機、レイダー。公式が忘れた頃に立体化される、沼の住人たち。",
+    "sub": "プレバン・外伝の濃いメンツ。エールカラミティ、ジングラディエイター、エクリプス2号機、そしてブーストレイダー。SEED ECLIPSEの深部、公式が忘れた頃に立体化される沼の住人たち。",
     "hidden": false,
     "scope": "full",
     "rule": {
@@ -1456,7 +1456,7 @@ export const ACHIEVEMENTS = [
         },
         {
           "match": {
-            "code": "GAT-X370"
+            "code": "GAT-XX370"
           }
         }
       ]
