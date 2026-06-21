@@ -1,4 +1,4 @@
-// AUTO-GENERATED achievement rules. 87 live achievements (37 UC + 50 SEED/C.E.).
+// AUTO-GENERATED achievement rules. 107 live achievements (37 UC + 50 SEED/C.E. + 20 G/F.C.).
 // fields: id, universe(UC/SEED/W/X/G/00/BF/other), no(1-based per universe), group, name, sub, hidden, scope?, rule
 export const ACHIEVEMENTS = [
   {
@@ -2353,6 +2353,539 @@ export const ACHIEVEMENTS = [
         {
           "match": {
             "code": "MVF-X08"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "g_two_lights",
+    "universe": "G",
+    "no": 1,
+    "group": "combo",
+    "name": "この手が光って唸る",
+    "sub": "ドモン・カッシュの二機。瀕死から甦り、シャイニングガンダムからゴッドガンダムへ。『この手が光って唸る』シャイニングフィンガーから、『真っ赤に燃えている』ゴッドフィンガーへ。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GF13-017NJ"
+          }
+        },
+        {
+          "match": {
+            "code": "GF13-017NJII"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "g_meikyoshisui",
+    "universe": "G",
+    "no": 2,
+    "group": "combo",
+    "name": "明鏡止水、乱れ封じる",
+    "sub": "心、明鏡止水——技の極致ハイパーモード。ゴッドとマスター、師弟がともに金色に輝く。怒りを越え、静けさの中で放つ究極の一撃。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameAll": [
+              "ハイパーモード"
+            ],
+            "nameExcludes": "マスター"
+          }
+        },
+        {
+          "match": {
+            "nameAll": [
+              "ハイパーモード",
+              "マスター"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "g_domon_arsenal",
+    "universe": "G",
+    "no": 3,
+    "group": "combo",
+    "name": "真っ赤に燃える拳",
+    "sub": "ドモンの全進化形態。シャイニング、ゴッド、そして明鏡止水のハイパーモード。少年が拳一つで頂点へ駆け上がった軌跡。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GF13-017NJ"
+          }
+        },
+        {
+          "match": {
+            "code": "GF13-017NJII",
+            "nameExcludes": "ハイパーモード"
+          }
+        },
+        {
+          "match": {
+            "nameAll": [
+              "ハイパーモード"
+            ],
+            "nameExcludes": "マスター"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "g_master_debut",
+    "universe": "G",
+    "no": 4,
+    "group": "combo",
+    "name": "見よ、東方は赤く燃えている",
+    "sub": "流派東方不敗マスター・アジア、登場。かつての師がシャイニングガンダムの前に立ちはだかる。『天はオレを呼んでいる』——王者の風が吹き荒れる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GF13-017NJ"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "マスターガンダム"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "g_master_disciple",
+    "universe": "G",
+    "no": 5,
+    "group": "combo",
+    "name": "さらば師よ",
+    "sub": "流派東方不敗、師弟最終決戦。ゴッドガンダムとマスターガンダム、石破天驚拳がぶつかり合う。地球を救う道を巡り、教え子は師を超える。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GF13-017NJII"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "マスターガンダム"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "g_sekiha",
+    "universe": "G",
+    "no": 6,
+    "group": "combo",
+    "name": "石破天驚拳、継承者たち",
+    "sub": "流派東方不敗の奥義・石破天驚拳を放つ三人。ドモンのゴッド、東方不敗のマスター、そして謎の剣士シュバルツのシュピーゲル。天破侠乱の系譜。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GF13-017NJII"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "マスターガンダム"
+          }
+        },
+        {
+          "match": {
+            "code": "GF13-021NG"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "g_schwarz",
+    "universe": "G",
+    "no": 7,
+    "group": "combo",
+    "name": "黒い稲妻、シュバルツ",
+    "sub": "謎の剣士シュバルツ・ブルーダーがガンダムシュピーゲルでドモンを導く。忍術めいた残像と刃で、未熟な闘士を鍛え上げる影の師。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GF13-021NG"
+          }
+        },
+        {
+          "match": {
+            "code": "GF13-017NJ"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "g_brothers",
+    "universe": "G",
+    "no": 8,
+    "group": "combo",
+    "name": "兄キョウジの面影",
+    "sub": "シュバルツの正体は、兄キョウジのデータから生まれた存在。シュピーゲルとゴッド——失われた兄の意志が、弟ドモンの背を押す。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GF13-021NG"
+          }
+        },
+        {
+          "match": {
+            "code": "GF13-017NJII"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "g_shuffle",
+    "universe": "G",
+    "no": 9,
+    "group": "combo",
+    "name": "シャッフル同盟、見参",
+    "sub": "キング・オブ・ハートのドモン、クィーン・ザ・スペードのチボデー、ジャック…宿命を背負った闘士たち。ゴッド・マックスター・ローズ・ドラゴンが拳を交わし、やがて絆となる。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GF13-017NJII"
+          }
+        },
+        {
+          "match": {
+            "code": "GF13-006NA"
+          }
+        },
+        {
+          "match": {
+            "code": "GF13-009NF"
+          }
+        },
+        {
+          "match": {
+            "code": "GF13-011NC"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "g_true_shuffle",
+    "universe": "G",
+    "no": 10,
+    "group": "combo",
+    "name": "真・シャッフル同盟拳",
+    "sub": "ドモン・チボデー・ジョルジュ・サイ・サイシー、そしてシュバルツ。デビルガンダムに抗うため、闘士たちの拳が一つに重なる——シャッフル同盟拳!",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GF13-017NJII"
+          }
+        },
+        {
+          "match": {
+            "code": "GF13-006NA"
+          }
+        },
+        {
+          "match": {
+            "code": "GF13-009NF"
+          }
+        },
+        {
+          "match": {
+            "code": "GF13-011NC"
+          }
+        },
+        {
+          "match": {
+            "code": "GF13-021NG"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "g_gundam_fight",
+    "universe": "G",
+    "no": 11,
+    "group": "combo",
+    "name": "レディ・ゴー！",
+    "sub": "第13回ガンダムファイト、開幕。ネオアメリカのマックスター、ネオフランスのローズ、ネオチャイナのドラゴン。国の威信を背負い、地球を舞台に殴り合う。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GF13-006NA"
+          }
+        },
+        {
+          "match": {
+            "code": "GF13-009NF"
+          }
+        },
+        {
+          "match": {
+            "code": "GF13-011NC"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "g_chibodee",
+    "universe": "G",
+    "no": 12,
+    "group": "combo",
+    "name": "バーストマシンガンパンチ",
+    "sub": "ネオアメリカのチボデー・クロケット。元ボクサーの拳がマックスターから繰り出される。ドモンとは拳で語り合う、熱き好敵手。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GF13-006NA"
+          }
+        },
+        {
+          "match": {
+            "code": "GF13-017NJII"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "g_rose_knight",
+    "universe": "G",
+    "no": 13,
+    "group": "combo",
+    "name": "我が薔薇の名にかけて",
+    "sub": "ネオフランスの貴公子ジョルジュ・ド・サンドのローズと、剣士シュバルツのシュピーゲル。騎士道とサーベル、誇り高き刃を持つ二人。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GF13-009NF"
+          }
+        },
+        {
+          "match": {
+            "code": "GF13-021NG"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "g_eastern_mystic",
+    "universe": "G",
+    "no": 14,
+    "group": "combo",
+    "name": "東洋の神秘",
+    "sub": "曼荼羅を冠したマンダラガンダムと、少林の拳を継ぐサイ・サイシーのドラゴン。超級覇王電影弾と祈り——東洋の精神性を宿す機体たち。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "マンダラ"
+          }
+        },
+        {
+          "match": {
+            "code": "GF13-011NC"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "g_allenby",
+    "universe": "G",
+    "no": 15,
+    "group": "combo",
+    "name": "ファイト一発、アレンビー",
+    "sub": "ネオスウェーデンのアレンビー・ビアズリー、ノーベルガンダムの乙女。ドモンの好敵手にして、淡い想いを寄せる相手。明るさの裏の孤独。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GF13-050NSW",
+            "nameExcludes": "バーサーカー"
+          }
+        },
+        {
+          "match": {
+            "code": "GF13-017NJII"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "g_berserker",
+    "universe": "G",
+    "no": 16,
+    "group": "combo",
+    "name": "狂気のバーサーカー",
+    "sub": "DG細胞に侵されたノーベルガンダムが、理性を失いバーサーカーモードへ。優しいアレンビーが暴走する悲劇——救えるのはドモンの拳だけ。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GF13-050NSW",
+            "nameExcludes": "バーサーカー"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "バーサーカー"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "g_controlled",
+    "universe": "G",
+    "no": 17,
+    "group": "combo",
+    "name": "操られし乙女",
+    "sub": "デビルガンダムに与した東方不敗が、DG細胞でアレンビーを操る。バーサーカーのノーベルとマスターガンダム——師の堕落が生んだ、もう一つの戦い。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "バーサーカー"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "マスターガンダム"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "g_devil_minions",
+    "universe": "G",
+    "no": 18,
+    "group": "combo",
+    "name": "デビルガンダムの尖兵",
+    "sub": "自己増殖する機械の軍勢、デスアーミーとデスビースト。意志なき鋼の群れが地球を喰らう。デビルガンダムが生み出す、終わりなき脅威。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "JDG-009X"
+          }
+        },
+        {
+          "match": {
+            "nameIncludes": "デスビースト",
+            "accessory": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "g_master_fallen",
+    "universe": "G",
+    "no": 19,
+    "group": "combo",
+    "name": "堕ちた拳法王",
+    "sub": "地球のため、東方不敗はデビルガンダムの側に立つ。マスターガンダムとデスアーミー——かつての英雄が、人類を滅ぼす機械と手を組む皮肉。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "nameIncludes": "マスターガンダム"
+          }
+        },
+        {
+          "match": {
+            "code": "JDG-009X"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "g_final_fight",
+    "universe": "G",
+    "no": 20,
+    "group": "combo",
+    "name": "永遠に輝けガンダムファイト",
+    "sub": "全てを賭けた最終決戦。ゴッドガンダムが、兄キョウジを核としたデビルガンダムへ挑む。愛と拳で運命を断ち切る、ドモンの集大成。",
+    "hidden": false,
+    "scope": "full",
+    "rule": {
+      "all": [
+        {
+          "match": {
+            "code": "GF13-017NJII"
+          }
+        },
+        {
+          "match": {
+            "code": "JDG-009X"
           }
         }
       ]
