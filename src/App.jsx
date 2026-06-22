@@ -5531,10 +5531,9 @@ export default function App() {
             {serifEdit && (
               <div className="serif-edit-bg" onClick={(e) => { e.stopPropagation(); setSerifEdit(null); }}>
                 <div className="serif-edit" onClick={(e) => e.stopPropagation()}>
-                  <input className="se-input" autoFocus value={serifEdit.text} maxLength={80}
+                  <textarea className="se-input" autoFocus value={serifEdit.text} maxLength={120} rows={3}
                     onChange={(e) => setSerifEdit((s) => ({ ...s, text: e.target.value }))}
-                    onKeyDown={(e) => { if (e.key === "Enter") saveSerif(); }}
-                    placeholder="台詞を入力(前後の引用符は自動)" />
+                    placeholder="台詞を入力(改行可・前後の引用符は自動)" />
                   <div className="se-btns">
                     <button className="btn" onClick={() => setSerifEdit(null)}>取消</button>
                     <button className="btn solid" onClick={saveSerif}>保存</button>
@@ -5918,6 +5917,7 @@ const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Lugrasimo&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=STIX+Two+Math&display=swap');
+@import url('https://cdn.jsdelivr.net/npm/lxgw-wenkai-tc-webfont/style.css');
 
 :root{
   --bg:#0d1018; --bg2:#12161f; --panel:#171c28; --panel2:#1c2230;
@@ -6144,16 +6144,16 @@ input,textarea{font-family:var(--sans)}
 .sv-slide{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:18px;box-sizing:border-box;will-change:transform}
 .sv-img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;transform-origin:center center;will-change:transform;user-select:none;-webkit-user-drag:none}
 /* セリフ(画像上部・楷体。サイズ/色は機体名 dc-name に準拠) */
-.viewer-serif{position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top) + 10px);z-index:121;
-  display:flex;align-items:center;justify-content:center;padding:8px 22px;min-height:62px;text-align:center;cursor:text}
-.vs-text{font-family:"KaiTi","Kaiti TC","Kaiti SC","STKaiti","BiauKai","DFKai-SB","楷体","楷體",serif;
-  font-weight:700;font-size:25px;line-height:1.3;color:var(--ink-strong);max-width:92%;
+.viewer-serif{position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top) + 44px);z-index:121;
+  display:flex;align-items:flex-start;justify-content:flex-start;padding:8px 22px;min-height:46px;text-align:left;cursor:text}
+.vs-text{font-family:"LXGW WenKai TC","BiauKai","Kaiti TC","KaiTi","STKaiti","Kaiti SC","DFKai-SB","楷体","楷體",serif;
+  font-weight:700;font-size:25px;line-height:1.34;color:var(--ink-strong);max-width:96%;white-space:pre-line;text-align:left;
   text-shadow:0 2px 12px rgba(0,0,0,.85),0 0 3px rgba(0,0,0,.7)}
 .vs-hint{font-family:var(--sans);font-size:12px;letter-spacing:.12em;color:rgba(255,255,255,.32)}
 .serif-edit-bg{position:fixed;inset:0;z-index:130;background:rgba(0,0,0,.55);display:flex;align-items:flex-start;justify-content:center;padding-top:16vh}
 .serif-edit{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;width:min(440px,90vw);box-shadow:0 18px 54px rgba(0,0,0,.6)}
-.se-input{width:100%;box-sizing:border-box;font-family:"KaiTi","Kaiti TC","Kaiti SC","STKaiti","BiauKai","DFKai-SB",serif;font-size:18px;color:var(--ink-strong);
-  background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:11px 13px;outline:none}
+.se-input{width:100%;box-sizing:border-box;font-family:"LXGW WenKai TC","BiauKai","Kaiti TC","KaiTi","STKaiti","Kaiti SC","DFKai-SB",serif;font-size:18px;line-height:1.5;color:var(--ink-strong);
+  background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:11px 13px;outline:none;min-height:96px;resize:vertical;display:block}
 .se-input:focus{border-color:var(--gold)}
 .se-btns{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
 /* 方向C:極淡灰階噪點質感(標題列與圖片框統一),內容置於其上 */
