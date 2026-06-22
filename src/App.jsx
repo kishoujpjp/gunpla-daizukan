@@ -2555,6 +2555,102 @@ function KitImage({ kit, img, owned, built, size = 84, cls = "", frame }) {
 
 /* 指でのピンチズーム/パン。画像にのみ適用。タップ(移動なし)で onTap を発火。
    Pointer Events で実装(iOS Safari 対応)。touch-action:none で既定のスクロールを抑止。 */
+/* ── 画像鑑賞: 指追従の横スワイプでページング(離すと次へ自然遷移)＋ピンチズーム。
+   ボタン/X 無し、タップで閉じる。ズーム中(>1倍)は1本指でパン、等倍時のみページング ── */
+function SwipeViewer({ slides, index, onIndex, onClose, resetKey }) {
+  const n = slides.length;
+  const wrapRef = useRef(null);
+  const [dragX, setDragX] = useState(0);
+  const [paging, setPaging] = useState(false);
+  const [z, setZ] = useState({ scale: 1, x: 0, y: 0 });
+  const zr = useRef({ scale: 1, x: 0, y: 0 });
+  const pts = useRef(new Map());
+  const st = useRef(null);
+
+  useEffect(() => { zr.current = { scale: 1, x: 0, y: 0 }; setZ({ scale: 1, x: 0, y: 0 }); }, [index, resetKey]);
+
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const clampZoom = (s, x, y) => {
+    s = Math.max(1, Math.min(5, s));
+    const el = wrapRef.current;
+    if (el) { const mx = el.clientWidth * (s - 1) / 2, my = el.clientHeight * (s - 1) / 2; x = Math.max(-mx, Math.min(mx, x)); y = Math.max(-my, Math.min(my, y)); }
+    if (s <= 1.001) { x = 0; y = 0; }
+    return { scale: s, x, y };
+  };
+  const setZoom = (r) => { zr.current = r; setZ(r); };
+
+  const down = (e) => {
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
+    pts.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const arr = [...pts.current.values()];
+    if (arr.length >= 2) {
+      st.current = { mode: "pinch", baseDist: dist(arr[0], arr[1]) || 1, baseScale: zr.current.scale, bx: zr.current.x, by: zr.current.y, moved: true };
+    } else {
+      st.current = { mode: null, sx: e.clientX, sy: e.clientY, bx: zr.current.x, by: zr.current.y, moved: false };
+      setPaging(false);
+    }
+  };
+  const move = (e) => {
+    if (!pts.current.has(e.pointerId)) return;
+    pts.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const arr = [...pts.current.values()];
+    const s = st.current; if (!s) return;
+    if (s.mode === "pinch" && arr.length >= 2) {
+      setZoom(clampZoom(s.baseScale * (dist(arr[0], arr[1]) / s.baseDist), s.bx, s.by));
+      return;
+    }
+    if (arr.length !== 1) return;
+    const dx = arr[0].x - s.sx, dy = arr[0].y - s.sy;
+    if (zr.current.scale > 1) {
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) s.moved = true;
+      setZoom(clampZoom(zr.current.scale, s.bx + dx, s.by + dy));
+    } else {
+      if (s.mode === null && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) s.mode = Math.abs(dx) > Math.abs(dy) ? "page" : "vert";
+      if (s.mode === "page") {
+        s.moved = true;
+        let d = dx;
+        if ((index === 0 && d > 0) || (index === n - 1 && d < 0)) d *= 0.35;
+        setDragX(d);
+      }
+    }
+  };
+  const up = (e) => {
+    pts.current.delete(e.pointerId);
+    const arr = [...pts.current.values()];
+    if (arr.length >= 1) {
+      st.current = { mode: zr.current.scale > 1 ? "pan" : null, sx: arr[0].x, sy: arr[0].y, bx: zr.current.x, by: zr.current.y, moved: true };
+      return;
+    }
+    const s = st.current; st.current = null;
+    if (!s) return;
+    if (s.mode === "page") {
+      const el = wrapRef.current;
+      const th = el ? Math.min(80, el.clientWidth * 0.22) : 80;
+      setPaging(true);
+      if (dragX <= -th && index < n - 1) onIndex(index + 1);
+      else if (dragX >= th && index > 0) onIndex(index - 1);
+      setDragX(0);
+    } else if (!s.moved && zr.current.scale <= 1.01) {
+      onClose(e);
+    }
+  };
+
+  return (
+    <div ref={wrapRef} className="sv-wrap" style={{ touchAction: "none" }}
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
+      <div className="sv-track" style={{ transform: `translateX(calc(${-index * 100}% + ${dragX}px))`, transition: paging ? "transform .32s cubic-bezier(.25,.8,.3,1)" : "none" }}>
+        {slides.map((sl, i) => (
+          <div className="sv-slide" key={sl.ref}>
+            <img src={sl.src} alt="" draggable={false} className="sv-img"
+              style={i === index ? { transform: `translate(${z.x}px,${z.y}px) scale(${z.scale})` } : undefined} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function PinchZoom({ src, alt = "", className = "", imgClassName = "", imgStyle, onTap, onSwipe, resetKey, maxScale = 5 }) {
   const box = useRef(null);
   const cur = useRef({ scale: 1, x: 0, y: 0 });
@@ -5360,20 +5456,17 @@ export default function App() {
         const cur = album[idx];
         const thumbRef = pickRef("thumb", viewer.kitId, images, extras, albumMeta);
         const acqRef = pickRef("acquire", viewer.kitId, images, extras, albumMeta);
-        const go = (d) => { setViewerDel(false); setViewer((v) => ({ ...v, idx: (idx + d + album.length) % album.length })); };
         return (
           <div className="viewer-bg" onClick={close}>
-            <PinchZoom src={cur.src} className="viewer-pz" imgClassName="viewer-img" resetKey={cur.ref}
-              onTap={close} onSwipe={album.length > 1 ? go : undefined} />
-            {album.length > 1 && <>
-              <button className="viewer-nav prev" onClick={(e) => { e.stopPropagation(); go(-1); }}>‹</button>
-              <button className="viewer-nav next" onClick={(e) => { e.stopPropagation(); go(1); }}>›</button>
+            <SwipeViewer slides={album} index={idx} resetKey={viewer.kitId}
+              onIndex={(i) => { setViewerDel(false); setViewer((v) => ({ ...v, idx: i })); }}
+              onClose={close} />
+            {album.length > 1 && (
               <div className="viewer-dots" onClick={(e) => e.stopPropagation()}>
                 {album.map((a, i) => <span key={a.ref} className={"vd" + (i === idx ? " on" : "")}
                   onClick={() => { setViewerDel(false); setViewer((v) => ({ ...v, idx: i })); }} />)}
               </div>
-            </>}
-            <button className="viewer-x" onClick={(e) => { e.stopPropagation(); close(); }}>✕</button>
+            )}
             <div className="viewer-bar" onClick={(e) => e.stopPropagation()}>
               <span className="vb-count">{idx + 1} / {album.length}</span>
               <button className={"vb-btn" + (cur.ref === thumbRef ? " on" : "")}
@@ -5991,6 +6084,11 @@ input,textarea{font-family:var(--sans)}
 /* 8. ビューア(全画面)のピンチズーム容器。移動なしのタップで閉じ、ピンチ/パンは維持 */
 .viewer-pz{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   padding:20px;box-sizing:border-box;cursor:zoom-out}
+/* 画像鑑賞スワイプ・カルーセル */
+.sv-wrap{position:absolute;inset:0;overflow:hidden;cursor:zoom-out}
+.sv-track{display:flex;width:100%;height:100%;will-change:transform}
+.sv-slide{flex:0 0 100%;width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:18px;box-sizing:border-box}
+.sv-img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;transform-origin:center center;will-change:transform;user-select:none;-webkit-user-drag:none}
 /* 方向C:極淡灰階噪點質感(標題列與圖片框統一),內容置於其上 */
 .tc-art::after{content:"";position:absolute;inset:0;border-radius:inherit;
   pointer-events:none;z-index:0;opacity:.05;background-size:120px 120px;
