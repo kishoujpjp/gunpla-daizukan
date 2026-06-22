@@ -2557,7 +2557,7 @@ function KitImage({ kit, img, owned, built, size = 84, cls = "", frame }) {
    Pointer Events で実装(iOS Safari 対応)。touch-action:none で既定のスクロールを抑止。 */
 /* ── 画像鑑賞: 指追従の横スワイプでページング(離すと次へ自然遷移)＋ピンチズーム。
    ボタン/X 無し、タップで閉じる。ズーム中(>1倍)は1本指でパン、等倍時のみページング ── */
-function SwipeViewer({ slides, index, onIndex, onClose, resetKey }) {
+function SwipeViewer({ slides, index, onIndex, onClose, resolveSrc, resetKey }) {
   const n = slides.length;
   const wrapRef = useRef(null);
   const [dragX, setDragX] = useState(0);
@@ -2635,18 +2635,24 @@ function SwipeViewer({ slides, index, onIndex, onClose, resetKey }) {
     }
   };
 
+  const lo = Math.max(0, index - 1), hi = Math.min(n - 1, index + 1);
+  const win = [];
+  for (let i = lo; i <= hi; i++) win.push(i);
   return (
     <div ref={wrapRef} className="sv-wrap" style={{ touchAction: "none" }}
       onClick={(e) => e.stopPropagation()}
       onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
-      <div className="sv-track" style={{ transform: `translateX(calc(${-index * 100}% + ${dragX}px))`, transition: paging ? "transform .32s cubic-bezier(.25,.8,.3,1)" : "none" }}>
-        {slides.map((sl, i) => (
-          <div className="sv-slide" key={sl.ref}>
-            <img src={sl.src} alt="" draggable={false} className="sv-img"
-              style={i === index ? { transform: `translate(${z.x}px,${z.y}px) scale(${z.scale})` } : undefined} />
+      {win.map((i) => {
+        const sl = slides[i];
+        const isCur = i === index;
+        return (
+          <div className="sv-slide" key={sl.kitId + "/" + sl.ref}
+            style={{ transform: `translateX(calc(${(i - index) * 100}% + ${dragX}px))`, transition: paging ? "transform .3s cubic-bezier(.25,.8,.3,1)" : "none" }}>
+            <img src={resolveSrc(sl)} alt="" draggable={false} className="sv-img"
+              style={isCur ? { transform: `translate(${z.x}px,${z.y}px) scale(${z.scale})` } : undefined} />
           </div>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 }
@@ -3461,6 +3467,8 @@ export default function App() {
   const [tab, setTab] = useState("zukan");
   const [records, setRecords] = useState({});
   const [kitTags, setKitTags] = useState({});
+  const [serifs, setSerifs] = useState({}); // {imgRef: "台詞"} 画像鑑賞のセリフ
+  const [serifEdit, setSerifEdit] = useState(null); // {ref, text} | null
   const [tagInput, setTagInput] = useState("");
   const [overrides, setOverrides] = useState({});
   const [customKits, setCustomKits] = useState([]);
@@ -3583,6 +3591,7 @@ export default function App() {
           if (d.sortDir) setSortDir(d.sortDir);
           if (d.achvSeen) setAchvSeen(d.achvSeen);
           if (d.albumMeta) setAlbumMeta(d.albumMeta);
+          if (d.serifs) setSerifs(d.serifs);
         }
       } catch (e) { /* 初次使用 */ }
       setAchvSeen((s) => (s === null ? {} : s));
@@ -3783,11 +3792,11 @@ export default function App() {
   const latestMetaRef = useRef("");
   useEffect(() => {
     if (!loaded) return;
-    const payload = JSON.stringify({ schemaVersion: SCHEMA_VERSION, records, overrides, customKits, settings, sortKey, sortDir, achvSeen, albumMeta, kitTags });
+    const payload = JSON.stringify({ schemaVersion: SCHEMA_VERSION, records, overrides, customKits, settings, sortKey, sortDir, achvSeen, albumMeta, kitTags, serifs });
     latestMetaRef.current = payload; // 背景化/終了時に debounce を待たず即落とすための最新版
     const t = setTimeout(() => { saveKey(META_KEY, payload); }, 350);
     return () => clearTimeout(t);
-  }, [records, overrides, customKits, settings, sortKey, sortDir, achvSeen, albumMeta, kitTags, loaded, saveKey]);
+  }, [records, overrides, customKits, settings, sortKey, sortDir, achvSeen, albumMeta, kitTags, serifs, loaded, saveKey]);
 
   /* ── 背景化/終了の直前に未保存の META を即時 flush(debounce 350ms の取りこぼし防止)──
      visibilitychange→hidden は freeze 前に発火するため非同期書き込みも概ね間に合う。
@@ -3854,6 +3863,7 @@ export default function App() {
     if (d.sortDir) setSortDir(d.sortDir);
     if (d.achvSeen) setAchvSeen(d.achvSeen);
     if (d.albumMeta) setAlbumMeta((prev) => ({ ...prev, ...d.albumMeta }));
+    if (d.serifs) setSerifs((prev) => ({ ...prev, ...d.serifs }));
   }, []);
 
   const pullCloud = useCallback(async (cfg, force) => {
@@ -3911,7 +3921,7 @@ export default function App() {
     setSyncMsg("同期中…");
     try {
       const nn = await pullCloud(cfg);
-      await saveKey(META_KEY, JSON.stringify({ schemaVersion: SCHEMA_VERSION, records, overrides, customKits, settings, sortKey, sortDir, achvSeen, albumMeta, kitTags }));
+      await saveKey(META_KEY, JSON.stringify({ schemaVersion: SCHEMA_VERSION, records, overrides, customKits, settings, sortKey, sortDir, achvSeen, albumMeta, kitTags, serifs }));
       for (let i = 0; i < IMG_SHARDS; i++) {
         const map = {};
         for (const [ik, iv] of Object.entries(images)) if (hashId(ik) % IMG_SHARDS === i) map[ik] = iv;
@@ -4053,13 +4063,13 @@ export default function App() {
 
   // 鑑賞モードを開く(入手指定の画像から)
   const openViewer = useCallback((kitId) => {
-    const album = albumRefs(kitId, images, extras, albumMeta).map((ref) => ({ ref, src: refSrc(ref, kitId, images, extras) })).filter((e) => e.src);
-    if (!album.length) return;
+    const refs = albumRefs(kitId, images, extras, albumMeta).filter((ref) => refSrc(ref, kitId, images, extras));
+    if (!refs.length) return;
     const acqRef = pickRef("acquire", kitId, images, extras, albumMeta);
-    const i = album.findIndex((a) => a.ref === acqRef);
+    const ref = refs.includes(acqRef) ? acqRef : refs[0];
     haptic();
     setViewerDel(false);
-    setViewer({ kitId, idx: i < 0 ? 0 : i });
+    setViewer({ kitId, ref });
   }, [images, extras, albumMeta]);
 
   /* ── 画像最適化:既存の大きな画像を480pxへ再圧縮 ── */
@@ -4245,7 +4255,7 @@ export default function App() {
   const importRef = useRef(null);
   const exportData = async () => {
     // バックアップにも機密キーは含めない(端末ローカルにのみ残す)
-    const data = { schemaVersion: SCHEMA_VERSION, exportedAt: new Date().toISOString(), records, overrides, customKits, settings: stripSecrets(settings), sortKey, sortDir, images, extras, albumMeta, kitTags };
+    const data = { schemaVersion: SCHEMA_VERSION, exportedAt: new Date().toISOString(), records, overrides, customKits, settings: stripSecrets(settings), sortKey, sortDir, images, extras, albumMeta, kitTags, serifs };
     const json = JSON.stringify(data);
     const name = `mg_zukan_backup_${new Date().toISOString().slice(0, 10)}.json`;
     const file = new File([json], name, { type: "application/json" });
@@ -4295,6 +4305,7 @@ export default function App() {
         }
       }
       if (d.albumMeta && isPlainObj(d.albumMeta)) setAlbumMeta(d.albumMeta);
+      if (d.serifs && isPlainObj(d.serifs)) setSerifs(d.serifs);
       alert("バックアップの読み込みが完了しました");
     } catch (err) { console.error(err); alert("読み込みに失敗しました(ファイル形式を確認してください)"); }
     e.target.value = "";
@@ -5449,30 +5460,57 @@ export default function App() {
       )}
 
       {viewer && (() => {
-        const album = kitAlbum(viewer.kitId);
-        if (!album.length) { setTimeout(() => { setViewer(null); setViewerDel(false); }, 0); return null; }
-        const close = () => { setViewer(null); setViewerDel(false); };
-        const idx = Math.min(viewer.idx, album.length - 1);
-        const cur = album[idx];
-        const thumbRef = pickRef("thumb", viewer.kitId, images, extras, albumMeta);
-        const acqRef = pickRef("acquire", viewer.kitId, images, extras, albumMeta);
+        // 現在の並び順(sorted)で全機体の画像を連結した横断フラット一覧
+        let flat = [];
+        for (const k of sorted) for (const ref of albumRefs(k.id, images, extras, albumMeta)) {
+          if (refSrc(ref, k.id, images, extras)) flat.push({ kitId: k.id, ref, name: k.name });
+        }
+        let gi = flat.findIndex((s) => s.kitId === viewer.kitId && s.ref === viewer.ref);
+        if (gi < 0) { // 現在機体が並びに無い場合は単独で構成
+          flat = albumRefs(viewer.kitId, images, extras, albumMeta)
+            .filter((ref) => refSrc(ref, viewer.kitId, images, extras))
+            .map((ref) => ({ kitId: viewer.kitId, ref, name: (allKits.find((k) => k.id === viewer.kitId) || {}).name || "" }));
+          gi = Math.max(0, flat.findIndex((s) => s.ref === viewer.ref));
+        }
+        if (!flat.length) { setTimeout(() => { setViewer(null); setViewerDel(false); }, 0); return null; }
+        const slide = flat[gi];
+        const curKitId = slide.kitId, curRef = slide.ref;
+        const close = () => { setViewer(null); setViewerDel(false); setSerifEdit(null); setDetail(curKitId); setEditing(false); };
+        const curAlbum = kitAlbum(curKitId);
+        const aIdx = Math.max(0, curAlbum.findIndex((a) => a.ref === curRef));
+        const thumbRef = pickRef("thumb", curKitId, images, extras, albumMeta);
+        const acqRef = pickRef("acquire", curKitId, images, extras, albumMeta);
+        const curSerif = serifs[curRef] || "";
+        const saveSerif = () => {
+          const t = (serifEdit.text || "").trim();
+          setSerifs((m) => { const nm = { ...m }; if (t) nm[serifEdit.ref] = t; else delete nm[serifEdit.ref]; return nm; });
+          setSerifEdit(null);
+        };
         return (
           <div className="viewer-bg" onClick={close}>
-            <SwipeViewer slides={album} index={idx} resetKey={viewer.kitId}
-              onIndex={(i) => { setViewerDel(false); setViewer((v) => ({ ...v, idx: i })); }}
+            <SwipeViewer slides={flat} index={gi} resetKey={curRef}
+              resolveSrc={(sl) => refSrc(sl.ref, sl.kitId, images, extras)}
+              onIndex={(i) => { setViewerDel(false); setSerifEdit(null); setViewer({ kitId: flat[i].kitId, ref: flat[i].ref }); }}
               onClose={close} />
-            {album.length > 1 && (
+
+            <div className="viewer-serif" onClick={(e) => { e.stopPropagation(); setSerifEdit({ ref: curRef, text: curSerif }); }}>
+              {curSerif
+                ? <span className="vs-text">{"\u201C" + curSerif + "\u201D"}</span>
+                : <span className="vs-hint">＋ セリフを追加</span>}
+            </div>
+
+            {curAlbum.length > 1 && (
               <div className="viewer-dots" onClick={(e) => e.stopPropagation()}>
-                {album.map((a, i) => <span key={a.ref} className={"vd" + (i === idx ? " on" : "")}
-                  onClick={() => { setViewerDel(false); setViewer((v) => ({ ...v, idx: i })); }} />)}
+                {curAlbum.map((a, i) => <span key={a.ref} className={"vd" + (i === aIdx ? " on" : "")}
+                  onClick={() => { setViewerDel(false); setSerifEdit(null); setViewer({ kitId: curKitId, ref: a.ref }); }} />)}
               </div>
             )}
             <div className="viewer-bar" onClick={(e) => e.stopPropagation()}>
-              <span className="vb-count">{idx + 1} / {album.length}</span>
-              <button className={"vb-btn" + (cur.ref === thumbRef ? " on" : "")}
-                onClick={() => setAlbumRole(viewer.kitId, cur.ref, "thumb")}>★ 一覧</button>
-              <button className={"vb-btn" + (cur.ref === acqRef ? " on" : "")}
-                onClick={() => setAlbumRole(viewer.kitId, cur.ref, "acquire")}>◎ 入手</button>
+              <span className="vb-count">{aIdx + 1} / {curAlbum.length}</span>
+              <button className={"vb-btn" + (curRef === thumbRef ? " on" : "")}
+                onClick={() => setAlbumRole(curKitId, curRef, "thumb")}>★ 一覧</button>
+              <button className={"vb-btn" + (curRef === acqRef ? " on" : "")}
+                onClick={() => setAlbumRole(curKitId, curRef, "acquire")}>◎ 入手</button>
               <button className="vb-btn del" onClick={() => setViewerDel(true)}>削除</button>
             </div>
             {viewerDel && (
@@ -5480,11 +5518,27 @@ export default function App() {
                 <span>この画像を削除しますか?</span>
                 <div className="vc-btns">
                   <button className="btn danger solid" onClick={() => {
-                    removeAlbumImage(viewer.kitId, cur.ref);
+                    removeAlbumImage(curKitId, curRef);
                     setViewerDel(false);
-                    setViewer((v) => (album.length - 1 <= 0 ? null : { ...v, idx: Math.min(v.idx, album.length - 2) }));
+                    const rest = albumRefs(curKitId, images, extras, albumMeta).filter((r) => r !== curRef && refSrc(r, curKitId, images, extras));
+                    if (rest.length) setViewer({ kitId: curKitId, ref: rest[Math.min(aIdx, rest.length - 1)] });
+                    else setViewer(null);
                   }}>削除する</button>
                   <button className="btn" onClick={() => setViewerDel(false)}>やめる</button>
+                </div>
+              </div>
+            )}
+            {serifEdit && (
+              <div className="serif-edit-bg" onClick={(e) => { e.stopPropagation(); setSerifEdit(null); }}>
+                <div className="serif-edit" onClick={(e) => e.stopPropagation()}>
+                  <input className="se-input" autoFocus value={serifEdit.text} maxLength={80}
+                    onChange={(e) => setSerifEdit((s) => ({ ...s, text: e.target.value }))}
+                    onKeyDown={(e) => { if (e.key === "Enter") saveSerif(); }}
+                    placeholder="台詞を入力(前後の引用符は自動)" />
+                  <div className="se-btns">
+                    <button className="btn" onClick={() => setSerifEdit(null)}>取消</button>
+                    <button className="btn solid" onClick={saveSerif}>保存</button>
+                  </div>
                 </div>
               </div>
             )}
@@ -6087,8 +6141,21 @@ input,textarea{font-family:var(--sans)}
 /* 画像鑑賞スワイプ・カルーセル */
 .sv-wrap{position:absolute;inset:0;overflow:hidden;cursor:zoom-out}
 .sv-track{display:flex;width:100%;height:100%;will-change:transform}
-.sv-slide{flex:0 0 100%;width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:18px;box-sizing:border-box}
+.sv-slide{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:18px;box-sizing:border-box;will-change:transform}
 .sv-img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;transform-origin:center center;will-change:transform;user-select:none;-webkit-user-drag:none}
+/* セリフ(画像上部・楷体。サイズ/色は機体名 dc-name に準拠) */
+.viewer-serif{position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top) + 10px);z-index:121;
+  display:flex;align-items:center;justify-content:center;padding:8px 22px;min-height:62px;text-align:center;cursor:text}
+.vs-text{font-family:"KaiTi","Kaiti TC","Kaiti SC","STKaiti","BiauKai","DFKai-SB","楷体","楷體",serif;
+  font-weight:700;font-size:25px;line-height:1.3;color:var(--ink-strong);max-width:92%;
+  text-shadow:0 2px 12px rgba(0,0,0,.85),0 0 3px rgba(0,0,0,.7)}
+.vs-hint{font-family:var(--sans);font-size:12px;letter-spacing:.12em;color:rgba(255,255,255,.32)}
+.serif-edit-bg{position:fixed;inset:0;z-index:130;background:rgba(0,0,0,.55);display:flex;align-items:flex-start;justify-content:center;padding-top:16vh}
+.serif-edit{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;width:min(440px,90vw);box-shadow:0 18px 54px rgba(0,0,0,.6)}
+.se-input{width:100%;box-sizing:border-box;font-family:"KaiTi","Kaiti TC","Kaiti SC","STKaiti","BiauKai","DFKai-SB",serif;font-size:18px;color:var(--ink-strong);
+  background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:11px 13px;outline:none}
+.se-input:focus{border-color:var(--gold)}
+.se-btns{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
 /* 方向C:極淡灰階噪點質感(標題列與圖片框統一),內容置於其上 */
 .tc-art::after{content:"";position:absolute;inset:0;border-radius:inherit;
   pointer-events:none;z-index:0;opacity:.05;background-size:120px 120px;
