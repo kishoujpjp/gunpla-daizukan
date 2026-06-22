@@ -6300,26 +6300,43 @@ input,textarea{font-family:var(--sans)}
 .bar em{font-style:normal;font-size:11.5px;color:var(--ink-strong);font-family:var(--serif)}
 .bar span{font-size:10px;color:var(--ink-dim)}
 
-/* ── ライトテーマ(生成り×朱) ── */
+/* ── ライトテーマ(浮世絵・和の色)生成り和紙 × 藍・紅・黄土・緑青 ── */
 .app.light{
-  --bg:#efe9dc; --bg2:#f6f1e6; --panel:#fdfaf3; --panel2:#f3eee1;
-  --line:#d6cdba; --line-soft:#e2dac8;
-  --ink:#3b362e; --ink-strong:#241f18; --ink-mid:#7a7263; --ink-dim:#a89f8d;
-  --shu:#c2402a; --shu-deep:#9e3220; --gold:#9c763a; --teal:#1f8d81; --blue:#3a6db0;
+  /* 和紙(生成り)ベース:紙の白を温かく、面の階調を明確に */
+  --bg:#ece3d0; --bg2:#f3ebd9; --panel:#fbf6ea; --panel2:#efe6d1;
+  --line:#cdc0a2; --line-soft:#ddd2b9;
+  /* 墨(すみ)階調 — 可読性のため深めに */
+  --ink:#322c21; --ink-strong:#1c160f; --ink-mid:#6a6051; --ink-dim:#968b75;
+  /* 浮世絵の顔料:紅(べに)/黄土(おうど)/緑青(ろくしょう)/藍(あい) */
+  --shu:#c23a26; --shu-deep:#982c1b; --gold:#a87c2c; --teal:#2c8a6f; --blue:#235d92;
+  --kin:#a87c2c; --kin-deep:#7d5a1e; --crt-line:#3f7d72;
   background:
-    radial-gradient(1100px 500px at 80% -10%, rgba(194,64,42,.06), transparent 60%),
-    radial-gradient(800px 400px at -10% 30%, rgba(31,141,129,.05), transparent 60%),
+    radial-gradient(1150px 520px at 82% -12%, rgba(35,93,146,.08), transparent 60%),
+    radial-gradient(880px 460px at -12% 26%, rgba(194,58,38,.055), transparent 60%),
+    radial-gradient(760px 520px at 50% 118%, rgba(168,124,44,.06), transparent 62%),
     var(--bg);
 }
-.app.light .hf-vbar-t,.app.light .hf-kana,.app.light .nf-big{background:linear-gradient(180deg,#a07b35,#5f4519);-webkit-background-clip:text;background-clip:text}
-.app.light .hf-vbar::before{background:linear-gradient(180deg,transparent,rgba(156,118,58,.6) 16%,rgba(156,118,58,.6) 84%,transparent)}
-.app.light .hf-title,.app.light .nf-gunpla{text-shadow:0 1px 0 rgba(255,255,255,.5)}
-.app.light .stamp{background:radial-gradient(circle at 36% 30%, rgba(253,250,243,.6), rgba(253,250,243,.88))}
-.app.light .tabbar{background:rgba(246,241,230,.93)}
-.app.light .card-sketch{background:linear-gradient(180deg,rgba(0,0,0,.08),rgba(0,0,0,.02))}
-.app.light .modal-bg{background:rgba(62,54,42,.45)}
-.app.light .crop-bg{background:rgba(62,54,42,.72)}
+/* 金箔(タイトル装飾)を黄土〜濃金茶のグラデに */
+.app.light .hf-vbar-t,.app.light .hf-kana,.app.light .nf-big{background:linear-gradient(180deg,#b88a38,#6c4d18);-webkit-background-clip:text;background-clip:text}
+.app.light .hf-vbar::before{background:linear-gradient(180deg,transparent,rgba(168,124,44,.6) 16%,rgba(168,124,44,.6) 84%,transparent)}
+.app.light .hf-title,.app.light .nf-gunpla{text-shadow:0 1px 0 rgba(255,255,255,.55)}
+.app.light .stamp{background:radial-gradient(circle at 36% 30%, rgba(251,246,234,.6), rgba(251,246,234,.9))}
+.app.light .tabbar{background:rgba(243,235,217,.94)}
+.app.light .card-sketch{background:linear-gradient(180deg,rgba(28,22,15,.08),rgba(28,22,15,.02))}
+.app.light .modal-bg{background:rgba(44,37,27,.46)}
+.app.light .crop-bg{background:rgba(44,37,27,.74)}
 .app.light input,.app.light select,.app.light textarea{color-scheme:light}
+/* 黄土トーンへ調和(ハードコードの dark gold tint を上書きし可読性を確保) */
+.app.light .opt.on{border-color:var(--gold);background:linear-gradient(160deg,rgba(168,124,44,.14),var(--panel));color:var(--kin-deep)}
+.app.light .opt.on i{color:var(--gold)}
+.app.light .search:focus,.app.light .fld input:focus,.app.light .fld textarea:focus,.app.light .fld select:focus,.app.light .url-row input:focus,.app.light .kt-edit:focus{box-shadow:0 0 0 3px rgba(168,124,44,.16)}
+.app.light .add-btn{background:linear-gradient(160deg,rgba(168,124,44,.16),var(--panel))}
+.app.light .gf-btn.on{box-shadow:0 0 10px rgba(168,124,44,.3)}
+.app.light .seal-gold{background:rgba(168,124,44,.09)}
+.app.light .adv-seg-btn.on{border-color:rgba(168,124,44,.5);background:rgba(168,124,44,.12)}
+.app.light .tab:active{background:radial-gradient(112% 80% at 50% 100%,rgba(168,124,44,.16),rgba(168,124,44,.04) 56%,transparent 78%)}
+.app.light .plan-pin{background:rgba(168,124,44,.16);border-color:rgba(168,124,44,.5)}
+.app.light .kz-seal,.app.light .kz-rseal{box-shadow:0 1px 2px rgba(0,0,0,.12)}
 
 @media (min-width:768px){
   .grade-chip{font-size:14px}
