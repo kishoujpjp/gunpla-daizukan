@@ -19,22 +19,21 @@ const UNI_EMBLEM = {
   X:`<path class="m" d="M32 9A23 23 0 1 0 32 55A19 23 0 0 1 32 9Z"/>
      <path class="m" d="M45 15l1.6 4.3 4.4 1.6-4.4 1.6-1.6 4.3-1.6-4.3-4.4-1.6 4.4-1.6Z"/>`,
 
-  /* W(A.C.) = 「W」字標 */
-  W:`<path class="gl" d="M10 16L19 48L32 26L45 48L54 16"/>`,
+  /* W(A.C.) = 「W」字標(Lucida Calligraphy 風) */
+  W:`<text class="m cal" x="33" y="33" text-anchor="middle" dominant-baseline="central" font-size="44">W</text>`,
 
-  /* CC(∀) = 逆Aの文字符号(角度拡大) */
-  CC:`<path class="gl" d="M15 17L32 49L49 17"/><path class="gl" d="M22 33H42"/>`,
+  /* CC(∀) = ∀ 記号(Cambria Math 風・開口 +12%) */
+  CC:`<g transform="translate(32 0) scale(1.12 1) translate(-32 0)"><text class="m cmath" x="32" y="33" text-anchor="middle" dominant-baseline="central" font-size="46">&#8704;</text></g>`,
 
-  /* F.C.(G) = 「G」字標 */
-  G:`<path class="gl" style="stroke-width:7" d="M45 22A15 15 0 1 0 45 42M45 42V32H33"/>`,
+  /* F.C.(G) = 「G」字標(Lucida Calligraphy 風) */
+  G:`<text class="m cal" x="33" y="33" text-anchor="middle" dominant-baseline="central" font-size="50">G</text>`,
 
   /* 00(A.D.) = 「OO」二重環の字標 */
   "00":`<path class="m" fill-rule="evenodd" d="M23 21a11 11 0 1 0 0 22a11 11 0 1 0 0-22Z M23 27a5 5 0 1 0 0 10a5 5 0 1 0 0-10Z"/>
         <path class="m" fill-rule="evenodd" d="M41 21a11 11 0 1 0 0 22a11 11 0 1 0 0-22Z M41 27a5 5 0 1 0 0 10a5 5 0 1 0 0-10Z"/>`,
 
-  /* A.G.(AGE) = 「AG」字標 */
-  AGE:`<path class="gl" d="M10 48L18 16L26 48M13.5 36H22.5"/>
-       <path class="gl" d="M53 25A11.5 11.5 0 1 0 53 40M53 40V32.5H45"/>`,
+  /* A.G.(AGE) = 「AG」字標(Lucida Calligraphy 風) */
+  AGE:`<text class="m cal" x="33" y="34" text-anchor="middle" dominant-baseline="central" font-size="31">AG</text>`,
 
   /* P.D.(鉄血) = 鎚と剣の交差(剣を錘と同等の長さに) */
   IBO:`<path class="m" d="M48 52L52 48L25 21L21 25Z"/>
@@ -5542,7 +5541,7 @@ export default function App() {
           ["collection", collMode === "plan" ? "予定" : "収蔵", collMode === "plan" ? "◆" : "✦"],
           ["analysis", anaMode === "analysis" ? "紀錄" : "敘勲", anaMode === "analysis"
             ? (<svg className="tab-line-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 4 V19 H20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><polyline points="6.5 14.5 10.5 10.5 13.5 12.5 18.5 6.5" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>)
-            : "◔"],
+            : (<svg className="tab-line-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 4h10v7a5 5 0 0 1-10 0V4z" /><path d="M7 6H4v2a3 3 0 0 0 3 3" /><path d="M17 6h3v2a3 3 0 0 1-3 3" /><path d="M12 16v3" /><path d="M8.5 21h7l-1-2h-5z" /></svg>)],
           ["settings", "設定", "⚙"],
         ].map(([k, label, icon]) => {
           // 収蔵タブ:長押しで 収蔵↔予定 / 紀錄タブ:長押しで 敘勲↔紀錄(どちらも該当タブへ移動)
@@ -6837,6 +6836,8 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .av-emblem.fin-gold{color:#e6c478}
 .av-emblem.fin-silver{color:#cfd6df}
 .av-emblem.fin-ghost{color:#6f6d67}
+.av-emblem .cal{font-family:'Lucida Calligraphy','Monotype Corsiva','Apple Chancery','Snell Roundhand','URW Chancery L',cursive;font-style:italic}
+.av-emblem .cmath{font-family:'Cambria Math','Cambria','STIX Two Math','Latin Modern Math','Times New Roman',serif}
 .av-medal.locked{opacity:.42}
 .av-ebody{flex:1;min-width:0;display:flex;flex-direction:column;padding-top:2px}
 .av-eno{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9.5px;letter-spacing:.20em;color:var(--ink-dim);text-transform:uppercase}
