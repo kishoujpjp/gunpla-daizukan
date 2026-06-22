@@ -5574,7 +5574,7 @@ export default function App() {
                     <div key={i} className={"tm-piece" + (p.satisfied ? " ok" : "")}>
                       <i className="tm-mark">{p.satisfied ? "✓" : "✗"}</i>
                       {p.satisfied
-                        ? <span className="tm-pname">{p.owned.name}<b className="tm-tag own">所持</b></span>
+                        ? <button className="tm-pname own-link" onClick={() => jump(p.owned.id)}><span className="tm-cn">{p.owned.name}</span><b className="tm-tag own">所持</b></button>
                         : <div className="tm-cands">
                             {p.candidates.slice(0, 4).map((c) => (
                               <button key={c.id} className="tm-cand" onClick={() => jump(c.id)}>
@@ -6857,6 +6857,10 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .tm-mark{flex:none;font-style:normal;font-size:13px;font-weight:800;color:var(--ink-dim);line-height:1.5;width:14px;text-align:center}
 .tm-piece.ok .tm-mark{color:var(--teal)}
 .tm-pname{font-size:12.5px;color:var(--ink-strong);line-height:1.5}
+.tm-pname.own-link{padding:0;display:inline-flex;align-items:center;cursor:pointer}
+.tm-pname.own-link .tm-cn{border-bottom:1px solid transparent;transition:border-color .15s}
+.tm-pname.own-link:hover .tm-cn{border-bottom-color:var(--teal)}
+.tm-pname.own-link:active{opacity:.55}
 .tm-cnt{color:var(--gold);font-family:ui-monospace,"SF Mono",Menlo,monospace}
 .tm-cands{display:flex;flex-direction:column;gap:5px;flex:1;min-width:0}
 .tm-cand{display:flex;align-items:center;gap:7px;text-align:left;width:100%;background:none;border:none;padding:1px 0;font-size:12px;color:var(--ink-mid);cursor:pointer}
