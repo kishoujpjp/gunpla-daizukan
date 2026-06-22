@@ -2645,11 +2645,19 @@ function SwipeViewer({ slides, index, onIndex, onClose, resolveSrc, resetKey }) 
       {win.map((i) => {
         const sl = slides[i];
         const isCur = i === index;
+        const src = resolveSrc(sl);
         return (
           <div className="sv-slide" key={sl.kitId + "/" + sl.ref}
             style={{ transform: `translateX(calc(${(i - index) * 100}% + ${dragX}px))`, transition: paging ? "transform .3s cubic-bezier(.25,.8,.3,1)" : "none" }}>
-            <img src={resolveSrc(sl)} alt="" draggable={false} className="sv-img"
-              style={isCur ? { transform: `translate(${z.x}px,${z.y}px) scale(${z.scale})` } : undefined} />
+            {src
+              ? <img src={src} alt="" draggable={false} className="sv-img"
+                  style={isCur ? { transform: `translate(${z.x}px,${z.y}px) scale(${z.scale})` } : undefined} />
+              : <div className="dc-classified sv-classified">
+                  <span className="dc-tick tl" /><span className="dc-tick tr" /><span className="dc-tick bl" /><span className="dc-tick br" />
+                  <span className="dc-unid">UNIDENTIFIED</span>
+                  <span className="dc-unsub">NO VISUAL ON FILE · 機密</span>
+                  <span className="dc-unref">REF · {sl.code || (sl.no && sl.no !== "—" ? "No." + sl.no : "—")}</span>
+                </div>}
           </div>
         );
       })}
@@ -3469,6 +3477,7 @@ export default function App() {
   const [kitTags, setKitTags] = useState({});
   const [serifs, setSerifs] = useState({}); // {imgRef: "台詞"} 画像鑑賞のセリフ
   const [serifEdit, setSerifEdit] = useState(null); // {ref, text} | null
+  const dSwipe = useRef(null); // 入手視窗の左右スワイプ計測
   const [tagInput, setTagInput] = useState("");
   const [overrides, setOverrides] = useState({});
   const [customKits, setCustomKits] = useState([]);
@@ -4552,6 +4561,18 @@ export default function App() {
   }, [filtered, sortKey, sortDir, getRec]);
 
   const visible = useMemo(() => sorted.slice(0, limit), [sorted, limit]);
+
+  /* 画像鑑賞/入手視窗の横断スライド: 現在のビュー順(sorted)。
+     画像のある機体はその画像ぶん、画像の無い機体は ref:null の Unidentified スロットを1枚。 */
+  const viewerFlat = useMemo(() => {
+    const list = [];
+    for (const k of sorted) {
+      const refs = albumRefs(k.id, images, extras, albumMeta).filter((ref) => refSrc(ref, k.id, images, extras));
+      if (refs.length) for (const ref of refs) list.push({ kitId: k.id, ref, name: k.name, code: k.code, no: k.no });
+      else list.push({ kitId: k.id, ref: null, name: k.name, code: k.code, no: k.no });
+    }
+    return list;
+  }, [sorted, images, extras, albumMeta]);
   const ownedKits = sorted.filter((k) => getRec(k.id).owned);
   const ownedVisible = ownedKits.slice(0, limit);
   const ownedAll = allKits.filter((k) => getRec(k.id).owned).length;
@@ -5460,16 +5481,14 @@ export default function App() {
       )}
 
       {viewer && (() => {
-        // 現在の並び順(sorted)で全機体の画像を連結した横断フラット一覧
-        let flat = [];
-        for (const k of sorted) for (const ref of albumRefs(k.id, images, extras, albumMeta)) {
-          if (refSrc(ref, k.id, images, extras)) flat.push({ kitId: k.id, ref, name: k.name });
-        }
+        let flat = viewerFlat;
         let gi = flat.findIndex((s) => s.kitId === viewer.kitId && s.ref === viewer.ref);
-        if (gi < 0) { // 現在機体が並びに無い場合は単独で構成
-          flat = albumRefs(viewer.kitId, images, extras, albumMeta)
-            .filter((ref) => refSrc(ref, viewer.kitId, images, extras))
-            .map((ref) => ({ kitId: viewer.kitId, ref, name: (allKits.find((k) => k.id === viewer.kitId) || {}).name || "" }));
+        if (gi < 0) { // 現在機体が現ビューに無い場合は単独で構成
+          const k0 = allKits.find((k) => k.id === viewer.kitId) || {};
+          const refs = albumRefs(viewer.kitId, images, extras, albumMeta).filter((ref) => refSrc(ref, viewer.kitId, images, extras));
+          flat = refs.length
+            ? refs.map((ref) => ({ kitId: viewer.kitId, ref, name: k0.name || "", code: k0.code, no: k0.no }))
+            : [{ kitId: viewer.kitId, ref: null, name: k0.name || "", code: k0.code, no: k0.no }];
           gi = Math.max(0, flat.findIndex((s) => s.ref === viewer.ref));
         }
         if (!flat.length) { setTimeout(() => { setViewer(null); setViewerDel(false); }, 0); return null; }
@@ -5480,40 +5499,44 @@ export default function App() {
         const aIdx = Math.max(0, curAlbum.findIndex((a) => a.ref === curRef));
         const thumbRef = pickRef("thumb", curKitId, images, extras, albumMeta);
         const acqRef = pickRef("acquire", curKitId, images, extras, albumMeta);
-        const curSerif = serifs[curRef] || "";
+        const curSerif = curRef ? (serifs[curRef] || "") : "";
         const saveSerif = () => {
-          const t = (serifEdit.text || "").trim();
-          setSerifs((m) => { const nm = { ...m }; if (t) nm[serifEdit.ref] = t; else delete nm[serifEdit.ref]; return nm; });
+          const t = serifEdit.text || ""; // トリムせず空白・記号もそのまま保存
+          setSerifs((m) => { const nm = { ...m }; if (t.length) nm[serifEdit.ref] = t; else delete nm[serifEdit.ref]; return nm; });
           setSerifEdit(null);
         };
         return (
           <div className="viewer-bg" onClick={close}>
-            <SwipeViewer slides={flat} index={gi} resetKey={curRef}
-              resolveSrc={(sl) => refSrc(sl.ref, sl.kitId, images, extras)}
+            <SwipeViewer slides={flat} index={gi} resetKey={String(curRef)}
+              resolveSrc={(sl) => (sl.ref ? refSrc(sl.ref, sl.kitId, images, extras) : null)}
               onIndex={(i) => { setViewerDel(false); setSerifEdit(null); setViewer({ kitId: flat[i].kitId, ref: flat[i].ref }); }}
               onClose={close} />
 
-            <div className="viewer-serif" onClick={(e) => { e.stopPropagation(); setSerifEdit({ ref: curRef, text: curSerif }); }}>
-              {curSerif
-                ? <span className="vs-text">{"\u201C" + curSerif + "\u201D"}</span>
-                : <span className="vs-hint">＋ セリフを追加</span>}
-            </div>
+            {curRef && (
+              <div className="viewer-serif" onClick={(e) => { e.stopPropagation(); setSerifEdit({ ref: curRef, text: curSerif }); }}>
+                {curSerif
+                  ? <span className="vs-text">{curSerif}</span>
+                  : <span className="vs-hint">＋ セリフを追加</span>}
+              </div>
+            )}
 
-            {curAlbum.length > 1 && (
+            {curRef && curAlbum.length > 1 && (
               <div className="viewer-dots" onClick={(e) => e.stopPropagation()}>
                 {curAlbum.map((a, i) => <span key={a.ref} className={"vd" + (i === aIdx ? " on" : "")}
                   onClick={() => { setViewerDel(false); setSerifEdit(null); setViewer({ kitId: curKitId, ref: a.ref }); }} />)}
               </div>
             )}
-            <div className="viewer-bar" onClick={(e) => e.stopPropagation()}>
-              <span className="vb-count">{aIdx + 1} / {curAlbum.length}</span>
-              <button className={"vb-btn" + (curRef === thumbRef ? " on" : "")}
-                onClick={() => setAlbumRole(curKitId, curRef, "thumb")}>★ 一覧</button>
-              <button className={"vb-btn" + (curRef === acqRef ? " on" : "")}
-                onClick={() => setAlbumRole(curKitId, curRef, "acquire")}>◎ 入手</button>
-              <button className="vb-btn del" onClick={() => setViewerDel(true)}>削除</button>
-            </div>
-            {viewerDel && (
+            {curRef && (
+              <div className="viewer-bar" onClick={(e) => e.stopPropagation()}>
+                <span className="vb-count">{aIdx + 1} / {curAlbum.length}</span>
+                <button className={"vb-btn" + (curRef === thumbRef ? " on" : "")}
+                  onClick={() => setAlbumRole(curKitId, curRef, "thumb")}>★ 一覧</button>
+                <button className={"vb-btn" + (curRef === acqRef ? " on" : "")}
+                  onClick={() => setAlbumRole(curKitId, curRef, "acquire")}>◎ 入手</button>
+                <button className="vb-btn del" onClick={() => setViewerDel(true)}>削除</button>
+              </div>
+            )}
+            {viewerDel && curRef && (
               <div className="viewer-confirm" onClick={(e) => e.stopPropagation()}>
                 <span>この画像を削除しますか?</span>
                 <div className="vc-btns">
@@ -5522,7 +5545,7 @@ export default function App() {
                     setViewerDel(false);
                     const rest = albumRefs(curKitId, images, extras, albumMeta).filter((r) => r !== curRef && refSrc(r, curKitId, images, extras));
                     if (rest.length) setViewer({ kitId: curKitId, ref: rest[Math.min(aIdx, rest.length - 1)] });
-                    else setViewer(null);
+                    else setViewer({ kitId: curKitId, ref: null });
                   }}>削除する</button>
                   <button className="btn" onClick={() => setViewerDel(false)}>やめる</button>
                 </div>
@@ -5533,7 +5556,7 @@ export default function App() {
                 <div className="serif-edit" onClick={(e) => e.stopPropagation()}>
                   <textarea className="se-input" autoFocus value={serifEdit.text} maxLength={120} rows={3}
                     onChange={(e) => setSerifEdit((s) => ({ ...s, text: e.target.value }))}
-                    placeholder="台詞を入力(改行可・前後の引用符は自動)" />
+                    placeholder="台詞を入力(改行・空白・記号もそのまま反映)" />
                   <div className="se-btns">
                     <button className="btn" onClick={() => setSerifEdit(null)}>取消</button>
                     <button className="btn solid" onClick={saveSerif}>保存</button>
@@ -5561,7 +5584,20 @@ export default function App() {
 
       {detailKit && (
         <div className="modal-bg" onClick={() => { setDetail(null); setEditing(false); setTagInput(""); }}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => { dSwipe.current = { x: e.clientX, y: e.clientY, t: Date.now(), id: e.pointerId }; }}
+            onPointerUp={(e) => {
+              const s = dSwipe.current; dSwipe.current = null;
+              if (!s || s.id !== e.pointerId || editing) return;
+              const dx = e.clientX - s.x, dy = e.clientY - s.y;
+              if (Math.abs(dx) > 64 && Math.abs(dx) > Math.abs(dy) * 1.8 && (Date.now() - s.t) < 800) {
+                const idx = sorted.findIndex((k) => k.id === detailKit.id);
+                if (idx >= 0) {
+                  const ni = dx < 0 ? idx + 1 : idx - 1;
+                  if (ni >= 0 && ni < sorted.length) { haptic(); setDetail(sorted[ni].id); setEditing(false); setTagInput(""); }
+                }
+              }
+            }}>
             {!editing ? (
               <>
                 <div className="dc-head">
@@ -6147,8 +6183,10 @@ input,textarea{font-family:var(--sans)}
 .viewer-serif{position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top) + 44px);z-index:121;
   display:flex;align-items:flex-start;justify-content:flex-start;padding:8px 22px;min-height:46px;text-align:left;cursor:text}
 .vs-text{font-family:"LXGW WenKai TC","BiauKai","Kaiti TC","KaiTi","STKaiti","Kaiti SC","DFKai-SB","楷体","楷體",serif;
-  font-weight:700;font-size:25px;line-height:1.34;color:var(--ink-strong);max-width:96%;white-space:pre-line;text-align:left;
+  font-weight:700;font-size:25px;line-height:1.34;color:var(--ink-strong);max-width:96%;white-space:pre-wrap;text-align:left;
   text-shadow:0 2px 12px rgba(0,0,0,.85),0 0 3px rgba(0,0,0,.7)}
+.dc-classified.sv-classified{width:min(80vw,560px);height:min(64vh,680px);max-width:calc(100% - 4px);max-height:calc(100% - 4px);border-radius:6px;
+  box-shadow:inset 0 0 34px 10px rgba(0,0,0,.6),0 8px 30px rgba(0,0,0,.5)}
 .vs-hint{font-family:var(--sans);font-size:12px;letter-spacing:.12em;color:rgba(255,255,255,.32)}
 .serif-edit-bg{position:fixed;inset:0;z-index:130;background:rgba(0,0,0,.55);display:flex;align-items:flex-start;justify-content:center;padding-top:16vh}
 .serif-edit{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;width:min(440px,90vw);box-shadow:0 18px 54px rgba(0,0,0,.6)}
