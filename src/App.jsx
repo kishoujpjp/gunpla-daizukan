@@ -20,7 +20,7 @@ const UNI_EMBLEM = {
      <path class="m" d="M45 15l1.6 4.3 4.4 1.6-4.4 1.6-1.6 4.3-1.6-4.3-4.4-1.6 4.4-1.6Z"/>`,
 
   /* W(A.C.) = 「W」字標(Lucida Calligraphy 風) */
-  W:`<text class="m cal" x="33" y="33" text-anchor="middle" dominant-baseline="central" font-size="44">W</text>`,
+  W:`<text class="m cal" x="31.5" y="33" text-anchor="middle" dominant-baseline="central" font-size="44">W</text>`,
 
   /* CC(∀) = ∀ 記号(Cambria Math 風・開口 +12%) */
   CC:`<g transform="translate(32 0) scale(1.12 1) translate(-32 0)"><text class="m cmath" x="32" y="33" text-anchor="middle" dominant-baseline="central" font-size="46">&#8704;</text></g>`,
@@ -77,6 +77,9 @@ const UNI_EMBLEM = {
 
 /* 世界観タグ文字列(UNI_PREFIX と同一表記。ピリオド有り・内部スペース無し) */
 const UNI_TAG = { UC: "U.C.", SEED: "C.E.", W: "A.C.", X: "A.W.", G: "F.C.", "00": "A.D.", AGE: "A.G.", IBO: "P.D.", AS: "A.S.", RC: "R.C.", CC: "C.C.", GQX: "GQX", BF: "BF", extra: "extra" };
+
+/* 世界観フィルター用の表示順＋ラベル(コード, 表示名) */
+const UNI_PICK = [["UC", "U.C. 宇宙世紀"], ["SEED", "C.E. コズミック・イラ"], ["W", "A.C. アフターコロニー"], ["X", "A.W. アフターウォー"], ["G", "F.C. フューチャーセンチュリー"], ["00", "A.D. 西暦"], ["AGE", "A.G. アドバンスド・ジェネレイション"], ["IBO", "P.D. ポスト・ディザスター"], ["AS", "A.S. アド・ステラ"], ["RC", "R.C. リギルド・センチュリー"], ["CC", "C.C. 正暦"], ["GQX", "GQX ジークアクス"], ["BF", "BF ビルド系"], ["extra", "extra その他"]];
 
 /* 系列名 → 世界観コード(順序厳守: Build/メタ→BF → クロスオーバー/SD・戦国→extra → 各世界観 → U.C. 総取り → 残り extra) */
 function universeOfSeries(series) {
@@ -3341,9 +3344,10 @@ export default function App() {
   const [adding, setAdding] = useState(false);
   const [collMode, setCollMode] = useState("owned"); // owned=収蔵 / plan=予定
   const [anaMode, setAnaMode] = useState("record");  // record=記録(記錄) / analysis=分析
+  const [zukanMode, setZukanMode] = useState("all");  // all=図鑑 / salon=沙龍(画像ありのみ)
   const [advOpen, setAdvOpen] = useState(false);
   const [seriesPickerOpen, setSeriesPickerOpen] = useState(false);
-  const [adv, setAdv] = useState({ series: "", prem: "", stat: "", yFrom: "", yTo: "" }); // 進階篩選
+  const [adv, setAdv] = useState({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "" }); // 進階篩選
   const [viewer, setViewer] = useState(null); // 画像鑑賞: {kitId, idx} | null
   const [viewerDel, setViewerDel] = useState(false); // 鑑賞内の削除確認
   const [frameEdit, setFrameEdit] = useState(null); // 構図調整: {kitId, ref} | null
@@ -4353,6 +4357,8 @@ export default function App() {
       return gf === "MG" ? (kg === "MG" || kg === "MGSD") : kg === gf;
     });
     if (adv.series) pool = pool.filter((k) => (k.series || "") === adv.series);
+    if (adv.uni) pool = pool.filter((k) => universeOfKit(k) === adv.uni);
+    if (tab === "zukan" && zukanMode === "salon") pool = pool.filter((k) => !!thumbSrc(k.id));
     if (adv.prem === "pb") pool = pool.filter((k) => !!k.premium);
     else if (adv.prem === "base") pool = pool.filter((k) => !!k.base);
     else if (adv.prem === "normal") pool = pool.filter((k) => !k.premium && !k.base);
@@ -4375,7 +4381,7 @@ export default function App() {
       const idx = searchIndex[k.id] || "";
       return idx.includes(q) || (rq && rq !== q && idx.includes(rq)) || (k.grade || "MG").toLowerCase() === q;
     });
-  }, [allKits, query, gf, searchIndex, adv, getRec]);
+  }, [allKits, query, gf, searchIndex, adv, getRec, tab, zukanMode, thumbSrc]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
@@ -4450,7 +4456,7 @@ export default function App() {
     </div>
   );
 
-  const advActive = adv.series || adv.prem || adv.stat || adv.yFrom || adv.yTo;
+  const advActive = adv.series || adv.uni || adv.prem || adv.stat || adv.yFrom || adv.yTo;
   const AdvPanel = () => (
     <div className="adv-panel">
       <div className="adv-row">
@@ -4459,6 +4465,13 @@ export default function App() {
           <span className={adv.series ? "" : "ph"}>{adv.series || "すべての作品"}</span>
           <span className="adv-series-caret">▾</span>
         </button>
+      </div>
+      <div className="adv-row">
+        <span className="adv-lbl">世界</span>
+        <select className="adv-sel adv-uni-sel" value={adv.uni} onChange={(e) => setAdv((a) => ({ ...a, uni: e.target.value }))}>
+          <option value="">すべての世界観</option>
+          {UNI_PICK.map(([u, l]) => <option key={u} value={u}>{l}</option>)}
+        </select>
       </div>
       <div className="adv-row">
         <span className="adv-lbl">区分</span>
@@ -4493,7 +4506,7 @@ export default function App() {
         </div>
       </div>
       <div className="adv-foot">
-        {advActive ? <button className="adv-clear" onClick={() => setAdv({ series: "", prem: "", stat: "", yFrom: "", yTo: "" })}>条件をクリア</button> : <span className="adv-hint">作品・区分・状態・年代で絞り込み</span>}
+        {advActive ? <button className="adv-clear" onClick={() => setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "" })}>条件をクリア</button> : <span className="adv-hint">作品・区分・状態・年代で絞り込み</span>}
         <button className="adv-close" onClick={() => setAdvOpen(false)}>閉じる</button>
       </div>
     </div>
@@ -4677,7 +4690,7 @@ export default function App() {
 
       <header className="head">
         {(() => {
-          const arc = tab === "zukan" ? { jp: "機体档案", en: "REGISTRY" }
+          const arc = tab === "zukan" ? (zukanMode === "salon" ? { jp: "沙龍档案", en: "SALON" } : { jp: "機体档案", en: "REGISTRY" })
             : tab === "collection" ? (collMode === "plan" ? { jp: "発注档案", en: "REQUISITION" } : { jp: "収蔵档案", en: "HOLDINGS" })
             : tab === "analysis" ? (anaMode === "analysis" ? { jp: "観測档案", en: "OBSERVATION" } : { jp: "叙勲档案", en: "DECORATIONS" })
             : { jp: "管理档案", en: "ADMINISTRATION" };
@@ -4747,7 +4760,7 @@ export default function App() {
                 <button className="add-btn" onClick={() => setAdding("zukan")}>＋ 追加</button>
               </div>
             </div>
-            <div className="section-note">{sorted.length} 件{advActive && <button className="cond-clear" onClick={() => { haptic(); setAdv({ series: "", prem: "", stat: "", yFrom: "", yTo: "" }); }}>条件をクリア</button>}</div>
+            <div className="section-note">{sorted.length} 件{advActive && <button className="cond-clear" onClick={() => { haptic(); setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "" }); }}>条件をクリア</button>}</div>
             {grouped
               ? grouped.map(([year, kits]) => (
                   <section key={year} className="year-sec">
@@ -4796,7 +4809,7 @@ export default function App() {
                   <button className="add-btn" onClick={() => setAdding(isPlan ? "plan" : "owned")}>＋ 追加</button>
                 </div>
               </div>
-              <div className="section-note">{isPlan ? "予定" : "収蔵"} {listKits.length} 体{advActive && <button className="cond-clear" onClick={() => { haptic(); setAdv({ series: "", prem: "", stat: "", yFrom: "", yTo: "" }); }}>条件をクリア</button>}</div>
+              <div className="section-note">{isPlan ? "予定" : "収蔵"} {listKits.length} 体{advActive && <button className="cond-clear" onClick={() => { haptic(); setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "" }); }}>条件をクリア</button>}</div>
               {listKits.length === 0
                 ? <p className="ana-note">検索条件に一致する{isPlan ? "予定" : "収蔵"}がありません。</p>
                 : <Grid kits={listVisible} />}
@@ -5592,7 +5605,9 @@ export default function App() {
       {/* ── 底部分頁 ── */}
       <nav className="tabbar pad-min" style={{ paddingBottom: "4px" }}>
         {[
-          ["zukan", "図鑑", "▦"],
+          ["zukan", zukanMode === "salon" ? "沙龍" : "図鑑", zukanMode === "salon"
+            ? (<svg className="tab-line-ico salon-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path className="pal-body" d="M12 4.6C16.8 4.6 20.4 7.5 20.4 11.3C20.4 13.7 18.7 14.5 17.3 14.5C16.4 14.5 15.6 14.3 15.6 13.5C15.6 12.8 16 12.5 16 11.9C16 11.2 15.4 10.7 14.5 10.7C12.9 10.7 12 12.4 12 14.1C12 16 12.9 17.2 12.2 18.1C11.8 18.5 11.3 18.7 10.7 18.7C6.7 18.7 4 15.1 4 11.3C4 7.5 7.4 4.6 12 4.6Z" strokeWidth="1.6" strokeLinejoin="round" /><circle className="pd1" cx="7.1" cy="10.4" r="1.25" /><circle className="pd2" cx="8.7" cy="7.6" r="1.25" /><circle className="pd3" cx="11.8" cy="6.7" r="1.25" /><circle className="pd4" cx="15" cy="7.6" r="1.25" /></svg>)
+            : "▦"],
           ["collection", collMode === "plan" ? "予定" : "収蔵", collMode === "plan" ? "◆" : "✦"],
           ["analysis", anaMode === "analysis" ? "紀錄" : "敘勲", anaMode === "analysis"
             ? (<svg className="tab-line-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 4 V19 H20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><polyline points="6.5 14.5 10.5 10.5 13.5 12.5 18.5 6.5" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>)
@@ -5604,17 +5619,21 @@ export default function App() {
             ? makeLongPress(() => { hapticStrong(); setCollMode((m) => (m === "plan" ? "owned" : "plan")); changeTab("collection"); })
             : k === "analysis"
             ? makeLongPress(() => { hapticStrong(); setAnaMode((m) => (m === "analysis" ? "record" : "analysis")); changeTab("analysis"); })
+            : k === "zukan"
+            ? makeLongPress(() => { hapticStrong(); setZukanMode((m) => (m === "salon" ? "all" : "salon")); changeTab("zukan"); })
             : {};
           return (
             <button key={k}
               className={`tab ${tab === k ? "on" : ""} `
                 + (k === "collection" && collMode === "plan" ? "plan-tab " : "")
                 + (k === "analysis" && anaMode === "analysis" ? "ana-tab " : "")
+                + (k === "zukan" && zukanMode === "salon" ? "salon-tab " : "")
                 + (k === "settings" ? "set-tab " : "")}
               onClick={() => {
-                if ((k === "collection" || k === "analysis") && consumeLP()) return;
+                if ((k === "collection" || k === "analysis" || k === "zukan") && consumeLP()) return;
                 if (k === "collection" && tab === "collection") { hapticStrong(); setCollMode((m) => (m === "plan" ? "owned" : "plan")); return; }
                 if (k === "analysis" && tab === "analysis") { hapticStrong(); setAnaMode((m) => (m === "analysis" ? "record" : "analysis")); return; }
+                if (k === "zukan" && tab === "zukan") { hapticStrong(); setZukanMode((m) => (m === "salon" ? "all" : "salon")); return; }
                 changeTab(k); setConfirmReset(false);
               }}
               {...lp}>
@@ -5627,6 +5646,7 @@ export default function App() {
           const order = ["zukan", "collection", "analysis", "settings"];
           const idx = Math.max(0, order.indexOf(tab));
           const col = tab === "analysis" && anaMode === "analysis" ? "var(--gold)"
+            : tab === "zukan" && zukanMode === "salon" ? "var(--teal)"
             : tab === "collection" && collMode === "plan" ? "var(--kin)"
             : tab === "settings" ? "var(--ink-strong)"
             : "var(--gold)";
@@ -6007,6 +6027,15 @@ input,textarea{font-family:var(--sans)}
 .tab.set-tab .tab-icon,.tab.set-tab .tab-label{color:var(--ink)}
 .tab.set-tab.on .tab-icon,.tab.set-tab.on .tab-label{color:var(--ink-strong)}
 .tab.set-tab.on{color:var(--ink-strong)}
+/* 沙龍タブ:調色盤アイコン(本体 currentColor / 絵具ドットはアクセント色) */
+.tab.salon-tab .tab-icon,.tab.salon-tab .tab-label{color:var(--teal)}
+.tab.salon-tab.on .tab-icon,.tab.salon-tab.on .tab-label{color:var(--teal);filter:brightness(1.12)}
+.salon-ico .pal-body{stroke-width:1.6}
+.salon-ico circle{stroke:none}
+.salon-ico .pd1{fill:var(--shu)}
+.salon-ico .pd2{fill:var(--gold)}
+.salon-ico .pd3{fill:var(--teal)}
+.salon-ico .pd4{fill:var(--blue)}
 .tab.set-tab .tab-bar{background:var(--ink-strong)}
 .head-stats b.kin{color:var(--kin)}
 
