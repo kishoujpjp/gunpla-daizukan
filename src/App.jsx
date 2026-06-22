@@ -2766,11 +2766,11 @@ async function fileToCompressedDataURL(file, maxW = 440, quality = 0.74) {
 /* ── AIスタイル変換(nano banana) ── */
 const AI_STYLES = [
   { id: "boxart", label: "ガンプラ箱絵風",
-    prompt: "Transform this photo into a dynamic plastic-model box-art style illustration: dramatic low-angle perspective, hand-painted gouache texture, intense rim lighting, explosive sci-fi background effects, heroic composition. Keep the subject's design, proportions and colors faithful. Output only the image." },
-  { id: "emaki", label: "日本絵巻風",
-    prompt: "Transform this photo into a traditional Japanese emaki picture-scroll painting: sumi-e ink outlines, washi paper texture, muted mineral pigments, gold-leaf stylized clouds, flat classical composition. Keep the subject recognizable. Output only the image." },
+    prompt: "Repaint this photograph as a hand-painted plastic-model box-art illustration in the painterly style of the illustrator Naochika Morishita (森下直親): rich airbrush and gouache rendering, crisp metallic highlights, deep saturated shadows, dramatic rim lighting. IMPORTANT CONSTRAINTS: do NOT significantly change the composition; do NOT change the camera angle or viewpoint; do NOT extend, expand, zoom out, or add anything beyond the original frame. Keep the subject's exact pose, proportions, framing and color scheme faithful to the photo — only convert the rendering into Morishita's illustration style. Output only the image." },
+  { id: "ukiyoe", label: "浮世絵風",
+    prompt: "Completely transform this image into a Japanese ukiyo-e woodblock print (浮世絵). Aggressively change the artistic style: discard photographic rendering entirely and rebuild the subject with bold flat planes of color, strong calligraphic black contour linework, woodblock-print paper texture, decorative stylized waves and clouds, bokashi gradient skies, and the vivid ornamental palette of classical ukiyo-e. Reinterpret the brushwork and line quality freely into this flat, gorgeous, highly stylized traditional aesthetic. Output only the image." },
   { id: "cel", label: "80年代セル画風",
-    prompt: "Transform this photo into a 1980s cel-animation anime still: clean hand-drawn outlines, limited flat colors with hard two-tone shading, subtle film grain and slight VHS softness, retro mecha anime aesthetic. Keep the subject recognizable. Output only the image." },
+    prompt: "Restyle this image into a 1980s Japanese robot/mecha anime cel-animation look WITHOUT significantly changing the composition — keep the subject's pose and overall layout. Convert the rendering as much as possible to that era's aesthetic: clean hand-inked cel outlines, limited flat color fills with hard two-tone shading, and the texture and linework of 1980s analog mecha animation. Add a moderate amount of film grain / analog noise and slight VHS-style softness to shift the texture toward that vintage look. Output only the image." },
 ];
 
 function AIRestyleModal({ src, apiKey, model, prompts, onAdopt, onClose }) {
@@ -3282,7 +3282,7 @@ export default function App() {
   const [images, setImages] = useState({});
   const [extras, setExtras] = useState({});       // 追加画像 {xid: src}
   const [albumMeta, setAlbumMeta] = useState({});  // {kitId:{order,thumb,acquire,framing}}
-  const [settings, setSettings] = useState({ view: "grid", compact: false, dimUnowned: true, showCode: true, showSeries: false, showPrice: true, showNo: false, listGrade: true, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "low", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", geminiModel: "gemini-2.5-flash-image" });
+  const [settings, setSettings] = useState({ view: "grid", compact: false, dimUnowned: true, showCode: true, showSeries: false, showPrice: true, showNo: false, listGrade: true, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "min", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", geminiModel: "gemini-2.5-flash-image" });
   const [sortKey, setSortKey] = useState("year");
   const [sortDir, setSortDir] = useState("asc");
   const [queries, setQueries] = useState({ z: "", c: "" });
@@ -3305,6 +3305,7 @@ export default function App() {
   const [confirmReset, setConfirmReset] = useState(false);
   const [dispTarget, setDispTarget] = useState("card");
   const [promptEdit, setPromptEdit] = useState(null);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [achvSeen, setAchvSeen] = useState(null);
   const [achvPop, setAchvPop] = useState(null);
@@ -4588,7 +4589,7 @@ export default function App() {
   );
 
   return (
-    <div className={"app " + (settings.theme === "light" ? "light" : "") + (detailKit || adding || promptEdit || setupOpen || titleDetail ? " lock" : "")}>
+    <div className={"app " + (settings.theme === "light" ? "light" : "") + (detailKit || adding || promptEdit || profileOpen || setupOpen || titleDetail ? " lock" : "")}>
       <style>{CSS}</style>
 
       {storageErr && (
@@ -4973,17 +4974,15 @@ export default function App() {
 
         {tab === "settings" && (
           <div className="panel-wrap">
+            <button className="builder-line builder-tap" onClick={() => setProfileOpen(true)}>
+              <span>BUILDER<b>{settings.builderName || "—"}</b></span>
+              <span>ガンプラ歴<b>{careerStr(settings.builderSince)}</b></span>
+              <i className="builder-edit">✎</i>
+            </button>
             <h2 className="panel-title">テーマ<span>THEME</span></h2>
             <div className="opt-group horizontal">
               <button className={`opt ${settings.theme !== "light" ? "on" : ""}`} onClick={() => setSettings((s) => ({ ...s, theme: "dark" }))}>ダーク(漆黒)</button>
               <button className={`opt ${settings.theme === "light" ? "on" : ""}`} onClick={() => setSettings((s) => ({ ...s, theme: "light" }))}>ライト(生成り)</button>
-            </div>
-            <h2 className="panel-title">タブバー下余白<span>BOTTOM SPACE</span></h2>
-            <div className="opt-group horizontal">
-              {[["std", "標準"], ["low", "低め"], ["min", "最小"]].map(([k, l]) => (
-                <button key={k} className={`opt ${(settings.tabPad || "low") === k ? "on" : ""}`}
-                  onClick={() => setSettings((s) => ({ ...s, tabPad: k }))}>{l}</button>
-              ))}
             </div>
             <h2 className="panel-title">触覚フィードバック<span>HAPTICS</span></h2>
             <div className="opt-group horizontal">
@@ -5033,17 +5032,6 @@ export default function App() {
                 <span>入手画像のビューファインダー風フィルター</span>
                 <i className={`switch ${settings.vfFilter !== false ? "on" : ""}`}><b /></i>
               </button>
-            </div>
-            <h2 className="panel-title">プロフィール<span>BUILDER</span></h2>
-            <div className="opt-group">
-              <label className="fld pad"><span>Builder名</span>
-                <input value={settings.builderName || ""} placeholder="あなたの名前 / ID"
-                  onChange={(e) => setSettings((s) => ({ ...s, builderName: e.target.value }))} />
-              </label>
-              <label className="fld pad"><span>ガンプラ歴 開始日</span>
-                <input type="date" value={settings.builderSince || ""}
-                  onChange={(e) => setSettings((s) => ({ ...s, builderSince: e.target.value }))} />
-              </label>
             </div>
 
             <h2 className="panel-title">AI画像生成<span>NANO BANANA</span></h2>
@@ -5369,6 +5357,31 @@ export default function App() {
         </div>
       )}
 
+      {/* ── プロフィール編集彈窗 ── */}
+      {profileOpen && (
+        <div className="modal-bg" onClick={() => setProfileOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-form-head">
+              <span>プロフィール編集</span>
+              <button className="modal-x static" onClick={() => setProfileOpen(false)}>✕</button>
+            </div>
+            <label className="fld pad"><span>Builder名</span>
+              <input value={settings.builderName || ""} placeholder="あなたの名前 / ID"
+                onChange={(e) => setSettings((s) => ({ ...s, builderName: e.target.value }))} />
+            </label>
+            <div style={{ height: 8 }} />
+            <label className="fld pad"><span>ガンプラ歴 開始日</span>
+              <input type="date" value={settings.builderSince || ""}
+                onChange={(e) => setSettings((s) => ({ ...s, builderSince: e.target.value }))} />
+            </label>
+            <div className="form-actions" style={{ marginTop: 12 }}>
+              <button className="btn primary" onClick={() => setProfileOpen(false)}>保存して閉じる</button>
+            </div>
+            <p className="ai-note">変更は自動保存されます。</p>
+          </div>
+        </div>
+      )}
+
       {/* ── 提示詞編輯彈窗 ── */}
       {promptEdit && (
         <div className="modal-bg" onClick={() => setPromptEdit(null)}>
@@ -5503,10 +5516,7 @@ export default function App() {
       })()}
 
       {/* ── 底部分頁 ── */}
-      <nav className={"tabbar pad-" + (settings.tabPad || "low")} style={{
-        paddingBottom: settings.tabPad === "std" ? "env(safe-area-inset-bottom)"
-          : settings.tabPad === "min" ? "4px"
-          : "max(2px, calc(env(safe-area-inset-bottom) / 2 - 6px))" }}>
+      <nav className="tabbar pad-min" style={{ paddingBottom: "4px" }}>
         {[
           ["zukan", "図鑑", "▦"],
           ["collection", collMode === "plan" ? "予定" : "収蔵", collMode === "plan" ? "◆" : "✦"],
@@ -6551,6 +6561,11 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .builder-line span{font-size:9.5px;color:var(--ink-mid);letter-spacing:.16em;
   display:flex;align-items:baseline;gap:9px}
 .builder-line b{font-family:var(--serif);font-size:16px;color:var(--ink-strong);letter-spacing:.04em}
+.builder-tap{width:100%;text-align:left;align-items:center;cursor:pointer;
+  transition:border-color .12s,transform .1s ease}
+.builder-tap:active{transform:scale(.985)}
+.builder-tap .builder-edit{margin-left:auto;font-size:13px;color:var(--ink-mid);
+  font-style:normal;flex:none}
 
 /* 5. 記録(成就)カード */
 .achv-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
