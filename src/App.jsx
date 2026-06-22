@@ -105,7 +105,17 @@ function universeOfSeries(series) {
   if (/ガンダム|GUNDAM|ADVANCE OF Z|A\.O\.Z|アドバンス・オブ・ゼータ|閃光のハサウェイ|逆襲のシャア|MSV|MSイグルー|MS IGLOO|サンダーボルト|THUNDERBOLT|F90|U\.C\.|アナハイム/.test(s)) return "UC";
   return "extra";
 }
-const universeOfKit = (k) => universeOfSeries(k && k.series);
+/* 個別ID上書き(系列パターンより優先する例外マップ)。コードは UC/SEED/W/X/G/00/AGE/IBO/AS/RC/CC/GQX/BF/extra */
+const UNI_OVERRIDE = {
+  // → U.C.
+  rgp19: "UC", pg017: "UC", bmg012: "UC", bmg022: "UC", bp128: "UC", bp143: "UC", bp159: "UC", bp174: "UC",
+  hghp001: "UC", hghp027: "UC", hghp048: "UC", hghp052: "UC", hghp148: "UC", bp039: "UC", bp042: "UC", hghp160: "UC",
+  // → C.E.
+  rgp02: "SEED", pg013: "SEED", bp036: "SEED",
+  // → A.D.
+  rgp03: "00",
+};
+const universeOfKit = (k) => (k && UNI_OVERRIDE[k.id]) || universeOfSeries(k && k.series);
 
 /* 世界別エンブレム(単色 currentColor / 金=tier2・銀=tier1・灰=tier0) */
 function Emblem({ universe, tier }) {
@@ -116,7 +126,7 @@ function Emblem({ universe, tier }) {
 
 /* 画像なしプレースホルダー: 系列の世界観エンブレムを灰色の透かしで表示(grid 73% / list 78%) */
 function SeriesWatermark({ kit, variant, size = 84 }) {
-  const inner = UNI_EMBLEM[universeOfSeries(kit && kit.series)] || UNI_EMBLEM.extra;
+  const inner = UNI_EMBLEM[universeOfKit(kit)] || UNI_EMBLEM.extra;
   if (variant === "list") return (
     <div className="series-wm-box wm-list">
       <svg viewBox="0 0 64 64" className="av-emblem fin-ghost series-wm" aria-hidden="true"
