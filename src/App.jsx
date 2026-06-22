@@ -4609,10 +4609,12 @@ export default function App() {
           </div>
           <div className="sl-body">
             <div className="sl-name"><KitName name={kit.name} /></div>
-            <div className="sl-meta">
-              {settings.showYm && <span className="kz-year">{kit.ym ? kit.ym.replace("-", ".") : "—"}</span>}
-              {settings.showPrice && kit.price ? <span className="kz-price">{fmtYen(kit.price)}</span> : null}
-            </div>
+            {(settings.showYm || (settings.showPrice && kit.price)) && (
+              <div className="sl-meta">
+                {settings.showYm && <span className="kz-year">{kit.ym ? kit.ym.replace("-", ".") : "—"}</span>}
+                {settings.showPrice && kit.price ? <span className="kz-price">{fmtYen(kit.price)}</span> : null}
+              </div>
+            )}
           </div>
         </button>
       );
@@ -7071,8 +7073,8 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .salon-grid.cols-3 .sl-body{padding:8px 9px 10px}
 .sl-name{font-family:var(--serif);font-weight:700;color:var(--ink-strong);line-height:1.3;text-align:center;
   display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;min-height:2.6em}
-.salon-grid.cols-2 .sl-name{font-size:27px}
-.salon-grid.cols-3 .sl-name{font-size:22px}
+.salon-grid.cols-2 .sl-name{font-size:20px}
+.salon-grid.cols-3 .sl-name{font-size:18px}
 .sl-meta{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:7px}
 .sl-meta .kz-year,.sl-meta .kz-price{transition:font-size .26s ease}
 .salon-grid.cols-3 .sl-meta .kz-year{font-size:10px}
@@ -7084,8 +7086,8 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .salon-ctrl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .salon-seg button{padding:7px 11px}
 @media (min-width:768px){
-  .salon-grid.cols-2 .sl-name{font-size:36px}
-  .salon-grid.cols-3 .sl-name{font-size:30px}
+  .salon-grid.cols-2 .sl-name{font-size:28px}
+  .salon-grid.cols-3 .sl-name{font-size:24px}
 }
 .kz-seal{position:absolute;top:9px;right:9px;z-index:3;font-family:var(--serif);font-weight:800;font-size:12px;line-height:1;color:var(--gold);border:1.4px solid rgba(217,179,106,.55);background:rgba(217,179,106,.1);border-radius:2px;padding:5px 4px;writing-mode:vertical-rl;letter-spacing:.1em;box-shadow:0 1px 2px rgba(0,0,0,.4)}
 .kz-plan{position:absolute;top:9px;right:9px;z-index:3;font-family:ui-monospace,monospace;font-size:11px;font-weight:700;color:var(--gold);border:1px dashed var(--gold);background:rgba(217,179,106,.05);border-radius:2px;padding:4px 5px;writing-mode:vertical-rl;letter-spacing:.06em}
