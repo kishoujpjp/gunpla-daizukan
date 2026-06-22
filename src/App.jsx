@@ -4903,6 +4903,11 @@ export default function App() {
           const yearData = Object.keys(byYear).sort().map((y) => ({ label: y, value: byYear[y] }));
           const maxYear = Math.max(1, ...yearData.map((d) => d.value));
 
+          const byBuildYear = {};
+          owned.forEach((k) => { const d = getRec(k.id).buildDate; if (d) { const y = d.slice(0, 4); byBuildYear[y] = (byBuildYear[y] || 0) + 1; } });
+          const buildYearData = Object.keys(byBuildYear).sort().map((y) => ({ label: y, value: byBuildYear[y] }));
+          const maxBuildYear = Math.max(1, ...buildYearData.map((d) => d.value));
+
           const gradeLineColors2 = { MG: "#e8553d", HG: "#8fcf8a", RG: "#d9b36a", PG: "#b08ad6", HIRM: "#cf8a6a", RE: "#8ab0a0", FM: "#a0a8c0", MGSD: "#6fd3c7", EXTRA: "#cfc9bb" };
           const relYears = allKits.map((k) => yearOf(k.ym)).filter((yy) => yy !== "----").map(Number);
           const yMin = Math.min(...relYears), yMax = Math.max(...relYears);
@@ -5061,6 +5066,22 @@ export default function App() {
                         <div className="bar" key={d.label}>
                           <em>{d.value}</em>
                           <i style={{ height: `${Math.max(5, (d.value / maxYear) * 108)}px` }} />
+                          <span>{d.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+              </section>
+              <section className="ana-sec">
+                <div className="year-head"><span className="year-num">完成年別</span><span className="year-rule" /><span className="year-count">完成数推移</span></div>
+                {buildYearData.length === 0
+                  ? <p className="ana-note">完成日が記録された機体がまだありません。</p>
+                  : (
+                    <div className="bars">
+                      {buildYearData.map((d) => (
+                        <div className="bar" key={d.label}>
+                          <em>{d.value}</em>
+                          <i style={{ height: `${Math.max(5, (d.value / maxBuildYear) * 108)}px` }} />
                           <span>{d.label}</span>
                         </div>
                       ))}
