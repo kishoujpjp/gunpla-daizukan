@@ -4888,6 +4888,9 @@ export default function App() {
                   </section>
                 );
               })()}
+              </>
+              ) : (
+              <>
               <section className="ana-sec">
                 <div className="year-head"><span className="year-num">記録</span><span className="year-rule" /><span className="year-count">RECORDS</span></div>
                 <div className="achv-grid">
@@ -4911,9 +4914,6 @@ export default function App() {
                   })}
                 </div>
               </section>
-              </>
-              ) : (
-              <>
               <section className="ana-sec">
                 <div className="year-head"><span className="year-num">構成比</span><span className="year-rule" /><span className="year-count">作品別・Grade別</span></div>
                 <div className="pie-wrap">
@@ -5540,10 +5540,12 @@ export default function App() {
         {[
           ["zukan", "図鑑", "▦"],
           ["collection", collMode === "plan" ? "予定" : "収蔵", collMode === "plan" ? "◆" : "✦"],
-          ["analysis", anaMode === "analysis" ? "分析" : "紀錄", anaMode === "analysis" ? "▥" : "◔"],
+          ["analysis", anaMode === "analysis" ? "紀錄" : "敘勲", anaMode === "analysis"
+            ? (<svg className="tab-line-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 4 V19 H20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><polyline points="6.5 14.5 10.5 10.5 13.5 12.5 18.5 6.5" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>)
+            : "◔"],
           ["settings", "設定", "⚙"],
         ].map(([k, label, icon]) => {
-          // 収蔵タブ:長押しで 収蔵↔予定 / 分析タブ:長押しで 紀錄↔分析(どちらも該当タブへ移動)
+          // 収蔵タブ:長押しで 収蔵↔予定 / 紀錄タブ:長押しで 敘勲↔紀錄(どちらも該当タブへ移動)
           const lp = k === "collection"
             ? makeLongPress(() => { hapticStrong(); setCollMode((m) => (m === "plan" ? "owned" : "plan")); changeTab("collection"); })
             : k === "analysis"
@@ -5570,7 +5572,7 @@ export default function App() {
         {(() => {
           const order = ["zukan", "collection", "analysis", "settings"];
           const idx = Math.max(0, order.indexOf(tab));
-          const col = tab === "analysis" && anaMode === "analysis" ? "var(--blue)"
+          const col = tab === "analysis" && anaMode === "analysis" ? "var(--gold)"
             : tab === "collection" && collMode === "plan" ? "var(--kin)"
             : tab === "settings" ? "var(--ink-strong)"
             : "var(--gold)";
@@ -5941,9 +5943,10 @@ input,textarea{font-family:var(--sans)}
 .tab.plan-tab .tab-icon,.tab.plan-tab .tab-label{color:var(--kin)}
 .tab.plan-tab.on .tab-icon,.tab.plan-tab.on .tab-label{color:var(--kin);filter:brightness(1.1)}
 .tab.plan-tab .tab-bar{background:var(--kin)}
-.tab.ana-tab .tab-icon,.tab.ana-tab .tab-label{color:var(--blue)}
-.tab.ana-tab.on .tab-icon,.tab.ana-tab.on .tab-label{color:var(--blue);filter:brightness(1.12)}
-.tab.ana-tab .tab-bar{background:var(--blue)}
+.tab.ana-tab .tab-icon,.tab.ana-tab .tab-label{color:var(--gold)}
+.tab.ana-tab.on .tab-icon,.tab.ana-tab.on .tab-label{color:var(--gold);filter:brightness(1.12)}
+.tab.ana-tab .tab-bar{background:var(--gold)}
+.tab-line-ico{width:1em;height:1em;display:block}
 /* 設定タブ:アクセント色を使わず、文字も図標と同じ灰白系で統一 */
 .tab.set-tab .tab-icon,.tab.set-tab .tab-label{color:var(--ink)}
 .tab.set-tab.on .tab-icon,.tab.set-tab.on .tab-label{color:var(--ink-strong)}
