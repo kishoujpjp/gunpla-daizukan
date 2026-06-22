@@ -3366,6 +3366,7 @@ export default function App() {
   const prevUnlockedRef = useRef(null);
   const [toastQueue, setToastQueue] = useState([]);
   const [toast, setToast] = useState(null);
+  const [toastOut, setToastOut] = useState(false);
   const [titleDetail, setTitleDetail] = useState(null);
   const [syncMsg, setSyncMsg] = useState("");
   const [storageErr, setStorageErr] = useState(""); // 端末保存失敗(容量不足等)の可視化
@@ -4334,11 +4335,15 @@ export default function App() {
     setToast(t);
   }, [toast, toastQueue, titles]);
 
-  // 3.2 秒で自動的に次へ(タップでも次へ)
+  // 5 秒表示 →(上へスライドアウト)→ 次へ。タップでも同様に滑り出して消える
   useEffect(() => {
     if (!toast) return;
-    const tm = setTimeout(() => { setToast(null); setAchvPop(null); }, 3200);
-    return () => clearTimeout(tm);
+    let t2;
+    const t1 = setTimeout(() => {
+      setToastOut(true);
+      t2 = setTimeout(() => { setToast(null); setAchvPop(null); }, 360);
+    }, 5000);
+    return () => { clearTimeout(t1); clearTimeout(t2); setToastOut(false); };
   }, [toast]);
 
   const searchIndex = useMemo(() => {
@@ -4722,7 +4727,7 @@ export default function App() {
 
       {/* 称号 叙勲トースト */}
       {toast && (
-        <button className="av-toast" onClick={() => { setToast(null); setAchvPop(null); }}>
+        <button className={"av-toast" + (toastOut ? " out" : "")} onClick={() => { setToastOut(true); setTimeout(() => { setToast(null); setAchvPop(null); }, 360); }}>
           <span className="av-toast-medal"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="avGoldT" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#f2dca0" /><stop offset="1" stopColor="#9c7838" /></linearGradient></defs><polygon points="32,7 49,16 49,40 32,57 15,40 15,16" fill="none" stroke="url(#avGoldT)" strokeWidth="2" /><polygon points="32,12 44,19 44,38 32,50 20,38 20,19" fill="rgba(217,179,106,.12)" stroke="url(#avGoldT)" strokeWidth="2.4" /><text x="32" y="39" textAnchor="middle" fontFamily="Shippori Mincho,serif" fontWeight="800" fontSize="20" fill="url(#avGoldT)">章</text></svg></span>
           <div className="av-toast-body">
             <div className="av-toast-kick">DECORATED · 叙勲</div>
@@ -6856,6 +6861,8 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .title-toast::after{content:"";position:absolute;inset:0;pointer-events:none;
   background:linear-gradient(115deg,transparent 30%,rgba(217,179,106,.22) 50%,transparent 70%);transform:translateX(-100%);animation:shine 2.2s ease-in-out .25s infinite}
 @keyframes ttIn{from{transform:translateY(-130%);opacity:0}to{transform:none;opacity:1}}
+.av-toast.out{animation:ttOut .34s cubic-bezier(.4,0,.7,1) forwards}
+@keyframes ttOut{from{transform:none;opacity:1}to{transform:translateY(-130%);opacity:0}}
 .tt-seal{flex:none;width:46px;height:46px;border-radius:8px;display:flex;align-items:center;justify-content:center;
   border:1.5px solid var(--shu);color:var(--shu);background:rgba(232,85,61,.1);
   font-family:var(--serif);font-weight:800;font-size:12px;letter-spacing:.12em;writing-mode:vertical-rl;transform:rotate(-3deg)}
@@ -7019,7 +7026,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .av-empty{text-align:center;color:var(--ink-dim);font-size:12px;font-family:var(--serif);padding:34px 0;letter-spacing:.08em}
 /* 叙勲トースト */
 .av-toast{position:fixed;left:10px;right:10px;top:calc(env(safe-area-inset-top) + 10px);z-index:99997;max-width:520px;margin:0 auto;display:flex;gap:14px;align-items:center;text-align:left;
-  background:linear-gradient(120deg,rgba(217,179,106,.13),rgba(21,25,35,.84));border:1px solid rgba(217,179,106,.24);border-radius:4px;padding:13px 15px;overflow:hidden;
+  background:linear-gradient(120deg,rgba(34,29,18,.93),rgba(15,18,26,.95));backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(217,179,106,.32);border-radius:4px;padding:13px 15px;overflow:hidden;
   box-shadow:0 10px 34px rgba(0,0,0,.55);animation:ttIn .42s cubic-bezier(.2,.9,.3,1.15)}
 .av-toast::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(#f2dca0,#9c7838)}
 .av-toast-medal{flex:none;width:46px;height:46px}.av-toast-medal svg{width:100%;height:100%;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
