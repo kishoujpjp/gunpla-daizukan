@@ -2766,11 +2766,11 @@ async function fileToCompressedDataURL(file, maxW = 440, quality = 0.74) {
 /* ── AIスタイル変換(nano banana) ── */
 const AI_STYLES = [
   { id: "boxart", label: "ガンプラ箱絵風",
-    prompt: "Repaint this photograph as a hand-painted plastic-model box-art illustration in the painterly style of the illustrator Naochika Morishita (森下直親): rich airbrush and gouache rendering, crisp metallic highlights, deep saturated shadows, dramatic rim lighting. IMPORTANT CONSTRAINTS: do NOT significantly change the composition; do NOT change the camera angle or viewpoint; do NOT extend, expand, zoom out, or add anything beyond the original frame. Keep the subject's exact pose, proportions, framing and color scheme faithful to the photo — only convert the rendering into Morishita's illustration style. Output only the image." },
+    prompt: "Completely repaint this photograph as a hand-painted plastic-model box-art illustration in the painterly style of the illustrator Naochika Morishita (森下直親). Fully re-render the SUBJECT itself — not only the background: replace the photographic surfaces, colors and edges of the model with hand-painted airbrush/gouache rendering, repainted color gradients, crisp painted metallic highlights, deep saturated painted shadows, and hand-drawn illustration linework along every edge. The entire subject must look painted by hand in Morishita's style. CONSTRAINTS: do NOT significantly change the composition; do NOT change the camera angle or viewpoint; do NOT extend, expand, zoom out, or add anything beyond the original frame. Keep the subject's pose, proportions and framing, but its colors and lines must be entirely repainted in the illustration style. Output only the image." },
   { id: "ukiyoe", label: "浮世絵風",
-    prompt: "Completely transform this image into a Japanese ukiyo-e woodblock print (浮世絵). Aggressively change the artistic style: discard photographic rendering entirely and rebuild the subject with bold flat planes of color, strong calligraphic black contour linework, woodblock-print paper texture, decorative stylized waves and clouds, bokashi gradient skies, and the vivid ornamental palette of classical ukiyo-e. Reinterpret the brushwork and line quality freely into this flat, gorgeous, highly stylized traditional aesthetic. Output only the image." },
+    prompt: "Completely repaint this image as a Japanese ukiyo-e woodblock print (浮世絵). You MUST restyle the SUBJECT itself, not only the background: rebuild the subject's colors as bold flat planes of ukiyo-e pigment, and redraw all of its contours and lines as strong calligraphic black woodblock linework. Apply ukiyo-e treatment everywhere — flat color fills, hand-carved outline quality, woodblock-print paper texture, decorative stylized waves and clouds, bokashi gradients, and a vivid ornamental traditional palette. Do not leave the subject looking photographic while only the background changes; the subject's color and linework must be fully reinterpreted in ukiyo-e style. Output only the image." },
   { id: "cel", label: "80年代セル画風",
-    prompt: "Restyle this image into a 1980s Japanese robot/mecha anime cel-animation look WITHOUT significantly changing the composition — keep the subject's pose and overall layout. Convert the rendering as much as possible to that era's aesthetic: clean hand-inked cel outlines, limited flat color fills with hard two-tone shading, and the texture and linework of 1980s analog mecha animation. Add a moderate amount of film grain / analog noise and slight VHS-style softness to shift the texture toward that vintage look. Output only the image." },
+    prompt: "Completely redraw this entire image — BOTH the subject AND the background — as a 1980s Japanese robot/mecha anime cel-animation frame. Fully re-render everything by hand in that era's style: rough, slightly uneven hand-drawn ink outlines, visibly hand-painted limited flat colors with hard two-tone cel shading, and the coarse texture of vintage analog animation cels. Embrace imperfection — the linework should look hand-inked and a little rough, not clean or digital. Add a moderate amount of film grain / analog noise and slight VHS-style softness throughout. Nothing should remain photographic; the whole frame must read as a hand-drawn 80s anime cel. Output only the image." },
 ];
 
 function AIRestyleModal({ src, apiKey, model, prompts, onAdopt, onClose }) {
@@ -3282,7 +3282,7 @@ export default function App() {
   const [images, setImages] = useState({});
   const [extras, setExtras] = useState({});       // 追加画像 {xid: src}
   const [albumMeta, setAlbumMeta] = useState({});  // {kitId:{order,thumb,acquire,framing}}
-  const [settings, setSettings] = useState({ view: "grid", compact: false, dimUnowned: true, showCode: true, showSeries: false, showPrice: true, showNo: false, listGrade: true, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "min", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", geminiModel: "gemini-2.5-flash-image" });
+  const [settings, setSettings] = useState({ view: "list", compact: false, dimUnowned: true, showCode: true, showSeries: false, showPrice: true, showNo: false, listGrade: true, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "min", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", geminiModel: "gemini-2.5-flash-image" });
   const [sortKey, setSortKey] = useState("year");
   const [sortDir, setSortDir] = useState("asc");
   const [queries, setQueries] = useState({ z: "", c: "" });
@@ -3303,7 +3303,7 @@ export default function App() {
   const [ownConfirm, setOwnConfirm] = useState(null); // 入手取消確認 kit
   const [loaded, setLoaded] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
-  const [dispTarget, setDispTarget] = useState("card");
+  const [dispTarget, setDispTarget] = useState("list");
   const [promptEdit, setPromptEdit] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -4974,10 +4974,13 @@ export default function App() {
 
         {tab === "settings" && (
           <div className="panel-wrap">
+            <div className="panel-head-row">
+              <h2 className="panel-title">プロフィール<span>BUILDER</span></h2>
+              <button className="panel-edit-btn" onClick={() => setProfileOpen(true)}>編集 ✎</button>
+            </div>
             <button className="builder-line builder-tap" onClick={() => setProfileOpen(true)}>
               <span>BUILDER<b>{settings.builderName || "—"}</b></span>
               <span>ガンプラ歴<b>{careerStr(settings.builderSince)}</b></span>
-              <i className="builder-edit">✎</i>
             </button>
             <h2 className="panel-title">テーマ<span>THEME</span></h2>
             <div className="opt-group horizontal">
@@ -5122,6 +5125,23 @@ export default function App() {
               <input ref={importRef} type="file" accept="application/json,.json" style={{ display: "none" }} onChange={importData} />
             </div>
             <p className="footnote">記録・編集・追加機体・画像はすべて自動保存され、次回起動時に復元されます。アップロード画像は自動圧縮(横440px・JPEG)で保存。</p>
+
+            <h2 className="panel-title">問題報告・ご要望<span>FEEDBACK</span></h2>
+            <div className="opt-group">
+              {[
+                ["バグ報告", "⚠", "不具合・バグを報告する"],
+                ["改善提案", "✎", "改善のご提案を送る"],
+                ["機能追加", "✦", "新機能をリクエストする"],
+              ].map(([label, icon, desc]) => (
+                <button key={label} className="opt" onClick={() => {
+                  const subject = encodeURIComponent("【" + label + "】ガンプラ大図鑑");
+                  window.location.href = "mailto:kishoujpjp@gmail.com?subject=" + subject;
+                }}>
+                  <span>{desc}</span><i>{icon}</i>
+                </button>
+              ))}
+            </div>
+            <p className="footnote">タップするとメールアプリが開きます。件名のタグはそのままで、本文にご記入のうえ送信してください。</p>
           </div>
         )}
         </div>
@@ -6564,8 +6584,14 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .builder-tap{width:100%;text-align:left;align-items:center;cursor:pointer;
   transition:border-color .12s,transform .1s ease}
 .builder-tap:active{transform:scale(.985)}
-.builder-tap .builder-edit{margin-left:auto;font-size:13px;color:var(--ink-mid);
-  font-style:normal;flex:none}
+.panel-head-row{display:flex;align-items:baseline;justify-content:space-between;
+  gap:10px;margin:18px 2px 10px}
+.panel-head-row:first-child{margin-top:6px}
+.panel-head-row .panel-title{margin:0}
+.panel-edit-btn{flex:none;font-size:11px;letter-spacing:.1em;color:var(--ink-mid);
+  border:1px solid var(--line-soft);border-radius:7px;padding:5px 11px;
+  background:var(--panel);transition:border-color .12s,transform .1s ease}
+.panel-edit-btn:active{transform:scale(.95)}
 
 /* 5. 記録(成就)カード */
 .achv-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
