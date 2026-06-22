@@ -2506,6 +2506,34 @@ function KitName({ name }) {
   return <span className="kn">{name}</span>;
 }
 
+/* 名称枠(固定高さ)に対しフォントを自動配適: 短名は大きく・長名は縮小(截断なし)。卡片高さは揃う */
+function FitName({ name, max, min = 12 }) {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    const span = ref.current;
+    if (!span) return;
+    const box = span.parentElement;
+    if (!box) return;
+    const fit = () => {
+      const bh = box.clientHeight;
+      if (!bh) return;
+      let lo = min, hi = max, best = min;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        span.style.fontSize = mid + "px";
+        if (span.scrollHeight <= bh) { best = mid; lo = mid + 1; } else hi = mid - 1;
+      }
+      span.style.fontSize = best + "px";
+    };
+    fit();
+    let raf = 0;
+    const ro = new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(fit); });
+    ro.observe(box);
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
+  }, [name, max, min]);
+  return <span ref={ref} className="sl-name-fit" style={{ fontSize: max }}>{name}</span>;
+}
+
 function GradeBracket({ grade }) {
   const g = (grade || "MG").toUpperCase();
   const cls = { MG: "mg", HG: "hg", RG: "rg", PG: "pg", HIRM: "hirm", RE: "re", FM: "fm", MGSD: "sd", EXTRA: "ex" }[g] || "ex";
@@ -4593,6 +4621,7 @@ export default function App() {
   );
 
   const salonView = tab === "zukan" && zukanMode === "salon";
+  const slPad = typeof window !== "undefined" && !!(window.matchMedia && window.matchMedia("(min-width:768px)").matches);
   const Card = ({ kit }) => {
     const rec = getRec(kit.id);
     const dim = settings.dimUnowned && !rec.owned && !rec.plan;
@@ -4623,7 +4652,7 @@ export default function App() {
               : <SeriesWatermark kit={kit} variant="list" />}
           </div>
           <div className="sl-body">
-            <div className="sl-name"><KitName name={kit.name} /></div>
+            <div className="sl-name"><FitName name={kit.name} max={(settings.salonCols || 2) === 3 ? (slPad ? 30 : 22) : (slPad ? 38 : 28)} /></div>
             {(settings.showYm || (settings.showPrice && kit.price)) && (
               <div className="sl-meta">
                 {settings.showYm && <span className="kz-year">{kit.ym ? kit.ym.replace("-", ".") : "—"}</span>}
@@ -7115,10 +7144,10 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .sl-chip{position:absolute;z-index:2;left:8px;bottom:8px;top:auto}
 .sl-body{padding:11px 12px 12px;transition:padding .26s ease}
 .salon-grid.cols-3 .sl-body{padding:8px 9px 10px}
-.sl-name{font-family:var(--serif);font-weight:700;color:var(--ink-strong);line-height:1.3;text-align:center;
-  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;min-height:2.6em}
-.salon-grid.cols-2 .sl-name{font-size:20px}
-.salon-grid.cols-3 .sl-name{font-size:18px}
+.sl-name{display:flex;align-items:center;justify-content:center;overflow:hidden;text-align:center}
+.salon-grid.cols-2 .sl-name{height:50px}
+.salon-grid.cols-3 .sl-name{height:42px}
+.sl-name-fit{display:block;width:100%;font-family:var(--serif);font-weight:700;color:var(--ink-strong);line-height:1.18;word-break:break-word}
 .sl-meta{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:7px}
 .sl-meta .kz-year,.sl-meta .kz-price{transition:font-size .26s ease}
 .salon-grid.cols-3 .sl-meta .kz-year{font-size:10px}
@@ -7130,8 +7159,8 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .salon-ctrl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .salon-seg button{padding:7px 11px}
 @media (min-width:768px){
-  .salon-grid.cols-2 .sl-name{font-size:28px}
-  .salon-grid.cols-3 .sl-name{font-size:24px}
+  .salon-grid.cols-2 .sl-name{height:64px}
+  .salon-grid.cols-3 .sl-name{height:54px}
 }
 .kz-seal{position:absolute;top:9px;right:9px;z-index:3;font-family:var(--serif);font-weight:800;font-size:12px;line-height:1;color:var(--gold);border:1.4px solid rgba(217,179,106,.55);background:rgba(217,179,106,.1);border-radius:2px;padding:5px 4px;writing-mode:vertical-rl;letter-spacing:.1em;box-shadow:0 1px 2px rgba(0,0,0,.4)}
 .kz-plan{position:absolute;top:9px;right:9px;z-index:3;font-family:ui-monospace,monospace;font-size:11px;font-weight:700;color:var(--gold);border:1px dashed var(--gold);background:rgba(217,179,106,.05);border-radius:2px;padding:4px 5px;writing-mode:vertical-rl;letter-spacing:.06em}
