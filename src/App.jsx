@@ -5585,6 +5585,8 @@ export default function App() {
 /* ───────────── 樣式 ───────────── */
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Lugrasimo&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=STIX+Two+Math&display=swap');
 
 :root{
   --bg:#0d1018; --bg2:#12161f; --panel:#171c28; --panel2:#1c2230;
@@ -6836,8 +6838,8 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .av-emblem.fin-gold{color:#e6c478}
 .av-emblem.fin-silver{color:#cfd6df}
 .av-emblem.fin-ghost{color:#6f6d67}
-.av-emblem .cal{font-family:'Lucida Calligraphy','Monotype Corsiva','Apple Chancery','Snell Roundhand','URW Chancery L',cursive;font-style:italic}
-.av-emblem .cmath{font-family:'Cambria Math','Cambria','STIX Two Math','Latin Modern Math','Times New Roman',serif}
+.av-emblem .cal{font-family:'Lugrasimo','Lucida Calligraphy','Monotype Corsiva','Apple Chancery','Snell Roundhand','URW Chancery L',cursive}
+.av-emblem .cmath{font-family:'STIX Two Math','Cambria Math','Cambria','Latin Modern Math','Times New Roman',serif}
 .av-medal.locked{opacity:.42}
 .av-ebody{flex:1;min-width:0;display:flex;flex-direction:column;padding-top:2px}
 .av-eno{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9.5px;letter-spacing:.20em;color:var(--ink-dim);text-transform:uppercase}
