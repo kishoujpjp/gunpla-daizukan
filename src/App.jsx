@@ -3333,7 +3333,7 @@ export default function App() {
   const [images, setImages] = useState({});
   const [extras, setExtras] = useState({});       // 追加画像 {xid: src}
   const [albumMeta, setAlbumMeta] = useState({});  // {kitId:{order,thumb,acquire,framing}}
-  const [settings, setSettings] = useState({ view: "list", compact: false, dimUnowned: true, showCode: true, showSeries: false, showPrice: true, showNo: false, listGrade: true, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "min", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", geminiModel: "gemini-2.5-flash-image" });
+  const [settings, setSettings] = useState({ view: "list", compact: false, dimUnowned: true, showCode: true, showSeries: false, showPrice: true, showNo: false, showGrade: true, showYm: true, listGrade: true, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "min", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", geminiModel: "gemini-2.5-flash-image" });
   const [sortKey, setSortKey] = useState("year");
   const [sortDir, setSortDir] = useState("asc");
   const [queries, setQueries] = useState({ z: "", c: "" });
@@ -4611,9 +4611,14 @@ export default function App() {
         </button>
       );
     }
+    const noLine = [
+      settings.showGrade && kit.grade,
+      settings.showNo && kit.no && kit.no !== "—" && `No.${kit.no}`,
+      settings.showCode && kit.code,
+    ].filter(Boolean).join(" · ");
     return (
       <button className={`kz-card ${dim ? "dim" : ""} ${settings.compact ? "compact" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""} ${rec.buildDate ? "built" : ""}`} onClick={onCardClick} {...longPress}>
-        <div className="kz-no">{kit.grade}{settings.showNo && kit.no && kit.no !== "—" ? ` · No.${kit.no}` : ""}{settings.showCode && kit.code ? ` · ${kit.code}` : ""}</div>
+        {noLine && <div className="kz-no">{noLine}</div>}
         {rec.buildDate ? <span className="kz-seal">済</span> : rec.plan ? <span className="kz-plan">予</span> : null}
         <div className="kz-frame">
           <KitImage kit={kit} img={img} owned={rec.owned} built={!!rec.buildDate} size={settings.compact ? 56 : 78} frame={thumbFrameStyle(kit.id)} />
@@ -4623,7 +4628,7 @@ export default function App() {
         <div className="kz-name"><KitName name={kit.name} /></div>
         <div className="kz-hair" />
         <div className="kz-meta">
-          <span className="kz-year">{yearOf(kit.ym)}</span>
+          {settings.showYm && <span className="kz-year">{kit.ym ? kit.ym.replace("-", ".") : "—"}</span>}
           {settings.showPrice && kit.price ? <span className="kz-price">{fmtYen(kit.price)}</span> : null}
           {lineBadge(kit, false)}
         </div>
@@ -4690,7 +4695,7 @@ export default function App() {
 
       <header className="head">
         {(() => {
-          const arc = tab === "zukan" ? (zukanMode === "salon" ? { jp: "沙龍档案", en: "SALON" } : { jp: "機体档案", en: "REGISTRY" })
+          const arc = tab === "zukan" ? (zukanMode === "salon" ? { jp: "繪測档案", en: "SALON" } : { jp: "機体档案", en: "REGISTRY" })
             : tab === "collection" ? (collMode === "plan" ? { jp: "発注档案", en: "REQUISITION" } : { jp: "収蔵档案", en: "HOLDINGS" })
             : tab === "analysis" ? (anaMode === "analysis" ? { jp: "観測档案", en: "OBSERVATION" } : { jp: "叙勲档案", en: "DECORATIONS" })
             : { jp: "管理档案", en: "ADMINISTRATION" };
@@ -5068,6 +5073,8 @@ export default function App() {
               {(dispTarget === "card"
                 ? [
                     ["compact", "コンパクト表示"],
+                    ["showGrade", "グレードを表示"],
+                    ["showYm", "発売年月を表示"],
                     ["showNo", "No.番号を表示"],
                     ["showCode", "型式番号を表示"],
                     ["showPrice", "定価を表示"],
@@ -5605,7 +5612,7 @@ export default function App() {
       {/* ── 底部分頁 ── */}
       <nav className="tabbar pad-min" style={{ paddingBottom: "4px" }}>
         {[
-          ["zukan", zukanMode === "salon" ? "沙龍" : "図鑑", zukanMode === "salon"
+          ["zukan", zukanMode === "salon" ? "繪測" : "図鑑", zukanMode === "salon"
             ? (<svg className="tab-line-ico salon-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path className="pal-body" d="M12 4.6C16.8 4.6 20.4 7.5 20.4 11.3C20.4 13.7 18.7 14.5 17.3 14.5C16.4 14.5 15.6 14.3 15.6 13.5C15.6 12.8 16 12.5 16 11.9C16 11.2 15.4 10.7 14.5 10.7C12.9 10.7 12 12.4 12 14.1C12 16 12.9 17.2 12.2 18.1C11.8 18.5 11.3 18.7 10.7 18.7C6.7 18.7 4 15.1 4 11.3C4 7.5 7.4 4.6 12 4.6Z" strokeWidth="1.6" strokeLinejoin="round" /><circle className="pd1" cx="7.1" cy="10.4" r="1.25" /><circle className="pd2" cx="8.7" cy="7.6" r="1.25" /><circle className="pd3" cx="11.8" cy="6.7" r="1.25" /><circle className="pd4" cx="15" cy="7.6" r="1.25" /></svg>)
             : "▦"],
           ["collection", collMode === "plan" ? "予定" : "収蔵", collMode === "plan" ? "◆" : "✦"],
@@ -5646,7 +5653,7 @@ export default function App() {
           const order = ["zukan", "collection", "analysis", "settings"];
           const idx = Math.max(0, order.indexOf(tab));
           const col = tab === "analysis" && anaMode === "analysis" ? "var(--gold)"
-            : tab === "zukan" && zukanMode === "salon" ? "var(--teal)"
+            : tab === "zukan" && zukanMode === "salon" ? "var(--gold)"
             : tab === "collection" && collMode === "plan" ? "var(--kin)"
             : tab === "settings" ? "var(--ink-strong)"
             : "var(--gold)";
@@ -6027,15 +6034,15 @@ input,textarea{font-family:var(--sans)}
 .tab.set-tab .tab-icon,.tab.set-tab .tab-label{color:var(--ink)}
 .tab.set-tab.on .tab-icon,.tab.set-tab.on .tab-label{color:var(--ink-strong)}
 .tab.set-tab.on{color:var(--ink-strong)}
-/* 沙龍タブ:調色盤アイコン(本体 currentColor / 絵具ドットはアクセント色) */
-.tab.salon-tab .tab-icon,.tab.salon-tab .tab-label{color:var(--teal)}
-.tab.salon-tab.on .tab-icon,.tab.salon-tab.on .tab-label{color:var(--teal);filter:brightness(1.12)}
+/* 沙龍タブ:金黃色系で統一(本体 currentColor=金 / 絵具ドットは金の濃淡) */
+.tab.salon-tab .tab-icon,.tab.salon-tab .tab-label{color:var(--gold)}
+.tab.salon-tab.on .tab-icon,.tab.salon-tab.on .tab-label{color:var(--gold);filter:brightness(1.12)}
 .salon-ico .pal-body{stroke-width:1.6}
 .salon-ico circle{stroke:none}
-.salon-ico .pd1{fill:var(--shu)}
+.salon-ico .pd1{fill:#f0dcab}
 .salon-ico .pd2{fill:var(--gold)}
-.salon-ico .pd3{fill:var(--teal)}
-.salon-ico .pd4{fill:var(--blue)}
+.salon-ico .pd3{fill:var(--kin-deep)}
+.salon-ico .pd4{fill:#e3bf7d}
 .tab.set-tab .tab-bar{background:var(--ink-strong)}
 .head-stats b.kin{color:var(--kin)}
 
