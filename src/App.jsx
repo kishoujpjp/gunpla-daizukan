@@ -70,13 +70,62 @@ const UNI_EMBLEM = {
       <path class="m" fill-rule="evenodd" d="M22 44a7 7 0 1 0 0.1 0Z M22 47.6a3.6 3.6 0 1 0 0.1 0Z"/>
       <path class="m" fill-rule="evenodd" d="M42 44a7 7 0 1 0 0.1 0Z M42 47.6a3.6 3.6 0 1 0 0.1 0Z"/>
       <circle class="m" cx="32" cy="32.5" r="2.6"/>`,
+
+  /* extra(世界観なし)= 「?」字標(serif) */
+  extra:`<text class="m qm" x="32" y="34" text-anchor="middle" dominant-baseline="central" font-size="52">?</text>`,
 };
+
+/* 世界観タグ文字列(UNI_PREFIX と同一表記。ピリオド有り・内部スペース無し) */
+const UNI_TAG = { UC: "U.C.", SEED: "C.E.", W: "A.C.", X: "A.W.", G: "F.C.", "00": "A.D.", AGE: "A.G.", IBO: "P.D.", AS: "A.S.", RC: "R.C.", CC: "C.C.", GQX: "GQX", BF: "BF", extra: "extra" };
+
+/* 系列名 → 世界観コード(順序厳守: Build/メタ→BF → クロスオーバー/SD・戦国→extra → 各世界観 → U.C. 総取り → 残り extra) */
+function universeOfSeries(series) {
+  const s = series || "";
+  if (!s) return "extra";
+  // Build / ガンプラ・メタ作品 → BF
+  if (/ビルドファイターズ|ビルドダイバー|ビルドメタバース|ビルドリアル|ガンダムブレイカー|ガンプラビルダーズ|ガンプラバトル|プラモ狂四郎|量産型リコ|ビギニングG|イメージングビルダーズ/.test(s)) return "BF";
+  // クロスオーバー / 対戦ゲーム / SD・戦国 → extra
+  if (/EXTREME VS|エクストリームバーサス|マキシブースト|フルブースト|EVOLVE|トライエイジ|戦国|英雄譚/.test(s)) return "extra";
+  // 各世界観(専用パターンで衝突回避)
+  if (/水星の魔女/.test(s)) return "AS";
+  if (/ジークアクス/.test(s)) return "GQX";
+  if (/レコンギスタ/.test(s)) return "RC";
+  if (/∀|ターンエー/.test(s)) return "CC";
+  if (/鉄血のオルフェンズ/.test(s)) return "IBO";
+  if (/ガンダムAGE/.test(s)) return "AGE";
+  if (/ガンダム00(?![0-9])/.test(s)) return "00"; // 0080/0083/0079/0087 は除外 → UC へ
+  if (/SEED/.test(s)) return "SEED";
+  if (/新機動戦記/.test(s)) return "W";
+  if (/機動新世紀/.test(s)) return "X";
+  if (/機動武闘伝/.test(s)) return "G";
+  // U.C. 総取り(「ガンダム」を含む残り＋「ガンダム」表記の無い U.C. 作品)
+  if (/ガンダム|GUNDAM|ADVANCE OF Z|A\.O\.Z|アドバンス・オブ・ゼータ|閃光のハサウェイ|逆襲のシャア|MSV|MSイグルー|MS IGLOO|サンダーボルト|THUNDERBOLT|F90|U\.C\.|アナハイム/.test(s)) return "UC";
+  return "extra";
+}
+const universeOfKit = (k) => universeOfSeries(k && k.series);
 
 /* 世界別エンブレム(単色 currentColor / 金=tier2・銀=tier1・灰=tier0) */
 function Emblem({ universe, tier }) {
   const fin = tier === 2 ? "gold" : tier === 1 ? "silver" : "ghost";
   return <svg viewBox="0 0 64 64" className={"av-emblem fin-" + fin} aria-hidden="true"
     dangerouslySetInnerHTML={{ __html: UNI_EMBLEM[universe] || UNI_EMBLEM.UC }} />;
+}
+
+/* 画像なしプレースホルダー: 系列の世界観エンブレムを灰色の透かしで表示(grid 73% / list 78%) */
+function SeriesWatermark({ kit, variant, size = 84 }) {
+  const inner = UNI_EMBLEM[universeOfSeries(kit && kit.series)] || UNI_EMBLEM.extra;
+  if (variant === "list") return (
+    <div className="series-wm-box wm-list">
+      <svg viewBox="0 0 64 64" className="av-emblem fin-ghost series-wm" aria-hidden="true"
+        dangerouslySetInnerHTML={{ __html: inner }} />
+    </div>
+  );
+  return (
+    <div className="series-wm-box wm-grid" style={{ width: size, height: size }}>
+      <svg viewBox="0 0 64 64" className="av-emblem fin-ghost series-wm" aria-hidden="true"
+        dangerouslySetInnerHTML={{ __html: inner }} />
+    </div>
+  );
 }
 
 
@@ -2460,7 +2509,7 @@ function KitImage({ kit, img, owned, built, size = 84, cls = "", frame }) {
     return <img src={img} alt={kit.name} className={`kit-img ${cls}`} loading="lazy" decoding="async" />;
   }
   if (cls.indexOf("tc") !== -1) return <CRTPlaceholder />;
-  return <MechSketch seedKey={kit.id} owned={owned} built={built} size={size} />;
+  return <SeriesWatermark kit={kit} variant={cls.indexOf("sm") !== -1 ? "list" : "grid"} size={size} />;
 }
 
 /* 指でのピンチズーム/パン。画像にのみ適用。タップ(移動なし)で onTap を発火。
@@ -4121,6 +4170,7 @@ export default function App() {
   const seriesOptions = useMemo(
     () => [...new Set(allKits.map((k) => k.series).filter(Boolean))].sort((x, y) => x.localeCompare(y, "ja")),
     [allKits]);
+  const kitById = useMemo(() => { const m = {}; for (const k of allKits) m[k.id] = k; return m; }, [allKits]);
 
   const getRec = useCallback((id) => records[id] || { owned: false, plan: false, purchaseDate: "", buildDate: "" }, [records]);
 
@@ -4134,7 +4184,12 @@ export default function App() {
     return { ...r, [id]: stampRec(cur, patch, new Date().toISOString()) };
   });
   /* ── カスタムタグ(機体ごとの自由タグ。records と同じ stamped LWW で同期) ── */
-  const getTags = useCallback((id) => (kitTags[id] && kitTags[id].tags) || [], [kitTags]);
+  const getTags = useCallback((id) => {
+    const user = (kitTags[id] && kitTags[id].tags) || [];
+    const k = kitById[id];
+    const uni = k ? UNI_TAG[universeOfKit(k)] : null;
+    return uni && !user.includes(uni) ? [uni, ...user] : user;
+  }, [kitTags, kitById]);
   const setTags = (id, tags) => setKitTags((m) => {
     const cur = m[id] || { tags: [] };
     return { ...m, [id]: stampRec(cur, { tags }, new Date().toISOString()) };
@@ -4148,7 +4203,7 @@ export default function App() {
   };
   const removeTag = (id, t) => setTags(id, ((kitTags[id] && kitTags[id].tags) || []).filter((x) => x !== t));
   const allTags = useMemo(() => {
-    const set = new Set();
+    const set = new Set(Object.values(UNI_TAG));
     for (const id in kitTags) for (const t of ((kitTags[id] && kitTags[id].tags) || [])) set.add(t);
     return [...set].sort((a, b) => a.localeCompare(b, "ja"));
   }, [kitTags]);
@@ -4519,7 +4574,7 @@ export default function App() {
           <div className="kz-rframe">
             {img
               ? <KitImage kit={kit} img={img} owned={rec.owned} built={!!rec.buildDate} size={88} cls="sm" frame={thumbFrameStyle(kit.id)} />
-              : <div className="kz-uni"><span>UNIDENTIFIED</span></div>}
+              : <SeriesWatermark kit={kit} variant="list" />}
           </div>
           <div className="kz-rmain">
             <div className="kz-rno">{[
@@ -6840,6 +6895,13 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .av-emblem.fin-ghost{color:#6f6d67}
 .av-emblem .cal{font-family:'Lugrasimo','Lucida Calligraphy','Monotype Corsiva','Apple Chancery','Snell Roundhand','URW Chancery L',cursive}
 .av-emblem .cmath{font-family:'STIX Two Math','Cambria Math','Cambria','Latin Modern Math','Times New Roman',serif}
+.av-emblem .qm{font-family:var(--serif);font-weight:700}
+/* 画像なしプレースホルダーの世界観エンブレム透かし */
+.series-wm-box{display:flex;align-items:center;justify-content:center;background:var(--panel2);overflow:hidden}
+.series-wm-box.wm-list{width:100%;height:100%}
+.series-wm{opacity:.5;display:block}
+.series-wm-box.wm-grid .series-wm{width:73%;height:73%}
+.series-wm-box.wm-list .series-wm{width:78%;height:78%}
 .av-medal.locked{opacity:.42}
 .av-ebody{flex:1;min-width:0;display:flex;flex-direction:column;padding-top:2px}
 .av-eno{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9.5px;letter-spacing:.20em;color:var(--ink-dim);text-transform:uppercase}
