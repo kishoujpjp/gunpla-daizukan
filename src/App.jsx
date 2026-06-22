@@ -4612,7 +4612,6 @@ export default function App() {
             <div className="sl-meta">
               {settings.showYm && <span className="kz-year">{kit.ym ? kit.ym.replace("-", ".") : "—"}</span>}
               {settings.showPrice && kit.price ? <span className="kz-price">{fmtYen(kit.price)}</span> : null}
-              <span className="sl-uni">{UNI_TAG[universeOfKit(kit)]}</span>
             </div>
           </div>
         </button>
@@ -7039,7 +7038,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 /* ── 繪測(SALON)ギャラリー:画像主役・2列/3列で動的拡縮 ── */
 .salon-grid{display:grid;gap:14px;transition:gap .28s ease}
 .salon-grid.cols-2{grid-template-columns:repeat(2,1fr)}
-.salon-grid.cols-3{grid-template-columns:repeat(3,1fr)}
+.salon-grid.cols-3{grid-template-columns:repeat(3,1fr);column-gap:9px}
 .sl-card{position:relative;border:1px solid var(--line-soft);border-radius:12px;overflow:hidden;text-align:left;
   background:linear-gradient(180deg,var(--panel) 0%,var(--bg2) 100%);display:flex;flex-direction:column;
   transition:transform .18s cubic-bezier(.34,1.56,.64,1),border-color .2s,box-shadow .2s}
@@ -7070,11 +7069,11 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .sl-chip{position:absolute;z-index:2;left:8px;bottom:8px;top:auto}
 .sl-body{padding:11px 12px 12px;transition:padding .26s ease}
 .salon-grid.cols-3 .sl-body{padding:8px 9px 10px}
-.sl-name{font-family:var(--serif);font-weight:700;color:var(--ink-strong);line-height:1.3;
+.sl-name{font-family:var(--serif);font-weight:700;color:var(--ink-strong);line-height:1.3;text-align:center;
   display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;min-height:2.6em}
-.salon-grid.cols-2 .sl-name{font-size:13.5px}
-.salon-grid.cols-3 .sl-name{font-size:11px}
-.sl-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:7px}
+.salon-grid.cols-2 .sl-name{font-size:27px}
+.salon-grid.cols-3 .sl-name{font-size:22px}
+.sl-meta{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:7px}
 .sl-meta .kz-year,.sl-meta .kz-price{transition:font-size .26s ease}
 .salon-grid.cols-3 .sl-meta .kz-year{font-size:10px}
 .salon-grid.cols-3 .sl-meta .kz-price{font-size:8.5px}
@@ -7084,6 +7083,10 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .salon-grid.cols-3 .sl-uni{font-size:7.5px;padding:1px 4px}
 .salon-ctrl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .salon-seg button{padding:7px 11px}
+@media (min-width:768px){
+  .salon-grid.cols-2 .sl-name{font-size:36px}
+  .salon-grid.cols-3 .sl-name{font-size:30px}
+}
 .kz-seal{position:absolute;top:9px;right:9px;z-index:3;font-family:var(--serif);font-weight:800;font-size:12px;line-height:1;color:var(--gold);border:1.4px solid rgba(217,179,106,.55);background:rgba(217,179,106,.1);border-radius:2px;padding:5px 4px;writing-mode:vertical-rl;letter-spacing:.1em;box-shadow:0 1px 2px rgba(0,0,0,.4)}
 .kz-plan{position:absolute;top:9px;right:9px;z-index:3;font-family:ui-monospace,monospace;font-size:11px;font-weight:700;color:var(--gold);border:1px dashed var(--gold);background:rgba(217,179,106,.05);border-radius:2px;padding:4px 5px;writing-mode:vertical-rl;letter-spacing:.06em}
 /* リスト */
