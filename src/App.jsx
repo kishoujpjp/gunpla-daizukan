@@ -4644,8 +4644,6 @@ export default function App() {
         <button className={`sl-card ${dim ? "dim" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""} ${rec.buildDate ? "built" : ""}`} onClick={onCardClick} {...longPress}>
           <div className="sl-frame">
             {settings.showGrade && kit.grade ? <span className="sl-grade">{kit.grade}</span> : null}
-            {rec.buildDate ? <span className="sl-seal built">済</span> : rec.plan ? <span className="sl-seal plan">予</span> : null}
-            {kit.premium ? <span className="line-chip pb sl-chip">プレバン</span> : kit.base ? <span className="line-chip base sl-chip">ベース</span> : null}
             {img
               ? <img className="sl-img" src={img} alt={kit.name} loading="lazy" decoding="async"
                   style={(settings.salonFit || "cover") === "cover" ? thumbFrameStyle(kit.id) : undefined} />
