@@ -3333,7 +3333,7 @@ export default function App() {
   const [images, setImages] = useState({});
   const [extras, setExtras] = useState({});       // 追加画像 {xid: src}
   const [albumMeta, setAlbumMeta] = useState({});  // {kitId:{order,thumb,acquire,framing}}
-  const [settings, setSettings] = useState({ view: "list", compact: false, dimUnowned: true, showCode: true, showSeries: false, showPrice: true, showNo: false, showGrade: true, showYm: true, listGrade: true, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "min", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", geminiModel: "gemini-2.5-flash-image" });
+  const [settings, setSettings] = useState({ view: "list", compact: false, dimUnowned: true, showCode: true, showSeries: false, showPrice: true, showNo: false, showGrade: true, showYm: true, salonCols: 2, salonFit: "cover", listGrade: true, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "min", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", geminiModel: "gemini-2.5-flash-image" });
   const [sortKey, setSortKey] = useState("year");
   const [sortDir, setSortDir] = useState("asc");
   const [queries, setQueries] = useState({ z: "", c: "" });
@@ -4456,6 +4456,19 @@ export default function App() {
     </div>
   );
 
+  const SalonControls = () => (
+    <div className="salon-ctrl">
+      <div className="view-toggle salon-seg">
+        <button className={(settings.salonCols || 2) === 2 ? "on" : ""} onClick={() => { haptic(); setSettings((s) => ({ ...s, salonCols: 2 })); }}>２列</button>
+        <button className={(settings.salonCols || 2) === 3 ? "on" : ""} onClick={() => { haptic(); setSettings((s) => ({ ...s, salonCols: 3 })); }}>３列</button>
+      </div>
+      <div className="view-toggle salon-seg">
+        <button className={(settings.salonFit || "cover") === "cover" ? "on" : ""} onClick={() => { haptic(); setSettings((s) => ({ ...s, salonFit: "cover" })); }}>切抜</button>
+        <button className={(settings.salonFit || "cover") === "contain" ? "on" : ""} onClick={() => { haptic(); setSettings((s) => ({ ...s, salonFit: "contain" })); }}>全体</button>
+      </div>
+    </div>
+  );
+
   const advActive = adv.series || adv.uni || adv.prem || adv.stat || adv.yFrom || adv.yTo;
   const AdvPanel = () => (
     <div className="adv-panel">
@@ -4564,6 +4577,7 @@ export default function App() {
     </>
   );
 
+  const salonView = tab === "zukan" && zukanMode === "salon";
   const Card = ({ kit }) => {
     const rec = getRec(kit.id);
     const dim = settings.dimUnowned && !rec.owned && !rec.plan;
@@ -4581,6 +4595,29 @@ export default function App() {
     });
     const onCardClick = () => { if (consumeLP()) return; setDetail(kit.id); setEditing(false); };
     const sketchCrt = !rec.owned && !img; // 未入手かつ画像なし=ベクター→CRT風に
+    if (salonView) {
+      return (
+        <button className={`sl-card ${dim ? "dim" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""} ${rec.buildDate ? "built" : ""}`} onClick={onCardClick} {...longPress}>
+          <div className="sl-frame">
+            {settings.showGrade && kit.grade ? <span className="sl-grade">{kit.grade}</span> : null}
+            {rec.buildDate ? <span className="sl-seal built">済</span> : rec.plan ? <span className="sl-seal plan">予</span> : null}
+            {kit.premium ? <span className="line-chip pb sl-chip">プレバン</span> : kit.base ? <span className="line-chip base sl-chip">ベース</span> : null}
+            {img
+              ? <img className="sl-img" src={img} alt={kit.name} loading="lazy" decoding="async"
+                  style={(settings.salonFit || "cover") === "cover" ? thumbFrameStyle(kit.id) : undefined} />
+              : <SeriesWatermark kit={kit} variant="list" />}
+          </div>
+          <div className="sl-body">
+            <div className="sl-name"><KitName name={kit.name} /></div>
+            <div className="sl-meta">
+              {settings.showYm && <span className="kz-year">{kit.ym ? kit.ym.replace("-", ".") : "—"}</span>}
+              {settings.showPrice && kit.price ? <span className="kz-price">{fmtYen(kit.price)}</span> : null}
+              <span className="sl-uni">{UNI_TAG[universeOfKit(kit)]}</span>
+            </div>
+          </div>
+        </button>
+      );
+    }
     if (settings.view === "list") {
       return (
         <button className={`kz-row ${dim ? "dim" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""} ${rec.buildDate ? "built" : ""}`} onClick={onCardClick} {...longPress}>
@@ -4638,7 +4675,8 @@ export default function App() {
   };
 
   const Grid = ({ kits }) => (
-    <div className={settings.view === "list" ? "list-wrap" : `grid-wrap ${settings.compact ? "compact" : ""}`}>
+    <div className={salonView ? `salon-grid cols-${settings.salonCols || 2} fit-${settings.salonFit || "cover"}`
+      : settings.view === "list" ? "list-wrap" : `grid-wrap ${settings.compact ? "compact" : ""}`}>
       {kits.map((k) => <Card key={k.id} kit={k} />)}
     </div>
   );
@@ -4761,8 +4799,8 @@ export default function App() {
               <div className="drawer-sub">
                 <GfRow skey="gfZukan" />
                 <SortBar />
-                <ViewToggle />
-                <button className="add-btn" onClick={() => setAdding("zukan")}>＋ 追加</button>
+                {salonView ? <SalonControls /> : <ViewToggle />}
+                {!salonView && <button className="add-btn" onClick={() => setAdding("zukan")}>＋ 追加</button>}
               </div>
             </div>
             <div className="section-note">{sorted.length} 件{advActive && <button className="cond-clear" onClick={() => { haptic(); setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "" }); }}>条件をクリア</button>}</div>
@@ -6997,6 +7035,55 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .kz-year{font-family:var(--serif);font-size:11px;color:var(--gold);letter-spacing:.04em}
 .kz-price{font-family:ui-monospace,monospace;font-size:9.5px;color:var(--ink-mid)}
 .kz-series{font-size:9.5px;color:var(--ink-dim);margin-top:6px;letter-spacing:.04em}
+
+/* ── 繪測(SALON)ギャラリー:画像主役・2列/3列で動的拡縮 ── */
+.salon-grid{display:grid;gap:14px;transition:gap .28s ease}
+.salon-grid.cols-2{grid-template-columns:repeat(2,1fr)}
+.salon-grid.cols-3{grid-template-columns:repeat(3,1fr)}
+.sl-card{position:relative;border:1px solid var(--line-soft);border-radius:12px;overflow:hidden;text-align:left;
+  background:linear-gradient(180deg,var(--panel) 0%,var(--bg2) 100%);display:flex;flex-direction:column;
+  transition:transform .18s cubic-bezier(.34,1.56,.64,1),border-color .2s,box-shadow .2s}
+.sl-card:active{transform:scale(.975)}
+.sl-card.dim{opacity:.5}
+.sl-card.owned{border-color:rgba(232,85,61,.32)}
+.sl-card.built{border-color:rgba(217,179,106,.4);box-shadow:0 0 0 1px rgba(217,179,106,.12),0 6px 20px -8px rgba(217,179,106,.25)}
+.sl-frame{position:relative;width:100%;overflow:hidden;background:#0a0d13;transition:aspect-ratio .3s ease}
+.salon-grid.cols-2 .sl-frame{aspect-ratio:4/5}
+.salon-grid.cols-3 .sl-frame{aspect-ratio:3/4}
+.sl-img{width:100%;height:100%;display:block;transform-origin:center center}
+.salon-grid.fit-cover .sl-img{object-fit:cover}
+.salon-grid.fit-contain .sl-img{object-fit:contain}
+.sl-frame::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(0,0,0,.16) 0%,transparent 22%,transparent 66%,rgba(0,0,0,.3) 100%)}
+.sl-frame .series-wm-box{position:absolute;inset:0}
+.sl-grade{position:absolute;top:0;left:0;z-index:2;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-weight:700;
+  letter-spacing:.12em;color:var(--ink-strong);background:rgba(13,16,24,.72);
+  border:1px solid var(--line);border-top:none;border-left:none;border-bottom-right-radius:8px}
+.salon-grid.cols-2 .sl-grade{font-size:10px;padding:5px 9px}
+.salon-grid.cols-3 .sl-grade{font-size:8.5px;padding:3.5px 7px}
+.sl-seal{position:absolute;top:8px;right:8px;z-index:2;display:flex;align-items:center;justify-content:center;
+  border-radius:50%;font-family:var(--serif);font-weight:700}
+.sl-seal.built{background:var(--gold);color:#1a160d}
+.sl-seal.plan{border:1.4px solid var(--kin-deep);color:var(--gold)}
+.salon-grid.cols-2 .sl-seal{width:26px;height:26px;font-size:13px}
+.salon-grid.cols-3 .sl-seal{width:20px;height:20px;font-size:10px}
+.sl-chip{position:absolute;z-index:2;left:8px;bottom:8px;top:auto}
+.sl-body{padding:11px 12px 12px;transition:padding .26s ease}
+.salon-grid.cols-3 .sl-body{padding:8px 9px 10px}
+.sl-name{font-family:var(--serif);font-weight:700;color:var(--ink-strong);line-height:1.3;
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;min-height:2.6em}
+.salon-grid.cols-2 .sl-name{font-size:13.5px}
+.salon-grid.cols-3 .sl-name{font-size:11px}
+.sl-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:7px}
+.sl-meta .kz-year,.sl-meta .kz-price{transition:font-size .26s ease}
+.salon-grid.cols-3 .sl-meta .kz-year{font-size:10px}
+.salon-grid.cols-3 .sl-meta .kz-price{font-size:8.5px}
+.sl-uni{margin-left:auto;font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.08em;
+  color:var(--ink-dim);border:1px solid var(--line);border-radius:5px;padding:1.5px 6px}
+.salon-grid.cols-2 .sl-uni{font-size:9px}
+.salon-grid.cols-3 .sl-uni{font-size:7.5px;padding:1px 4px}
+.salon-ctrl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.salon-seg button{padding:7px 11px}
 .kz-seal{position:absolute;top:9px;right:9px;z-index:3;font-family:var(--serif);font-weight:800;font-size:12px;line-height:1;color:var(--gold);border:1.4px solid rgba(217,179,106,.55);background:rgba(217,179,106,.1);border-radius:2px;padding:5px 4px;writing-mode:vertical-rl;letter-spacing:.1em;box-shadow:0 1px 2px rgba(0,0,0,.4)}
 .kz-plan{position:absolute;top:9px;right:9px;z-index:3;font-family:ui-monospace,monospace;font-size:11px;font-weight:700;color:var(--gold);border:1px dashed var(--gold);background:rgba(217,179,106,.05);border-radius:2px;padding:4px 5px;writing-mode:vertical-rl;letter-spacing:.06em}
 /* リスト */
