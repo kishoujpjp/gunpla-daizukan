@@ -5778,6 +5778,8 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
 input,textarea{font-family:var(--sans)}
 
 .head{padding:18px 18px 12px;position:relative}
+/* スマホ横向き(高さが低い)では標題框を自動的に隠して縦スペースを確保。iPad は高さが大きいため影響なし */
+@media (orientation:landscape) and (max-height:500px){.head{display:none}}
 .head-line{position:absolute;top:0;left:18px;right:18px;height:2px;
   background:linear-gradient(90deg,var(--shu) 0 56px,var(--line) 56px)}
 .head-row{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
