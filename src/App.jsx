@@ -22,8 +22,8 @@ const UNI_EMBLEM = {
   /* W(A.C.) = 「W」字標(Lucida Calligraphy 風) */
   W:`<text class="m cal" x="31.5" y="33" text-anchor="middle" dominant-baseline="central" font-size="44">W</text>`,
 
-  /* CC(∀) = ∀ 記号(Cambria Math 風・開口 +12%) */
-  CC:`<g transform="translate(32 0) scale(1.12 1) translate(-32 0)"><text class="m cmath" x="32" y="33" text-anchor="middle" dominant-baseline="central" font-size="46">&#8704;</text></g>`,
+  /* CC(∀) = ∀ 記号(Cambria Math 風・開口 +12%。地球儀バッジと同寸・線+1px) */
+  CC:`<g transform="translate(32 0) scale(1.12 1) translate(-32 0)"><text class="m cmath" style="stroke:currentColor;stroke-width:1;stroke-linejoin:round" x="32" y="33" text-anchor="middle" dominant-baseline="central" font-size="53">&#8704;</text></g>`,
 
   /* F.C.(G) = 「G」字標(Lucida Calligraphy 風) */
   G:`<text class="m cal" x="33" y="33" text-anchor="middle" dominant-baseline="central" font-size="50">G</text>`,
@@ -62,14 +62,15 @@ const UNI_EMBLEM = {
        <rect class="m" x="35" y="16" width="17" height="5.5" rx="1"/>
        <rect class="m" x="35" y="29" width="13" height="5.5" rx="1"/>`,
 
-  /* BF = ニッパー寄り(刃を短く厚い斜刃に) */
-  BF:`<path class="m" d="M32 32L22 21L28 19L33 29Z"/>
+  /* BF = ニッパー寄り(刃を短く厚い斜刃に。地球儀バッジと中心一致のため全体を上へ) */
+  BF:`<g transform="translate(0 -6.5)">
+      <path class="m" d="M32 32L22 21L28 19L33 29Z"/>
       <path class="m" d="M32 32L42 21L36 19L31 29Z"/>
       <path class="m" d="M31 34L23 46L26 48L34 37Z"/>
       <path class="m" d="M33 34L41 46L38 48L30 37Z"/>
       <path class="m" fill-rule="evenodd" d="M22 44a7 7 0 1 0 0.1 0Z M22 47.6a3.6 3.6 0 1 0 0.1 0Z"/>
       <path class="m" fill-rule="evenodd" d="M42 44a7 7 0 1 0 0.1 0Z M42 47.6a3.6 3.6 0 1 0 0.1 0Z"/>
-      <circle class="m" cx="32" cy="32.5" r="2.6"/>`,
+      <circle class="m" cx="32" cy="32.5" r="2.6"/></g>`,
 
   /* extra(世界観なし)= 「?」字標(serif) */
   extra:`<text class="m qm" x="32" y="34" text-anchor="middle" dominant-baseline="central" font-size="52">?</text>`,
