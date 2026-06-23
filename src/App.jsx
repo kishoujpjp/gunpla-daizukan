@@ -4992,7 +4992,7 @@ export default function App() {
                         <div className="hf-div" />
                         <div className="s"><b className="kin"><Roll value={titlesGot} resetKey={arc.jp} /></b><span>叙勲</span></div>
                         <div className="hf-div" />
-                        <div className="s"><b className="kin"><Roll value={titlesPct} resetKey={arc.jp} />%</b><span>達成率</span></div>
+                        <div className="s"><b className="kin"><Roll value={titlesPct} resetKey={arc.jp} />%</b><span>完成率</span></div>
                       </>
                     ) : isPlan ? (
                       <>
@@ -5212,7 +5212,6 @@ export default function App() {
                 });
                 const got = pool.filter((t) => t.unlocked).length;
                 const newN = pool.filter(titleIsNew).length;
-                const pct = Math.round(got / Math.max(1, pool.length) * 100);
                 const curUni = UNIVERSES.find(([v]) => v === titleUniverse);
                 /* 称号メダルは <Emblem universe tier/> で描画 */
                 return (
@@ -5231,7 +5230,6 @@ export default function App() {
                       </span>
                     </button>
                     <div className="av-rule" />
-                    <div className="av-prog"><i style={{ width: `${pct}%` }} /></div>
                     <div className={"av-drop" + (segOpen ? " open" : "")}>
                       <div className="av-drop-inner av-unitabs">
                         {UNIVERSES.map(([v, l]) => {
@@ -7272,8 +7270,6 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .av-chev{font-style:normal;font-size:14px;color:var(--ink-dim);transition:transform .3s ease,color .2s}
 .av-chev.open{transform:rotate(180deg);color:var(--gold)}
 .av-rule{height:1px;margin:11px 0 0;background:linear-gradient(90deg,var(--gold),rgba(217,179,106,.05) 70%,transparent)}
-.av-prog{height:2px;margin:8px 0 0;background:rgba(217,179,106,.12);border-radius:2px;overflow:hidden}
-.av-prog i{display:block;height:100%;background:linear-gradient(90deg,#9c7838,#f2dca0);transition:width .5s}
 /* ── 簿冊表頭(博物誌/繪測巻/蔵品帳/発注簿):叙勲録の表頭に倣う ── */
 .sb-band{margin:2px 0 14px}
 .sb-head{display:flex;align-items:flex-end;justify-content:space-between;width:100%;background:none;border:none;padding:4px 2px 0;cursor:pointer;text-align:left;gap:10px}
@@ -7290,45 +7286,39 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .sb-head:active .sb-find{border-color:var(--gold);color:var(--gold)}
 .sb-head.on .sb-find{color:var(--gold);border-color:var(--gold);background:rgba(217,179,106,.09)}
 .sb-rule{height:1px;margin:11px 0 0;background:linear-gradient(90deg,var(--gold),rgba(217,179,106,.05) 70%,transparent)}
-/* ── 表頭 転場アニメ:全頁共通の土台 + 各頁の見せ場(掛載時のみ再生) ── */
+/* ── 表頭 転場アニメ:全頁共通の土台(掛載時のみ再生)。
+   ・減少動態の設定下でも表示する(本人の明示的な希望) ── */
 @keyframes sbRuleIn{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 @keyframes sbEyebrowIn{from{opacity:0;letter-spacing:.52em}to{opacity:1;letter-spacing:.30em}}
 @keyframes sbTitleIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
 @keyframes sbCountIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 @keyframes sbFindIn{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:none}}
-@keyframes sbCharIn{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+/* 共通土台:罫線→eyebrow→標題→計数→検索鈕(やや緩やかに) */
+.sb-rule,.av-rule{transform-origin:left center;animation:sbRuleIn .58s cubic-bezier(.4,0,.2,1) .04s both}
+.sb-eyebrow,.av-eyebrow{animation:sbEyebrowIn .42s ease-out .12s both}
+.sb-title,.av-title{animation:sbTitleIn .52s cubic-bezier(.2,.7,.2,1) .22s both}
+.sb-count,.av-count{animation:sbCountIn .44s ease-out .32s both}
+.sb-find{animation:sbFindIn .42s cubic-bezier(.2,.8,.3,1.2) .38s both}
+/* ── 各頁の見せ場(招牌):金箔閃光なし。一つの記憶点のみ ── */
+/* 博物誌:逐字植字(活字を一文字ずつ据える) */
+@keyframes sbCharIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.sb-v-registry .sb-title{animation:none}
+.sb-v-registry .sb-title>*{display:inline-block;animation:sbCharIn .50s cubic-bezier(.2,.7,.2,1) both}
+.sb-v-registry .sb-title>*:nth-child(1){animation-delay:.20s}
+.sb-v-registry .sb-title>*:nth-child(2){animation-delay:.30s}
+.sb-v-registry .sb-title>*:nth-child(3){animation-delay:.40s}
+/* 繪測巻:左→右に展巻(巻物を開く) */
 @keyframes sbClipIn{from{opacity:0;clip-path:inset(0 100% 0 0)}to{opacity:1;clip-path:inset(0 0 0 0)}}
-@keyframes sbSealIn{0%{opacity:0;transform:scale(1.18)}55%{opacity:1}100%{opacity:1;transform:scale(1)}}
-@keyframes sbSealFlash{0%,38%{opacity:0}58%{opacity:.85}100%{opacity:0}}
-@keyframes sbDocketIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
-@keyframes sbEmPulse{0%,52%{transform:scale(1)}70%{transform:scale(1.13)}100%{transform:scale(1)}}
-@keyframes avEmGlint{0%,38%{filter:none}60%{filter:drop-shadow(0 0 7px rgba(242,220,160,.85)) brightness(1.22)}100%{filter:none}}
-@media (prefers-reduced-motion:no-preference){
-  /* 共通土台:罫線→eyebrow→標題→計数→検索鈕 */
-  .sb-rule,.av-rule{transform-origin:left center;animation:sbRuleIn .44s cubic-bezier(.4,0,.2,1) .02s both}
-  .sb-eyebrow,.av-eyebrow{animation:sbEyebrowIn .32s ease-out .06s both}
-  .sb-title,.av-title{animation:sbTitleIn .40s cubic-bezier(.2,.7,.2,1) .13s both}
-  .sb-count,.av-count{animation:sbCountIn .34s ease-out .20s both}
-  .sb-find{animation:sbFindIn .34s cubic-bezier(.2,.8,.3,1.2) .24s both}
-  /* 博物誌:逐字植字(沉穩) */
-  .sb-v-registry .sb-title{animation:none}
-  .sb-v-registry .sb-title>*{display:inline-block;animation:sbCharIn .42s cubic-bezier(.2,.7,.2,1) both}
-  .sb-v-registry .sb-title>*:nth-child(1){animation-delay:.12s}
-  .sb-v-registry .sb-title>*:nth-child(2){animation-delay:.20s}
-  .sb-v-registry .sb-title>*:nth-child(3){animation-delay:.28s}
-  /* 繪測巻:左→右に展巻 */
-  .sb-v-salon .sb-title{animation:sbClipIn .50s cubic-bezier(.3,.7,.2,1) .10s both}
-  /* 蔵品帳:計数に検印(押印+金箔閃光) */
-  .sb-v-holdings .sb-count{position:relative;animation:sbSealIn .46s cubic-bezier(.2,.8,.3,1.05) .30s both}
-  .sb-v-holdings .sb-count::after{content:"";position:absolute;inset:-4px -7px;border-radius:7px;pointer-events:none;
-    background:radial-gradient(circle,rgba(242,220,160,.55),transparent 70%);animation:sbSealFlash .6s ease-out .30s both}
-  /* 発注簿:docket 右からスライド + 金箔「注」脈動 */
-  .sb-v-requisition .sb-count{animation:sbDocketIn .42s cubic-bezier(.2,.7,.2,1) .22s both}
-  .sb-v-requisition .sb-title em{display:inline-block;animation:sbEmPulse .7s ease-out .42s both}
-  /* 叙勲録:金箔「勲」に勲光 */
-  .av-title em{display:inline-block;animation:avEmGlint .8s ease-out .34s both}
-  .av-prog{animation:sbCountIn .40s ease-out .26s both}
-}
+.sb-v-salon .sb-title{animation:sbClipIn .62s cubic-bezier(.3,.7,.2,1) .20s both}
+/* 蔵品帳:計数に押印(光なし。押し込み→僅かに反発→定着) */
+@keyframes sbPress{0%{opacity:0;transform:scale(1.16) translateY(-2px)}45%{opacity:1}68%{transform:scale(.95) translateY(1px)}100%{opacity:1;transform:none}}
+.sb-v-holdings .sb-count{animation:sbPress .50s cubic-bezier(.3,.6,.3,1) .34s both}
+/* 発注簿:伝票が右からスライド+わずかにオーバーシュート */
+@keyframes sbSlip{from{opacity:0;transform:translateX(15px)}60%{opacity:1}to{opacity:1;transform:none}}
+.sb-v-requisition .sb-count{animation:sbSlip .54s cubic-bezier(.25,.8,.3,1.28) .30s both}
+/* 叙勲録:標題を重く据え置く(微オーバーシュート。金光なし) */
+@keyframes sbSet{0%{opacity:0;transform:translateY(12px)}70%{opacity:1}85%{transform:translateY(-2px)}100%{opacity:1;transform:none}}
+.av-title{animation:sbSet .60s cubic-bezier(.3,.7,.25,1) .20s both}
 /* ── 検索浮動窓 ── */
 .search-modal{padding:18px 16px 22px}
 .search-modal-bg{z-index:60}
