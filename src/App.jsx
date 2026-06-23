@@ -6155,17 +6155,17 @@ input,textarea{font-family:var(--sans)}
 .sv-slide{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:18px;box-sizing:border-box;will-change:transform}
 .sv-stage{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%}
 /* 台詞(浮動・画像の真上に追従。タップで編集。画像とは別ゾーンなので重ならない) */
-.sv-serif{flex:none;width:100%;max-width:560px;display:flex;align-items:flex-end;justify-content:center;min-height:32px;padding:2px 14px 10px;cursor:text}
+.sv-serif{flex:none;width:100%;max-width:560px;display:flex;align-items:flex-end;justify-content:flex-start;min-height:30px;padding:2px 16px 8px;cursor:text}
 .vs-text{font-family:var(--kaiti);font-weight:600;font-size:25px;line-height:1.32;color:var(--ink-strong);
-  max-width:100%;white-space:pre-wrap;text-align:center;
+  max-width:100%;white-space:pre-wrap;text-align:left;
   display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
   text-shadow:0 2px 12px rgba(0,0,0,.85),0 0 3px rgba(0,0,0,.7)}
 .vs-hint{font-family:var(--sans);font-size:12px;letter-spacing:.12em;color:rgba(255,255,255,.30)}
 /* 画像エリア(台詞と銘牌のあいだを埋める。両者と重ならない) */
-.sv-imgwrap{flex:1 1 auto;min-height:0;width:100%;display:flex;align-items:center;justify-content:center}
+.sv-imgwrap{flex:0 1 auto;min-height:0;max-height:calc(100% - 150px);width:100%;display:flex;align-items:center;justify-content:center}
 .sv-img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;transform-origin:center center;will-change:transform;user-select:none;-webkit-user-drag:none}
 /* 銘牌(様式4:枠なし・最小)— 画像直下に追従。作品名(明朝・小)/機体名(楷体・台詞欄基準) */
-.sv-plate{flex:none;margin-top:14px;text-align:center;max-width:90%;padding:0 8px;pointer-events:none}
+.sv-plate{flex:none;margin-top:12px;text-align:center;max-width:90%;padding:0 8px;pointer-events:none}
 .svp-work{font-family:var(--serif);font-size:10.5px;font-weight:600;letter-spacing:.30em;color:var(--ink-dim);
   margin-bottom:9px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .svp-div{width:30px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:0 auto 10px}
