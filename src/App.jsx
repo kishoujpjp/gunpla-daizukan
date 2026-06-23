@@ -2964,8 +2964,8 @@ async function fileToCompressedDataURL(file, maxW = 440, quality = 0.74) {
 
 /* ── AIスタイル変換(nano banana) ── */
 const AI_STYLES = [
-  { id: "boxart", label: "ガンプラ箱絵風",
-    prompt: "Completely repaint this photograph as a hand-painted plastic-model box-art illustration in the painterly style of the illustrator Naochika Morishita (森下直親). Fully re-render the SUBJECT itself — not only the background: replace the photographic surfaces, colors and edges of the model with hand-painted airbrush/gouache rendering, repainted color gradients, crisp painted metallic highlights, deep saturated painted shadows, and hand-drawn illustration linework along every edge. The entire subject must look painted by hand in Morishita's style. CONSTRAINTS: do NOT significantly change the composition; do NOT change the camera angle or viewpoint; do NOT extend, expand, zoom out, or add anything beyond the original frame. Keep the subject's pose, proportions and framing, but its colors and lines must be entirely repainted in the illustration style. Output only the image." },
+  { id: "boxart", label: "古典油彩風",
+    prompt: "Completely repaint this photograph as a classical oil painting in the manner of the Old Masters. You MUST fully re-render BOTH the subject AND the background entirely in oil paint — nothing may remain photographic. Replace every surface with visible hand-applied oil brushstrokes: loaded impasto highlights, softly blended half-tones, luminous glazed shadows, and the rich layered color of classical academic painting. Faithfully reproduce the chiaroscuro light-and-shadow modelling, warm–cool color harmonies, fine detailed brushwork and varnished canvas texture of the classical painting tradition (in the spirit of Rembrandt and academic 19th-century oil painting). CONSTRAINTS: do NOT change the composition, camera angle or viewpoint; do NOT extend, zoom out, crop, or add anything beyond the original frame; keep the subject's pose, proportions and framing. Only the medium changes — the entire image must read as a finely painted classical oil canvas. Output only the image." },
   { id: "ukiyoe", label: "浮世絵風",
     prompt: "Completely repaint this image as a Japanese ukiyo-e woodblock print (浮世絵). You MUST restyle the SUBJECT itself, not only the background: rebuild the subject's colors as bold flat planes of ukiyo-e pigment, and redraw all of its contours and lines as strong calligraphic black woodblock linework. Apply ukiyo-e treatment everywhere — flat color fills, hand-carved outline quality, woodblock-print paper texture, decorative stylized waves and clouds, bokashi gradients, and a vivid ornamental traditional palette. Do not leave the subject looking photographic while only the background changes; the subject's color and linework must be fully reinterpreted in ukiyo-e style. Output only the image." },
   { id: "cel", label: "80年代セル画風",
@@ -3354,7 +3354,7 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
       </div>
       <label className="fld"><span>メモ</span><textarea rows={2} value={f.note} onChange={set("note")} placeholder="改修予定、塗装レシピ、保管場所など" /></label>
 
-      {recInitial && (<>
+      {(<>
         <div className="f-sec">記録<span>RECORD</span></div>
         <div className="form-dates">
           <label className="fld"><span>購入日</span>
@@ -3370,11 +3370,12 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
             </span>
           </label>
         </div>
+        <div className="rec-hint">購入日を入力すると自動で「入手済み」になり収蔵へ。完成日の入力で「完成」になります。</div>
       </>)}
 
       <div className="form-actions">
         <button className="btn primary" disabled={!f.name.trim()}
-          onClick={() => { if (recInitial && onSaveRec) onSaveRec(dates); onSave({ ...f, price: f.price ? Number(f.price) : "" }, imgVal); }}>保存</button>
+          onClick={() => { if (onSaveRec) onSaveRec(dates); onSave({ ...f, price: f.price ? Number(f.price) : "" }, imgVal); }}>保存</button>
         <button className="btn" onClick={onCancel}>やめる</button>
         {isCustom && onDelete && <button className="btn danger" onClick={onDelete}>この機体を削除</button>}
       </div>
@@ -3477,7 +3478,6 @@ export default function App() {
   const [kitTags, setKitTags] = useState({});
   const [serifs, setSerifs] = useState({}); // {imgRef: "台詞"} 画像鑑賞のセリフ
   const [serifEdit, setSerifEdit] = useState(null); // {ref, text} | null
-  const dSwipe = useRef(null); // 入手視窗の左右スワイプ計測
   const [tagInput, setTagInput] = useState("");
   const [overrides, setOverrides] = useState({});
   const [customKits, setCustomKits] = useState([]);
@@ -4562,17 +4562,16 @@ export default function App() {
 
   const visible = useMemo(() => sorted.slice(0, limit), [sorted, limit]);
 
-  /* 画像鑑賞/入手視窗の横断スライド: 現在のビュー順(sorted)。
-     画像のある機体はその画像ぶん、画像の無い機体は ref:null の Unidentified スロットを1枚。 */
+  /* 画像鑑賞の横断スライド: 繪測(salon)ビュー時のみ現在のビュー順(sorted)で連結。
+     他モードでは空配列を返し、ビューア側で単独機体にフォールバックする。 */
   const viewerFlat = useMemo(() => {
+    if (!(tab === "zukan" && zukanMode === "salon")) return [];
     const list = [];
-    for (const k of sorted) {
-      const refs = albumRefs(k.id, images, extras, albumMeta).filter((ref) => refSrc(ref, k.id, images, extras));
-      if (refs.length) for (const ref of refs) list.push({ kitId: k.id, ref, name: k.name, code: k.code, no: k.no });
-      else list.push({ kitId: k.id, ref: null, name: k.name, code: k.code, no: k.no });
+    for (const k of sorted) for (const ref of albumRefs(k.id, images, extras, albumMeta)) {
+      if (refSrc(ref, k.id, images, extras)) list.push({ kitId: k.id, ref, name: k.name, code: k.code, no: k.no });
     }
     return list;
-  }, [sorted, images, extras, albumMeta]);
+  }, [tab, zukanMode, sorted, images, extras, albumMeta]);
   const ownedKits = sorted.filter((k) => getRec(k.id).owned);
   const ownedVisible = ownedKits.slice(0, limit);
   const ownedAll = allKits.filter((k) => getRec(k.id).owned).length;
@@ -4790,33 +4789,44 @@ export default function App() {
       );
     }
     if (settings.view === "list") {
+      const closeSwipe = (e) => { const sc = e.currentTarget.closest(".kz-rowscroll"); if (sc) sc.scrollTo({ left: 0, behavior: "smooth" }); };
       return (
-        <button className={`kz-row ${dim ? "dim" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""} ${rec.buildDate ? "built" : ""}`} onClick={onCardClick} {...longPress}>
-          <div className="kz-rframe">
-            {img
-              ? <KitImage kit={kit} img={img} owned={rec.owned} built={!!rec.buildDate} size={88} cls="sm" frame={thumbFrameStyle(kit.id)} />
-              : <SeriesWatermark kit={kit} variant="list" />}
-          </div>
-          <div className="kz-rmain">
-            <div className="kz-rno">{[
-              settings.listGrade !== false ? kit.grade : null,
-              settings.listNo && kit.no && kit.no !== "—" ? `No.${kit.no}` : null,
-              settings.listCode && kit.code ? kit.code : null,
-            ].filter(Boolean).join(" · ")}</div>
-            {settings.listSeries && kit.series && <div className="kz-rseries">{kit.series}</div>}
-            <div className="kz-rname"><KitName name={kit.name} /></div>
-            <div className="kz-rmeta">
-              <span className="kz-year">{kit.ym ? kit.ym.replace("-", ".") : "—"}</span>
-              {settings.listPrice && kit.price ? <span className="kz-price">{fmtYen(kit.price)}</span> : null}
-              {settings.listPurchase && rec.purchaseDate && <span className="kz-date">購入 {fmtDate(rec.purchaseDate)}</span>}
-              {settings.listBuild && rec.buildDate && <span className="kz-date done">完成 {fmtDate(rec.buildDate)}</span>}
-              {kit.premium && <span className="line-chip pb">プレバン</span>}
-              {kit.base && <span className="line-chip base">ベース</span>}
-              {lineBadge(kit, false)}
+        <div className="kz-rowscroll">
+          <button className={`kz-row ${dim ? "dim" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""} ${rec.buildDate ? "built" : ""}`} onClick={onCardClick} {...longPress}>
+            <div className="kz-rframe">
+              {img
+                ? <KitImage kit={kit} img={img} owned={rec.owned} built={!!rec.buildDate} size={88} cls="sm" frame={thumbFrameStyle(kit.id)} />
+                : <SeriesWatermark kit={kit} variant="list" />}
             </div>
+            <div className="kz-rmain">
+              <div className="kz-rno">{[
+                settings.listGrade !== false ? kit.grade : null,
+                settings.listNo && kit.no && kit.no !== "—" ? `No.${kit.no}` : null,
+                settings.listCode && kit.code ? kit.code : null,
+              ].filter(Boolean).join(" · ")}</div>
+              {settings.listSeries && kit.series && <div className="kz-rseries">{kit.series}</div>}
+              <div className="kz-rname"><KitName name={kit.name} /></div>
+              <div className="kz-rmeta">
+                <span className="kz-year">{kit.ym ? kit.ym.replace("-", ".") : "—"}</span>
+                {settings.listPrice && kit.price ? <span className="kz-price">{fmtYen(kit.price)}</span> : null}
+                {settings.listPurchase && rec.purchaseDate && <span className="kz-date">購入 {fmtDate(rec.purchaseDate)}</span>}
+                {settings.listBuild && rec.buildDate && <span className="kz-date done">完成 {fmtDate(rec.buildDate)}</span>}
+                {kit.premium && <span className="line-chip pb">プレバン</span>}
+                {kit.base && <span className="line-chip base">ベース</span>}
+                {lineBadge(kit, false)}
+              </div>
+            </div>
+            {rec.buildDate ? <span className="kz-rseal">済</span> : rec.plan ? <span className="kz-rplan">予</span> : null}
+          </button>
+          <div className="kz-ract">
+            <button className={"kz-actbtn own" + (rec.owned ? " on" : "")}
+              onClick={(e) => { e.stopPropagation(); haptic(); toggleOwned(kit.id); closeSwipe(e); }}>
+              <span className="kz-actico">{rec.owned ? "✓" : "◎"}</span>{rec.owned ? "入手済" : "入手"}</button>
+            <button className={"kz-actbtn plan" + (rec.plan ? " on" : "")}
+              onClick={(e) => { e.stopPropagation(); haptic(); togglePlan(kit.id); closeSwipe(e); }}>
+              <span className="kz-actico">{rec.plan ? "✓" : "◆"}</span>{rec.plan ? "予定中" : "予定"}</button>
           </div>
-          {rec.buildDate ? <span className="kz-rseal">済</span> : rec.plan ? <span className="kz-rplan">予</span> : null}
-        </button>
+        </div>
       );
     }
     const noLine = [
@@ -5584,20 +5594,7 @@ export default function App() {
 
       {detailKit && (
         <div className="modal-bg" onClick={() => { setDetail(null); setEditing(false); setTagInput(""); }}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}
-            onPointerDown={(e) => { dSwipe.current = { x: e.clientX, y: e.clientY, t: Date.now(), id: e.pointerId }; }}
-            onPointerUp={(e) => {
-              const s = dSwipe.current; dSwipe.current = null;
-              if (!s || s.id !== e.pointerId || editing) return;
-              const dx = e.clientX - s.x, dy = e.clientY - s.y;
-              if (Math.abs(dx) > 64 && Math.abs(dx) > Math.abs(dy) * 1.8 && (Date.now() - s.t) < 800) {
-                const idx = sorted.findIndex((k) => k.id === detailKit.id);
-                if (idx >= 0) {
-                  const ni = dx < 0 ? idx + 1 : idx - 1;
-                  if (ni >= 0 && ni < sorted.length) { haptic(); setDetail(sorted[ni].id); setEditing(false); setTagInput(""); }
-                }
-              }
-            }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
             {!editing ? (
               <>
                 <div className="dc-head">
@@ -5631,7 +5628,7 @@ export default function App() {
                     }}>⛶ 構図</button>
                   )}
                 </div>
-                <div className="dc-spec">
+                <div className="dc-spec" onClick={() => { setDetail(null); setEditing(false); setTagInput(""); }}>
                   <div className="dc-srow"><span className="dc-k">原作</span><span className="dc-v">{detailKit.series || "—"}</span></div>
                   <div className="dc-srow"><span className="dc-k">分類</span><span className="dc-v dc-tags">
                     <GradeChip grade={detailKit.grade} />
@@ -5646,20 +5643,10 @@ export default function App() {
                       {detailRec.buildDate && <span className="dc-mono done">完成 {fmtDate(detailRec.buildDate)}</span>}
                     </span></div>
                   )}
-                  <div className="dc-srow dc-srow-memo"><span className="dc-k">メモ</span><span className="dc-v"><NoteField note={detailKit.note} onCommit={(v) => setNote(detailKit, v)} /></span></div>
-                  <div className="dc-srow dc-srow-tag"><span className="dc-k">タグ</span><span className="dc-v"><TagField tags={getTags(detailKit.id)} onCommit={(next) => setTags(detailKit.id, next)} /></span></div>
+                  <div className="dc-srow dc-srow-memo" onClick={(e) => e.stopPropagation()}><span className="dc-k">メモ</span><span className="dc-v"><NoteField note={detailKit.note} onCommit={(v) => setNote(detailKit, v)} /></span></div>
+                  <div className="dc-srow dc-srow-tag" onClick={(e) => e.stopPropagation()}><span className="dc-k">タグ</span><span className="dc-v"><TagField tags={getTags(detailKit.id)} onCommit={(next) => setTags(detailKit.id, next)} /></span></div>
                 </div>
 
-                {detailRec.owned ? (
-                  <button className="own-btn owned" onClick={() => setOwnConfirm(detailKit)}>✦ 入手済み</button>
-                ) : detailRec.plan ? (
-                  <button className="own-btn planned" onClick={() => setPlanConfirm(detailKit)}>◆ 購入予定</button>
-                ) : (
-                  <div className="own-btn-row">
-                    <button className="own-btn half" onClick={() => toggleOwned(detailKit.id)}>未入手 — 記録</button>
-                    <button className="own-btn half plan" onClick={() => togglePlan(detailKit.id)}>◆ 購入予定</button>
-                  </div>
-                )}
                 <button className="edit-link" onClick={() => setEditing(true)}>✎ 機体情報・画像を編集</button>
               </>
             ) : (
@@ -5683,7 +5670,11 @@ export default function App() {
                   maxImgs={MAX_IMGS_PER_KIT}
                   isCustom={detailKit.line === "CUSTOM"}
                   recInitial={detailRec.owned ? detailRec : null}
-                  onSaveRec={(dates) => setRec(detailKit.id, dates)}
+                  onSaveRec={(dates) => {
+                    const patch = { ...dates };
+                    if (dates.purchaseDate || dates.buildDate) { patch.owned = true; patch.plan = false; }
+                    setRec(detailKit.id, patch);
+                  }}
                   onSave={(v, img) => saveEdit(detailKit, v, img)}
                   onCancel={() => setEditing(false)}
                   onDelete={() => deleteCustom(detailKit.id)}
@@ -6856,7 +6847,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 }
 /* ═══ v2.8 ═══ */
 /* 3. 編輯視窗不超出畫面:上邊距縮小+高度上限 */
-.modal{margin-top:4vh;max-height:calc(100dvh - 4vh - 40px)}
+.modal{margin-top:4vh;max-height:calc(100dvh - 4vh - 14px - env(safe-area-inset-bottom) - 22px)}
 
 /* 4. rail頂行:プレバン+No. 下緣與原作行對齊 */
 .row-rail{padding:0 0 3px}
@@ -7366,6 +7357,19 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .kz-seal{position:absolute;top:9px;right:9px;z-index:3;font-family:var(--serif);font-weight:800;font-size:12px;line-height:1;color:var(--gold);border:1.4px solid rgba(217,179,106,.55);background:rgba(217,179,106,.1);border-radius:2px;padding:5px 4px;writing-mode:vertical-rl;letter-spacing:.1em;box-shadow:0 1px 2px rgba(0,0,0,.4)}
 .kz-plan{position:absolute;top:9px;right:9px;z-index:3;font-family:ui-monospace,monospace;font-size:11px;font-weight:700;color:var(--gold);border:1px dashed var(--gold);background:rgba(217,179,106,.05);border-radius:2px;padding:4px 5px;writing-mode:vertical-rl;letter-spacing:.06em}
 /* リスト */
+/* 左スワイプで「入手」「予定」アクションを表示(CSSスクロールスナップ) */
+.kz-rowscroll{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-ms-overflow-style:none}
+.kz-rowscroll::-webkit-scrollbar{display:none}
+.kz-rowscroll > .kz-row{flex:0 0 100%;scroll-snap-align:start}
+.kz-ract{flex:0 0 auto;display:flex;align-items:stretch;scroll-snap-align:end;padding-left:8px}
+.kz-actbtn{appearance:none;-webkit-appearance:none;border:none;width:72px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  font-family:var(--sans);font-size:12.5px;font-weight:700;letter-spacing:.04em;color:#fff;border-radius:7px;cursor:pointer;padding:0}
+.kz-actbtn+.kz-actbtn{margin-left:6px}
+.kz-actico{font-size:15px;line-height:1}
+.kz-actbtn.own{background:linear-gradient(150deg,#2f7d63,#235a47)}
+.kz-actbtn.plan{background:linear-gradient(150deg,#b58a32,#8a661f)}
+.kz-actbtn.on{filter:brightness(1.14) saturate(1.1)}
+.kz-actbtn:active{transform:scale(.95)}
 .kz-row{position:relative;display:flex;gap:15px;align-items:center;width:100%;background:none;border:none;border-bottom:1px solid var(--line);padding:15px 2px;text-align:left;transition:background .12s}
 .kz-row:active{background:rgba(217,179,106,.03)}
 .kz-row.dim{opacity:.5}
@@ -7489,19 +7493,19 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 /* ═══ モーションA(CSS) ═══ */
 @keyframes fxIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 /* 初表示カスケード(先頭12のみ) */
-.grid-wrap .kz-card:nth-child(-n+12),.list-wrap .kz-row:nth-child(-n+12){animation:fxIn .42s ease-out backwards}
-.grid-wrap .kz-card:nth-child(1),.list-wrap .kz-row:nth-child(1){animation-delay:.02s}
-.grid-wrap .kz-card:nth-child(2),.list-wrap .kz-row:nth-child(2){animation-delay:.05s}
-.grid-wrap .kz-card:nth-child(3),.list-wrap .kz-row:nth-child(3){animation-delay:.08s}
-.grid-wrap .kz-card:nth-child(4),.list-wrap .kz-row:nth-child(4){animation-delay:.11s}
-.grid-wrap .kz-card:nth-child(5),.list-wrap .kz-row:nth-child(5){animation-delay:.14s}
-.grid-wrap .kz-card:nth-child(6),.list-wrap .kz-row:nth-child(6){animation-delay:.17s}
-.grid-wrap .kz-card:nth-child(7),.list-wrap .kz-row:nth-child(7){animation-delay:.20s}
-.grid-wrap .kz-card:nth-child(8),.list-wrap .kz-row:nth-child(8){animation-delay:.23s}
-.grid-wrap .kz-card:nth-child(9),.list-wrap .kz-row:nth-child(9){animation-delay:.26s}
-.grid-wrap .kz-card:nth-child(10),.list-wrap .kz-row:nth-child(10){animation-delay:.29s}
-.grid-wrap .kz-card:nth-child(11),.list-wrap .kz-row:nth-child(11){animation-delay:.32s}
-.grid-wrap .kz-card:nth-child(12),.list-wrap .kz-row:nth-child(12){animation-delay:.35s}
+.grid-wrap .kz-card:nth-child(-n+12),.list-wrap .kz-rowscroll:nth-child(-n+12){animation:fxIn .42s ease-out backwards}
+.grid-wrap .kz-card:nth-child(1),.list-wrap .kz-rowscroll:nth-child(1){animation-delay:.02s}
+.grid-wrap .kz-card:nth-child(2),.list-wrap .kz-rowscroll:nth-child(2){animation-delay:.05s}
+.grid-wrap .kz-card:nth-child(3),.list-wrap .kz-rowscroll:nth-child(3){animation-delay:.08s}
+.grid-wrap .kz-card:nth-child(4),.list-wrap .kz-rowscroll:nth-child(4){animation-delay:.11s}
+.grid-wrap .kz-card:nth-child(5),.list-wrap .kz-rowscroll:nth-child(5){animation-delay:.14s}
+.grid-wrap .kz-card:nth-child(6),.list-wrap .kz-rowscroll:nth-child(6){animation-delay:.17s}
+.grid-wrap .kz-card:nth-child(7),.list-wrap .kz-rowscroll:nth-child(7){animation-delay:.20s}
+.grid-wrap .kz-card:nth-child(8),.list-wrap .kz-rowscroll:nth-child(8){animation-delay:.23s}
+.grid-wrap .kz-card:nth-child(9),.list-wrap .kz-rowscroll:nth-child(9){animation-delay:.26s}
+.grid-wrap .kz-card:nth-child(10),.list-wrap .kz-rowscroll:nth-child(10){animation-delay:.29s}
+.grid-wrap .kz-card:nth-child(11),.list-wrap .kz-rowscroll:nth-child(11){animation-delay:.32s}
+.grid-wrap .kz-card:nth-child(12),.list-wrap .kz-rowscroll:nth-child(12){animation-delay:.35s}
 /* toggle 実感(overshoot) */
 .switch{transition:background .25s ease}
 .switch b{transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
