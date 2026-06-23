@@ -2649,15 +2649,23 @@ function SwipeViewer({ slides, index, onIndex, onClose, resolveSrc, resetKey }) 
         return (
           <div className="sv-slide" key={sl.kitId + "/" + sl.ref}
             style={{ transform: `translateX(calc(${(i - index) * 100}% + ${dragX}px))`, transition: paging ? "transform .3s cubic-bezier(.25,.8,.3,1)" : "none" }}>
-            {src
-              ? <img src={src} alt="" draggable={false} className="sv-img"
-                  style={isCur ? { transform: `translate(${z.x}px,${z.y}px) scale(${z.scale})` } : undefined} />
-              : <div className="dc-classified sv-classified">
-                  <span className="dc-tick tl" /><span className="dc-tick tr" /><span className="dc-tick bl" /><span className="dc-tick br" />
-                  <span className="dc-unid">UNIDENTIFIED</span>
-                  <span className="dc-unsub">NO VISUAL ON FILE · 機密</span>
-                  <span className="dc-unref">REF · {sl.code || (sl.no && sl.no !== "—" ? "No." + sl.no : "—")}</span>
-                </div>}
+            <div className="sv-stage">
+              {src
+                ? <img src={src} alt="" draggable={false} className="sv-img"
+                    style={isCur ? { transform: `translate(${z.x}px,${z.y}px) scale(${z.scale})` } : undefined} />
+                : <div className="dc-classified sv-classified">
+                    <span className="dc-tick tl" /><span className="dc-tick tr" /><span className="dc-tick bl" /><span className="dc-tick br" />
+                    <span className="dc-unid">UNIDENTIFIED</span>
+                    <span className="dc-unsub">NO VISUAL ON FILE · 機密</span>
+                    <span className="dc-unref">REF · {sl.code || (sl.no && sl.no !== "—" ? "No." + sl.no : "—")}</span>
+                  </div>}
+              {/* 銘牌(様式4:枠なし・最小)— 作品名(小) / 機体名(楷体)。画像直下に追従 */}
+              <div className="sv-plate">
+                {sl.series ? <div className="svp-work">{sl.series}</div> : null}
+                <div className="svp-div" />
+                <div className="svp-kit">{sl.name}</div>
+              </div>
+            </div>
           </div>
         );
       })}
@@ -4568,7 +4576,7 @@ export default function App() {
     if (!(tab === "zukan" && zukanMode === "salon")) return [];
     const list = [];
     for (const k of sorted) for (const ref of albumRefs(k.id, images, extras, albumMeta)) {
-      if (refSrc(ref, k.id, images, extras)) list.push({ kitId: k.id, ref, name: k.name, code: k.code, no: k.no });
+      if (refSrc(ref, k.id, images, extras)) list.push({ kitId: k.id, ref, name: k.name, code: k.code, no: k.no, series: k.series });
     }
     return list;
   }, [tab, zukanMode, sorted, images, extras, albumMeta]);
@@ -5497,8 +5505,8 @@ export default function App() {
           const k0 = allKits.find((k) => k.id === viewer.kitId) || {};
           const refs = albumRefs(viewer.kitId, images, extras, albumMeta).filter((ref) => refSrc(ref, viewer.kitId, images, extras));
           flat = refs.length
-            ? refs.map((ref) => ({ kitId: viewer.kitId, ref, name: k0.name || "", code: k0.code, no: k0.no }))
-            : [{ kitId: viewer.kitId, ref: null, name: k0.name || "", code: k0.code, no: k0.no }];
+            ? refs.map((ref) => ({ kitId: viewer.kitId, ref, name: k0.name || "", code: k0.code, no: k0.no, series: k0.series }))
+            : [{ kitId: viewer.kitId, ref: null, name: k0.name || "", code: k0.code, no: k0.no, series: k0.series }];
           gi = Math.max(0, flat.findIndex((s) => s.ref === viewer.ref));
         }
         if (!flat.length) { setTimeout(() => { setViewer(null); setViewerDel(false); }, 0); return null; }
@@ -5534,31 +5542,6 @@ export default function App() {
               <div className="viewer-dots" onClick={(e) => e.stopPropagation()}>
                 {curAlbum.map((a, i) => <span key={a.ref} className={"vd" + (i === aIdx ? " on" : "")}
                   onClick={() => { setViewerDel(false); setSerifEdit(null); setViewer({ kitId: curKitId, ref: a.ref }); }} />)}
-              </div>
-            )}
-            {curRef && (
-              <div className="viewer-bar" onClick={(e) => e.stopPropagation()}>
-                <span className="vb-count">{aIdx + 1} / {curAlbum.length}</span>
-                <button className={"vb-btn" + (curRef === thumbRef ? " on" : "")}
-                  onClick={() => setAlbumRole(curKitId, curRef, "thumb")}>★ 一覧</button>
-                <button className={"vb-btn" + (curRef === acqRef ? " on" : "")}
-                  onClick={() => setAlbumRole(curKitId, curRef, "acquire")}>◎ 入手</button>
-                <button className="vb-btn del" onClick={() => setViewerDel(true)}>削除</button>
-              </div>
-            )}
-            {viewerDel && curRef && (
-              <div className="viewer-confirm" onClick={(e) => e.stopPropagation()}>
-                <span>この画像を削除しますか?</span>
-                <div className="vc-btns">
-                  <button className="btn danger solid" onClick={() => {
-                    removeAlbumImage(curKitId, curRef);
-                    setViewerDel(false);
-                    const rest = albumRefs(curKitId, images, extras, albumMeta).filter((r) => r !== curRef && refSrc(r, curKitId, images, extras));
-                    if (rest.length) setViewer({ kitId: curKitId, ref: rest[Math.min(aIdx, rest.length - 1)] });
-                    else setViewer({ kitId: curKitId, ref: null });
-                  }}>削除する</button>
-                  <button className="btn" onClick={() => setViewerDel(false)}>やめる</button>
-                </div>
               </div>
             )}
             {serifEdit && (
@@ -6169,14 +6152,22 @@ input,textarea{font-family:var(--sans)}
 .sv-wrap{position:absolute;inset:0;overflow:hidden;cursor:zoom-out}
 .sv-track{display:flex;width:100%;height:100%;will-change:transform}
 .sv-slide{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:18px;box-sizing:border-box;will-change:transform}
-.sv-img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;transform-origin:center center;will-change:transform;user-select:none;-webkit-user-drag:none}
+.sv-stage{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%;gap:0}
+.sv-img{max-width:100%;max-height:calc(100% - 104px);object-fit:contain;border-radius:6px;transform-origin:center center;will-change:transform;user-select:none;-webkit-user-drag:none}
+/* 銘牌(様式4:枠なし・最小)— 画像直下に追従配置。作品名(明朝・小)/機体名(楷体・台詞欄基準) */
+.sv-plate{margin-top:16px;flex:none;text-align:center;max-width:90%;padding:0 8px;pointer-events:none}
+.svp-work{font-family:var(--serif);font-size:10.5px;font-weight:600;letter-spacing:.30em;color:var(--ink-dim);
+  margin-bottom:9px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.svp-div{width:30px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:0 auto 10px}
+.svp-kit{font-family:"LXGW WenKai TC","BiauKai","Kaiti TC","KaiTi","STKaiti","DFKai-SB",serif;
+  font-size:25px;font-weight:600;color:var(--ink-strong);line-height:1.22;letter-spacing:.03em;text-shadow:0 2px 14px rgba(0,0,0,.6)}
 /* セリフ(画像上部・楷体。サイズ/色は機体名 dc-name に準拠) */
 .viewer-serif{position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top) + 44px);z-index:121;
   display:flex;align-items:flex-start;justify-content:flex-start;padding:8px 22px;min-height:46px;text-align:left;cursor:text}
 .vs-text{font-family:"LXGW WenKai TC","BiauKai","Kaiti TC","KaiTi","STKaiti","Kaiti SC","DFKai-SB","楷体","楷體",serif;
   font-weight:700;font-size:25px;line-height:1.34;color:var(--ink-strong);max-width:96%;white-space:pre-wrap;text-align:left;
   text-shadow:0 2px 12px rgba(0,0,0,.85),0 0 3px rgba(0,0,0,.7)}
-.dc-classified.sv-classified{width:min(80vw,560px);height:min(64vh,680px);max-width:calc(100% - 4px);max-height:calc(100% - 4px);border-radius:6px;
+.dc-classified.sv-classified{width:min(80vw,560px);height:min(64vh,680px);max-width:calc(100% - 4px);max-height:calc(100% - 108px);border-radius:6px;
   box-shadow:inset 0 0 34px 10px rgba(0,0,0,.6),0 8px 30px rgba(0,0,0,.5)}
 .vs-hint{font-family:var(--sans);font-size:12px;letter-spacing:.12em;color:rgba(255,255,255,.32)}
 .serif-edit-bg{position:fixed;inset:0;z-index:130;background:rgba(0,0,0,.55);display:flex;align-items:flex-start;justify-content:center;padding-top:16vh}
