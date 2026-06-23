@@ -4664,8 +4664,8 @@ export default function App() {
   const openSearch = useCallback(() => { haptic(); setSearchOpen(true); setAdvOpen(true); }, []);
   const closeSearch = useCallback(() => { setSearchOpen(false); setAdvOpen(false); }, []);
   /* ── 簿冊表頭(博物誌/繪測巻/蔵品帳/発注簿):仿叙勲録の表頭。タップで検索窓 ── */
-  const LedgerHead = ({ eyebrow, title, countNode, active }) => (
-    <div className="sb-band">
+  const LedgerHead = ({ eyebrow, title, countNode, active, variant }) => (
+    <div className={"sb-band sb-v-" + variant}>
       <button className={"sb-head" + (active ? " on" : "")} onClick={openSearch}
         aria-label="検索・絞り込みを開く">
         <span className="sb-head-l">
@@ -5026,8 +5026,12 @@ export default function App() {
         {tab === "zukan" && (
           <>
             <LedgerHead
+              key={salonView ? "salon" : "registry"}
+              variant={salonView ? "salon" : "registry"}
               eyebrow={salonView ? "SALON · 繪測巻" : "REGISTRY · 博物誌"}
-              title={salonView ? <>繪<em>測</em>巻</> : <>博<em>物</em>誌</>}
+              title={salonView
+                ? <>繪<em>測</em>巻</>
+                : <><span>博</span><em>物</em><span>誌</span></>}
               active={!!queries.z || advActive}
               countNode={salonView
                 ? <><b>{sorted.length}</b> 点</>
@@ -5089,6 +5093,8 @@ export default function App() {
           return (
             <>
               <LedgerHead
+                key={isPlan ? "requisition" : "holdings"}
+                variant={isPlan ? "requisition" : "holdings"}
                 eyebrow={isPlan ? "REQUISITION · 発注簿" : "HOLDINGS · 蔵品帳"}
                 title={isPlan ? <>発<em>注</em>簿</> : <>蔵<em>品</em>帳</>}
                 active={!!queries.c || advActive}
@@ -7252,7 +7258,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .kt-edit{width:100%;background:var(--bg2);border:1px solid rgba(217,179,106,.4);border-radius:4px;padding:7px 10px;color:var(--ink);font-family:inherit;font-size:13px;letter-spacing:.02em}
 .kt-edit:focus{outline:none;border-color:rgba(217,179,106,.65)}
 /* ═══ 叙勲録(称号 金箔リデザイン) ═══ */
-.av-sec{padding-top:2px;margin-top:12px}
+.av-sec{padding-top:0;margin-top:2px}
 .av-defs{position:absolute;width:0;height:0}
 .av-head{display:flex;align-items:flex-end;justify-content:space-between;width:100%;background:none;border:none;padding:4px 2px 0;cursor:pointer;text-align:left;gap:10px}
 .av-head:active{opacity:.75}
@@ -7284,6 +7290,45 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .sb-head:active .sb-find{border-color:var(--gold);color:var(--gold)}
 .sb-head.on .sb-find{color:var(--gold);border-color:var(--gold);background:rgba(217,179,106,.09)}
 .sb-rule{height:1px;margin:11px 0 0;background:linear-gradient(90deg,var(--gold),rgba(217,179,106,.05) 70%,transparent)}
+/* ── 表頭 転場アニメ:全頁共通の土台 + 各頁の見せ場(掛載時のみ再生) ── */
+@keyframes sbRuleIn{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes sbEyebrowIn{from{opacity:0;letter-spacing:.52em}to{opacity:1;letter-spacing:.30em}}
+@keyframes sbTitleIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+@keyframes sbCountIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@keyframes sbFindIn{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:none}}
+@keyframes sbCharIn{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+@keyframes sbClipIn{from{opacity:0;clip-path:inset(0 100% 0 0)}to{opacity:1;clip-path:inset(0 0 0 0)}}
+@keyframes sbSealIn{0%{opacity:0;transform:scale(1.18)}55%{opacity:1}100%{opacity:1;transform:scale(1)}}
+@keyframes sbSealFlash{0%,38%{opacity:0}58%{opacity:.85}100%{opacity:0}}
+@keyframes sbDocketIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+@keyframes sbEmPulse{0%,52%{transform:scale(1)}70%{transform:scale(1.13)}100%{transform:scale(1)}}
+@keyframes avEmGlint{0%,38%{filter:none}60%{filter:drop-shadow(0 0 7px rgba(242,220,160,.85)) brightness(1.22)}100%{filter:none}}
+@media (prefers-reduced-motion:no-preference){
+  /* 共通土台:罫線→eyebrow→標題→計数→検索鈕 */
+  .sb-rule,.av-rule{transform-origin:left center;animation:sbRuleIn .44s cubic-bezier(.4,0,.2,1) .02s both}
+  .sb-eyebrow,.av-eyebrow{animation:sbEyebrowIn .32s ease-out .06s both}
+  .sb-title,.av-title{animation:sbTitleIn .40s cubic-bezier(.2,.7,.2,1) .13s both}
+  .sb-count,.av-count{animation:sbCountIn .34s ease-out .20s both}
+  .sb-find{animation:sbFindIn .34s cubic-bezier(.2,.8,.3,1.2) .24s both}
+  /* 博物誌:逐字植字(沉穩) */
+  .sb-v-registry .sb-title{animation:none}
+  .sb-v-registry .sb-title>*{display:inline-block;animation:sbCharIn .42s cubic-bezier(.2,.7,.2,1) both}
+  .sb-v-registry .sb-title>*:nth-child(1){animation-delay:.12s}
+  .sb-v-registry .sb-title>*:nth-child(2){animation-delay:.20s}
+  .sb-v-registry .sb-title>*:nth-child(3){animation-delay:.28s}
+  /* 繪測巻:左→右に展巻 */
+  .sb-v-salon .sb-title{animation:sbClipIn .50s cubic-bezier(.3,.7,.2,1) .10s both}
+  /* 蔵品帳:計数に検印(押印+金箔閃光) */
+  .sb-v-holdings .sb-count{position:relative;animation:sbSealIn .46s cubic-bezier(.2,.8,.3,1.05) .30s both}
+  .sb-v-holdings .sb-count::after{content:"";position:absolute;inset:-4px -7px;border-radius:7px;pointer-events:none;
+    background:radial-gradient(circle,rgba(242,220,160,.55),transparent 70%);animation:sbSealFlash .6s ease-out .30s both}
+  /* 発注簿:docket 右からスライド + 金箔「注」脈動 */
+  .sb-v-requisition .sb-count{animation:sbDocketIn .42s cubic-bezier(.2,.7,.2,1) .22s both}
+  .sb-v-requisition .sb-title em{display:inline-block;animation:sbEmPulse .7s ease-out .42s both}
+  /* 叙勲録:金箔「勲」に勲光 */
+  .av-title em{display:inline-block;animation:avEmGlint .8s ease-out .34s both}
+  .av-prog{animation:sbCountIn .40s ease-out .26s both}
+}
 /* ── 検索浮動窓 ── */
 .search-modal{padding:18px 16px 22px}
 .search-modal-bg{z-index:60}
