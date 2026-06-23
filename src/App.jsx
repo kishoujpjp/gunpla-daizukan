@@ -3997,6 +3997,7 @@ export default function App() {
     if (e.touches[0].clientY - pullStartRef.current.y > 55) {
       haptic();
       setSearchOpen(true);
+      setAdvOpen(true);
       pullStartRef.current.armed = false;
     }
   };
@@ -4660,6 +4661,30 @@ export default function App() {
   );
 
   const advActive = adv.series || adv.uni || adv.prem || adv.stat || adv.yFrom || adv.yTo;
+  const openSearch = useCallback(() => { haptic(); setSearchOpen(true); setAdvOpen(true); }, []);
+  const closeSearch = useCallback(() => { setSearchOpen(false); setAdvOpen(false); }, []);
+  /* ── 簿冊表頭(博物誌/繪測巻/蔵品帳/発注簿):仿叙勲録の表頭。タップで検索窓 ── */
+  const LedgerHead = ({ eyebrow, title, countNode, active }) => (
+    <div className="sb-band">
+      <button className={"sb-head" + (active ? " on" : "")} onClick={openSearch}
+        aria-label="検索・絞り込みを開く">
+        <span className="sb-head-l">
+          <span className="sb-eyebrow">{eyebrow}</span>
+          <span className="sb-title">{title}</span>
+        </span>
+        <span className="sb-head-r">
+          <span className="sb-count">{countNode}</span>
+          <i className="sb-find" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <circle cx="10.5" cy="10.5" r="6.5" /><line x1="15.4" y1="15.4" x2="21" y2="21" />
+            </svg>
+          </i>
+        </span>
+      </button>
+      <div className="sb-rule" />
+    </div>
+  );
+
   const AdvPanel = () => (
     <div className="adv-panel">
       <div className="adv-row">
@@ -4710,7 +4735,7 @@ export default function App() {
       </div>
       <div className="adv-foot">
         {advActive ? <button className="adv-clear" onClick={() => setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "" })}>条件をクリア</button> : <span className="adv-hint">作品・区分・状態・年代で絞り込み</span>}
-        <button className="adv-close" onClick={() => setAdvOpen(false)}>閉じる</button>
+        <button className="adv-close" onClick={closeSearch}>閉じる</button>
       </div>
     </div>
   );
@@ -4900,7 +4925,7 @@ export default function App() {
   );
 
   return (
-    <div className={"app " + (settings.theme === "light" ? "light" : "") + (detailKit || adding || promptEdit || profileOpen || setupOpen || titleDetail ? " lock" : "")}>
+    <div className={"app " + (settings.theme === "light" ? "light" : "") + (detailKit || adding || promptEdit || profileOpen || setupOpen || titleDetail || searchOpen ? " lock" : "")}>
       <style>{CSS}</style>
 
       {storageErr && (
@@ -4939,7 +4964,10 @@ export default function App() {
             : tab === "analysis" ? (anaMode === "analysis" ? { jp: "観測档案", en: "OBSERVATION" } : { jp: "叙勲档案", en: "DECORATIONS" })
             : { jp: "管理档案", en: "ADMINISTRATION" };
           const isPlan = tab === "collection" && collMode === "plan";
-          const pct = isPlan ? futurePct : collectPct;
+          const isDecor = tab === "analysis" && anaMode === "record";
+          const titlesGot = titles.filter((t) => t.unlocked).length;
+          const titlesPct = Math.round((titlesGot / Math.max(1, titles.length)) * 100);
+          const pct = isDecor ? titlesPct : isPlan ? futurePct : collectPct;
           return (
             <div className="hf" role="button" tabIndex={0}
               onClick={() => { haptic(); if (bodyRef.current) bodyRef.current.scrollTo({ top: 0, behavior: "smooth" }); }}>
@@ -4958,7 +4986,15 @@ export default function App() {
                   </div>
                   <div className="hf-rule" />
                   <div className="hf-stats">
-                    {isPlan ? (
+                    {isDecor ? (
+                      <>
+                        <div className="s"><b><Roll value={titles.length} resetKey={arc.jp} /></b><span>称号</span></div>
+                        <div className="hf-div" />
+                        <div className="s"><b className="kin"><Roll value={titlesGot} resetKey={arc.jp} /></b><span>叙勲</span></div>
+                        <div className="hf-div" />
+                        <div className="s"><b className="kin"><Roll value={titlesPct} resetKey={arc.jp} />%</b><span>達成率</span></div>
+                      </>
+                    ) : isPlan ? (
                       <>
                         <div className="s"><b><Roll value={allKits.length} resetKey={arc.jp} /></b><span>収録</span></div>
                         <div className="hf-div" />
@@ -4978,7 +5014,7 @@ export default function App() {
                   </div>
                 </div>
               </div>
-              <div className="hf-prog"><i className={isPlan ? "kin" : ""} style={{ width: `${pct}%` }} /></div>
+              <div className="hf-prog"><i className={isPlan || isDecor ? "kin" : ""} style={{ width: `${pct}%` }} /></div>
             </div>
           );
         })()}
@@ -4989,21 +5025,35 @@ export default function App() {
         <div key={tab} className="tab-page">
         {tab === "zukan" && (
           <>
-            <div className={"search-drawer" + (searchOpen ? " open" : "")}>
-              <div className="toolbar">
-                <input className="search" placeholder="検索(名称・型式・原作)" value={queries.z}
-                  onFocus={() => setAdvOpen(true)}
-                  onChange={(e) => setQueries((s) => ({ ...s, z: e.target.value }))} />
-                <button className="search-x" onClick={() => { setQueries((s) => ({ ...s, z: "" })); setAdvOpen(false); setSearchOpen(false); }}>✕</button>
+            <LedgerHead
+              eyebrow={salonView ? "SALON · 繪測巻" : "REGISTRY · 博物誌"}
+              title={salonView ? <>繪<em>測</em>巻</> : <>博<em>物</em>誌</>}
+              active={!!queries.z || advActive}
+              countNode={salonView
+                ? <><b>{sorted.length}</b> 点</>
+                : <><b>{sorted.length}</b> / {allKits.length} 収録</>} />
+            {searchOpen && (
+              <div className="modal-bg search-modal-bg" onClick={closeSearch}>
+                <div className="modal search-modal" onClick={(e) => e.stopPropagation()}>
+                  <div className="sm-head">
+                    <span className="sm-title">{salonView ? <>繪<em>測</em>巻</> : <>博<em>物</em>誌</>} <span className="sm-eyebrow">SEARCH</span></span>
+                    <button className="modal-x static" onClick={closeSearch}>✕</button>
+                  </div>
+                  <div className="toolbar">
+                    <input className="search" placeholder="検索(名称・型式・原作)" value={queries.z} autoFocus
+                      onChange={(e) => setQueries((s) => ({ ...s, z: e.target.value }))} />
+                    <button className="search-x" onClick={() => setQueries((s) => ({ ...s, z: "" }))}>✕</button>
+                  </div>
+                  <AdvPanel />
+                  <div className="drawer-sub">
+                    <GfRow skey="gfZukan" />
+                    <SortBar />
+                    {salonView ? <SalonControls /> : <ViewToggle />}
+                    {!salonView && <button className="add-btn" onClick={() => { closeSearch(); setAdding("zukan"); }}>＋ 追加</button>}
+                  </div>
+                </div>
               </div>
-              {advOpen && <AdvPanel />}
-              <div className="drawer-sub">
-                <GfRow skey="gfZukan" />
-                <SortBar />
-                {salonView ? <SalonControls /> : <ViewToggle />}
-                {!salonView && <button className="add-btn" onClick={() => setAdding("zukan")}>＋ 追加</button>}
-              </div>
-            </div>
+            )}
             <div className="section-note">{sorted.length} 件{advActive && <button className="cond-clear" onClick={() => { haptic(); setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "" }); }}>条件をクリア</button>}</div>
             {grouped
               ? grouped.map(([year, kits]) => (
@@ -5038,21 +5088,35 @@ export default function App() {
           }
           return (
             <>
-              <div className={"search-drawer" + (searchOpen ? " open" : "")}>
-                <div className="toolbar">
-                  <input className="search" placeholder={isPlan ? "予定内を検索" : "収蔵内を検索(名称・型式・原作)"} value={queries.c}
-                    onFocus={() => setAdvOpen(true)}
-                    onChange={(e) => setQueries((s) => ({ ...s, c: e.target.value }))} />
-                  <button className="search-x" onClick={() => { setQueries((s) => ({ ...s, c: "" })); setAdvOpen(false); setSearchOpen(false); }}>✕</button>
+              <LedgerHead
+                eyebrow={isPlan ? "REQUISITION · 発注簿" : "HOLDINGS · 蔵品帳"}
+                title={isPlan ? <>発<em>注</em>簿</> : <>蔵<em>品</em>帳</>}
+                active={!!queries.c || advActive}
+                countNode={isPlan
+                  ? <><b>{listKits.length}</b> / {planAll} 発注</>
+                  : <><b>{listKits.length}</b> / {ownedAll} 収蔵</>} />
+              {searchOpen && (
+                <div className="modal-bg search-modal-bg" onClick={closeSearch}>
+                  <div className="modal search-modal" onClick={(e) => e.stopPropagation()}>
+                    <div className="sm-head">
+                      <span className="sm-title">{isPlan ? <>発<em>注</em>簿</> : <>蔵<em>品</em>帳</>} <span className="sm-eyebrow">SEARCH</span></span>
+                      <button className="modal-x static" onClick={closeSearch}>✕</button>
+                    </div>
+                    <div className="toolbar">
+                      <input className="search" placeholder={isPlan ? "予定内を検索" : "収蔵内を検索(名称・型式・原作)"} value={queries.c} autoFocus
+                        onChange={(e) => setQueries((s) => ({ ...s, c: e.target.value }))} />
+                      <button className="search-x" onClick={() => setQueries((s) => ({ ...s, c: "" }))}>✕</button>
+                    </div>
+                    <AdvPanel />
+                    <div className="drawer-sub">
+                      <GfRow skey="gfShuzo" />
+                      <SortBar />
+                      <ViewToggle />
+                      <button className="add-btn" onClick={() => { closeSearch(); setAdding(isPlan ? "plan" : "owned"); }}>＋ 追加</button>
+                    </div>
+                  </div>
                 </div>
-                {advOpen && <AdvPanel />}
-                <div className="drawer-sub">
-                  <GfRow skey="gfShuzo" />
-                  <SortBar />
-                  <ViewToggle />
-                  <button className="add-btn" onClick={() => setAdding(isPlan ? "plan" : "owned")}>＋ 追加</button>
-                </div>
-              </div>
+              )}
               <div className="section-note">{isPlan ? "予定" : "収蔵"} {listKits.length} 体{advActive && <button className="cond-clear" onClick={() => { haptic(); setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "" }); }}>条件をクリア</button>}</div>
               {listKits.length === 0
                 ? <p className="ana-note">検索条件に一致する{isPlan ? "予定" : "収蔵"}がありません。</p>
@@ -7204,6 +7268,32 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .av-rule{height:1px;margin:11px 0 0;background:linear-gradient(90deg,var(--gold),rgba(217,179,106,.05) 70%,transparent)}
 .av-prog{height:2px;margin:8px 0 0;background:rgba(217,179,106,.12);border-radius:2px;overflow:hidden}
 .av-prog i{display:block;height:100%;background:linear-gradient(90deg,#9c7838,#f2dca0);transition:width .5s}
+/* ── 簿冊表頭(博物誌/繪測巻/蔵品帳/発注簿):叙勲録の表頭に倣う ── */
+.sb-band{margin:2px 0 14px}
+.sb-head{display:flex;align-items:flex-end;justify-content:space-between;width:100%;background:none;border:none;padding:4px 2px 0;cursor:pointer;text-align:left;gap:10px}
+.sb-head:active{opacity:.75}
+.sb-head-l{display:flex;flex-direction:column;min-width:0}
+.sb-eyebrow{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9px;letter-spacing:.30em;color:var(--ink-mid);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-title{font-family:var(--serif);font-weight:800;font-size:23px;letter-spacing:.05em;color:var(--ink-strong);margin-top:6px}
+.sb-title em{font-style:normal;color:var(--gold)}
+.sb-head-r{display:flex;align-items:center;gap:11px;flex:none}
+.sb-count{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10.5px;letter-spacing:.12em;color:var(--ink-mid);white-space:nowrap}
+.sb-count b{color:var(--gold);font-size:13px}
+.sb-find{flex:none;display:flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid var(--line);border-radius:9px;color:var(--ink-mid);transition:color .2s,border-color .2s,background .2s}
+.sb-find svg{width:15px;height:15px;display:block}
+.sb-head:active .sb-find{border-color:var(--gold);color:var(--gold)}
+.sb-head.on .sb-find{color:var(--gold);border-color:var(--gold);background:rgba(217,179,106,.09)}
+.sb-rule{height:1px;margin:11px 0 0;background:linear-gradient(90deg,var(--gold),rgba(217,179,106,.05) 70%,transparent)}
+/* ── 検索浮動窓 ── */
+.search-modal{padding:18px 16px 22px}
+.search-modal-bg{z-index:60}
+.sm-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px}
+.sm-title{font-family:var(--serif);font-weight:800;font-size:19px;color:var(--ink-strong);letter-spacing:.04em}
+.sm-title em{font-style:normal;color:var(--gold)}
+.sm-eyebrow{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9px;letter-spacing:.26em;color:var(--ink-dim);text-transform:uppercase;margin-left:4px}
+.search-modal .toolbar{padding:0 0 10px}
+.search-modal .adv-panel{margin-top:2px}
+.search-modal .drawer-sub{padding:10px 0 0}
 .av-drop{display:grid;grid-template-rows:0fr;opacity:0;margin-top:0;transition:grid-template-rows .32s cubic-bezier(.4,0,.2,1),opacity .24s,margin-top .32s}
 .av-drop.open{grid-template-rows:1fr;opacity:1;margin-top:12px;margin-bottom:2px}
 .av-drop-inner{overflow:hidden;min-height:0}
