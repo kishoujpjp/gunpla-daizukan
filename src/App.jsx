@@ -2557,7 +2557,7 @@ function KitImage({ kit, img, owned, built, size = 84, cls = "", frame }) {
    Pointer Events で実装(iOS Safari 対応)。touch-action:none で既定のスクロールを抑止。 */
 /* ── 画像鑑賞: 指追従の横スワイプでページング(離すと次へ自然遷移)＋ピンチズーム。
    ボタン/X 無し、タップで閉じる。ズーム中(>1倍)は1本指でパン、等倍時のみページング ── */
-function SwipeViewer({ slides, index, onIndex, onClose, resolveSrc, resetKey }) {
+function SwipeViewer({ slides, index, onIndex, onClose, resolveSrc, resetKey, serifOf, onSerif }) {
   const n = slides.length;
   const wrapRef = useRef(null);
   const [dragX, setDragX] = useState(0);
@@ -2650,15 +2650,26 @@ function SwipeViewer({ slides, index, onIndex, onClose, resolveSrc, resetKey }) 
           <div className="sv-slide" key={sl.kitId + "/" + sl.ref}
             style={{ transform: `translateX(calc(${(i - index) * 100}% + ${dragX}px))`, transition: paging ? "transform .3s cubic-bezier(.25,.8,.3,1)" : "none" }}>
             <div className="sv-stage">
-              {src
-                ? <img src={src} alt="" draggable={false} className="sv-img"
-                    style={isCur ? { transform: `translate(${z.x}px,${z.y}px) scale(${z.scale})` } : undefined} />
-                : <div className="dc-classified sv-classified">
-                    <span className="dc-tick tl" /><span className="dc-tick tr" /><span className="dc-tick bl" /><span className="dc-tick br" />
-                    <span className="dc-unid">UNIDENTIFIED</span>
-                    <span className="dc-unsub">NO VISUAL ON FILE · 機密</span>
-                    <span className="dc-unref">REF · {sl.code || (sl.no && sl.no !== "—" ? "No." + sl.no : "—")}</span>
-                  </div>}
+              {sl.ref && (() => {
+                const sf = serifOf ? serifOf(sl) : "";
+                return (
+                  <div className="sv-serif" onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); if (onSerif) onSerif(sl); }}>
+                    {sf ? <span className="vs-text">{sf}</span> : (isCur ? <span className="vs-hint">＋ セリフを追加</span> : null)}
+                  </div>
+                );
+              })()}
+              <div className="sv-imgwrap">
+                {src
+                  ? <img src={src} alt="" draggable={false} className="sv-img"
+                      style={isCur ? { transform: `translate(${z.x}px,${z.y}px) scale(${z.scale})` } : undefined} />
+                  : <div className="dc-classified sv-classified">
+                      <span className="dc-tick tl" /><span className="dc-tick tr" /><span className="dc-tick bl" /><span className="dc-tick br" />
+                      <span className="dc-unid">UNIDENTIFIED</span>
+                      <span className="dc-unsub">NO VISUAL ON FILE · 機密</span>
+                      <span className="dc-unref">REF · {sl.code || (sl.no && sl.no !== "—" ? "No." + sl.no : "—")}</span>
+                    </div>}
+              </div>
               {/* 銘牌(様式4:枠なし・最小)— 作品名(小) / 機体名(楷体)。画像直下に追従 */}
               <div className="sv-plate">
                 {sl.series ? <div className="svp-work">{sl.series}</div> : null}
@@ -5527,23 +5538,11 @@ export default function App() {
           <div className="viewer-bg" onClick={close}>
             <SwipeViewer slides={flat} index={gi} resetKey={String(curRef)}
               resolveSrc={(sl) => (sl.ref ? refSrc(sl.ref, sl.kitId, images, extras) : null)}
+              serifOf={(sl) => (sl.ref ? (serifs[sl.ref] || "") : "")}
+              onSerif={(sl) => { if (sl.ref) setSerifEdit({ ref: sl.ref, text: serifs[sl.ref] || "" }); }}
               onIndex={(i) => { setViewerDel(false); setSerifEdit(null); setViewer({ kitId: flat[i].kitId, ref: flat[i].ref }); }}
               onClose={close} />
 
-            {curRef && (
-              <div className="viewer-serif" onClick={(e) => { e.stopPropagation(); setSerifEdit({ ref: curRef, text: curSerif }); }}>
-                {curSerif
-                  ? <span className="vs-text">{curSerif}</span>
-                  : <span className="vs-hint">＋ セリフを追加</span>}
-              </div>
-            )}
-
-            {curRef && curAlbum.length > 1 && (
-              <div className="viewer-dots" onClick={(e) => e.stopPropagation()}>
-                {curAlbum.map((a, i) => <span key={a.ref} className={"vd" + (i === aIdx ? " on" : "")}
-                  onClick={() => { setViewerDel(false); setSerifEdit(null); setViewer({ kitId: curKitId, ref: a.ref }); }} />)}
-              </div>
-            )}
             {serifEdit && (
               <div className="serif-edit-bg" onClick={(e) => { e.stopPropagation(); setSerifEdit(null); }}>
                 <div className="serif-edit" onClick={(e) => e.stopPropagation()}>
@@ -5928,6 +5927,7 @@ const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Lugrasimo&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=STIX+Two+Math&display=swap');
 @import url('https://cdn.jsdelivr.net/npm/lxgw-wenkai-tc-webfont/style.css');
+@import url('https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont/style.css');
 
 :root{
   --bg:#0d1018; --bg2:#12161f; --panel:#171c28; --panel2:#1c2230;
@@ -5937,6 +5937,7 @@ const CSS = `
   --kin:#d9b36a; --kin-deep:#b8924a; --blue:#6f9fe0;
   --crt-line:#5f9c92;
   --serif:'Shippori Mincho',serif; --sans:'Zen Kaku Gothic New',sans-serif;
+  --kaiti:"LXGW WenKai TC","LXGW WenKai","Kaiti TC","Kaiti SC","BiauKai","STKaiti","KaiTi","DFKai-SB",serif;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 /* ボタン・カードの文字を長押し選択不可に(手触り改善) */
@@ -6152,27 +6153,29 @@ input,textarea{font-family:var(--sans)}
 .sv-wrap{position:absolute;inset:0;overflow:hidden;cursor:zoom-out}
 .sv-track{display:flex;width:100%;height:100%;will-change:transform}
 .sv-slide{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:18px;box-sizing:border-box;will-change:transform}
-.sv-stage{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%;gap:0}
-.sv-img{max-width:100%;max-height:calc(100% - 104px);object-fit:contain;border-radius:6px;transform-origin:center center;will-change:transform;user-select:none;-webkit-user-drag:none}
-/* 銘牌(様式4:枠なし・最小)— 画像直下に追従配置。作品名(明朝・小)/機体名(楷体・台詞欄基準) */
-.sv-plate{margin-top:16px;flex:none;text-align:center;max-width:90%;padding:0 8px;pointer-events:none}
+.sv-stage{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%}
+/* 台詞(浮動・画像の真上に追従。タップで編集。画像とは別ゾーンなので重ならない) */
+.sv-serif{flex:none;width:100%;max-width:560px;display:flex;align-items:flex-end;justify-content:center;min-height:32px;padding:2px 14px 10px;cursor:text}
+.vs-text{font-family:var(--kaiti);font-weight:600;font-size:25px;line-height:1.32;color:var(--ink-strong);
+  max-width:100%;white-space:pre-wrap;text-align:center;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
+  text-shadow:0 2px 12px rgba(0,0,0,.85),0 0 3px rgba(0,0,0,.7)}
+.vs-hint{font-family:var(--sans);font-size:12px;letter-spacing:.12em;color:rgba(255,255,255,.30)}
+/* 画像エリア(台詞と銘牌のあいだを埋める。両者と重ならない) */
+.sv-imgwrap{flex:1 1 auto;min-height:0;width:100%;display:flex;align-items:center;justify-content:center}
+.sv-img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;transform-origin:center center;will-change:transform;user-select:none;-webkit-user-drag:none}
+/* 銘牌(様式4:枠なし・最小)— 画像直下に追従。作品名(明朝・小)/機体名(楷体・台詞欄基準) */
+.sv-plate{flex:none;margin-top:14px;text-align:center;max-width:90%;padding:0 8px;pointer-events:none}
 .svp-work{font-family:var(--serif);font-size:10.5px;font-weight:600;letter-spacing:.30em;color:var(--ink-dim);
   margin-bottom:9px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .svp-div{width:30px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:0 auto 10px}
-.svp-kit{font-family:"LXGW WenKai TC","BiauKai","Kaiti TC","KaiTi","STKaiti","DFKai-SB",serif;
+.svp-kit{font-family:var(--kaiti);
   font-size:25px;font-weight:600;color:var(--ink-strong);line-height:1.22;letter-spacing:.03em;text-shadow:0 2px 14px rgba(0,0,0,.6)}
-/* セリフ(画像上部・楷体。サイズ/色は機体名 dc-name に準拠) */
-.viewer-serif{position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top) + 44px);z-index:121;
-  display:flex;align-items:flex-start;justify-content:flex-start;padding:8px 22px;min-height:46px;text-align:left;cursor:text}
-.vs-text{font-family:"LXGW WenKai TC","BiauKai","Kaiti TC","KaiTi","STKaiti","Kaiti SC","DFKai-SB","楷体","楷體",serif;
-  font-weight:700;font-size:25px;line-height:1.34;color:var(--ink-strong);max-width:96%;white-space:pre-wrap;text-align:left;
-  text-shadow:0 2px 12px rgba(0,0,0,.85),0 0 3px rgba(0,0,0,.7)}
-.dc-classified.sv-classified{width:min(80vw,560px);height:min(64vh,680px);max-width:calc(100% - 4px);max-height:calc(100% - 108px);border-radius:6px;
+.dc-classified.sv-classified{width:min(80vw,560px);height:100%;max-width:calc(100% - 4px);max-height:100%;border-radius:6px;
   box-shadow:inset 0 0 34px 10px rgba(0,0,0,.6),0 8px 30px rgba(0,0,0,.5)}
-.vs-hint{font-family:var(--sans);font-size:12px;letter-spacing:.12em;color:rgba(255,255,255,.32)}
 .serif-edit-bg{position:fixed;inset:0;z-index:130;background:rgba(0,0,0,.55);display:flex;align-items:flex-start;justify-content:center;padding-top:16vh}
 .serif-edit{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;width:min(440px,90vw);box-shadow:0 18px 54px rgba(0,0,0,.6)}
-.se-input{width:100%;box-sizing:border-box;font-family:"LXGW WenKai TC","BiauKai","Kaiti TC","KaiTi","STKaiti","Kaiti SC","DFKai-SB",serif;font-size:18px;line-height:1.5;color:var(--ink-strong);
+.se-input{width:100%;box-sizing:border-box;font-family:var(--kaiti);font-size:18px;line-height:1.5;color:var(--ink-strong);
   background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:11px 13px;outline:none;min-height:96px;resize:vertical;display:block}
 .se-input:focus{border-color:var(--gold)}
 .se-btns{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
