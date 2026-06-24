@@ -7505,7 +7505,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .kz-plan{position:absolute;top:9px;right:9px;z-index:3;font-family:ui-monospace,monospace;font-size:11px;font-weight:700;color:var(--gold);border:1px dashed var(--gold);background:rgba(217,179,106,.05);border-radius:2px;padding:4px 5px;writing-mode:vertical-rl;letter-spacing:.06em}
 /* リスト */
 /* 左スワイプで「入手」「予定」アクションを表示(CSSスクロールスナップ) */
-.kz-rowscroll{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-ms-overflow-style:none;content-visibility:auto;contain-intrinsic-size:390px 118px}
+.kz-rowscroll{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-ms-overflow-style:none}
 .kz-rowscroll::-webkit-scrollbar{display:none}
 .kz-rowscroll > .kz-row{flex:0 0 100%;scroll-snap-align:start}
 .kz-ract{flex:0 0 auto;display:flex;align-items:stretch;scroll-snap-align:end;padding-left:8px}
