@@ -2896,10 +2896,27 @@ const KR = {
   "ふぁ":"fa","ふぃ":"fi","ふぇ":"fe","ふぉ":"fo","てぃ":"ti","でぃ":"di",
   "うぃ":"wi","うぇ":"we","うぉ":"wo","しぇ":"she","ちぇ":"che","じぇ":"je","つぁ":"tsa","つぉ":"tso"
 };
+/* 中日繁簡の異体字を代表字へ畳む(あいまい検索用・主要字の curated 集合)。各群の先頭が代表字。 */
+const CJK_FOLD = (() => {
+  const groups = [
+    "図圖", "画畫", "巻卷", "戦戰战", "闘鬪鬥", "竜龍龙", "機机", "専專专", "弾彈弹", "鋼钢",
+    "砲炮", "銃铳", "剣劍剑", "騎骑", "駆驅驱", "黒黑", "紅红", "緑綠绿", "衛衞卫", "号號",
+    "体體", "関關关", "広廣广", "鉄鐵铁", "将將", "学學", "宝寶", "国國", "亀龜龟", "万萬",
+    "楽樂乐", "点點", "経經经", "変變变", "観観观", "庁廳厅", "総總总", "続續续", "発發发", "対對对",
+    "児兒儿", "価價价", "団團团", "囲圍围", "気氣气", "戸戶户", "円圓圆", "読讀读", "蔵藏", "駅驛",
+    "鶏鷄鸡", "霊靈灵", "実實实", "両兩两", "顔顏颜", "増增", "豊豐丰", "様樣样", "覇霸", "聖圣",
+    "黄黃", "齢齡", "騰腾", "麗丽", "壊壞坏", "懐懷怀", "拝拜", "覚覺觉", "応應应", "従從从",
+    "巌巖岩", "嶽岳", "竪豎", "盤盘", "陽阳", "陰阴隂", "雲云", "風风", "雷", "焔焰",
+  ];
+  const m = new Map();
+  for (const g of groups) { const c = g[0]; for (const ch of g) m.set(ch, c); }
+  return m;
+})();
 function normJa(s) {
   return (s || "").toLowerCase()
     .replace(/[\uff01-\uff5e]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xfee0))
-    .replace(/[\u30a1-\u30f6]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0x60));
+    .replace(/[\u30a1-\u30f6]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0x60))
+    .replace(/[\u3400-\u9fff\uf900-\ufaff]/g, (ch) => CJK_FOLD.get(ch) || ch);
 }
 function toRomaji(hira) {
   let out = "";
@@ -3527,6 +3544,7 @@ export default function App() {
   const [promptEdit, setPromptEdit] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
   const [achvSeen, setAchvSeen] = useState(null);
   const [achvPop, setAchvPop] = useState(null);
   const [titleUniverse, setTitleUniverse] = useState("all");
@@ -3987,15 +4005,14 @@ export default function App() {
     const el = bodyRef.current;
     pullStartRef.current = {
       y: e.touches[0].clientY,
-      armed: !!el && el.scrollTop <= 0 && (tab === "zukan" || tab === "collection") && !searchOpen,
+      armed: !!el && el.scrollTop <= 0 && (tab === "zukan" || tab === "collection") && !searchOpen && !filterOpen,
     };
   };
   const onBodyTouchMove = (e) => {
     if (!pullStartRef.current.armed) return;
     if (e.touches[0].clientY - pullStartRef.current.y > 55) {
       haptic();
-      setSearchOpen(true);
-      setAdvOpen(true);
+      setFilterOpen(true);
       pullStartRef.current.armed = false;
     }
   };
@@ -4659,26 +4676,29 @@ export default function App() {
   );
 
   const advActive = adv.series || adv.uni || adv.prem || adv.stat || adv.yFrom || adv.yTo;
-  const openSearch = useCallback(() => { haptic(); setSearchOpen(true); setAdvOpen(true); }, []);
-  const closeSearch = useCallback(() => { setSearchOpen(false); setAdvOpen(false); }, []);
+  const openSearch = useCallback(() => { haptic(); setSearchOpen(true); }, []);
+  const closeSearch = useCallback(() => { setSearchOpen(false); }, []);
+  const openFilter = useCallback(() => { haptic(); setFilterOpen(true); }, []);
+  const closeFilter = useCallback(() => { setFilterOpen(false); }, []);
   /* ── 簿冊表頭(博物誌/繪測巻/蔵品帳/発注簿):仿叙勲録の表頭。タップで検索窓 ── */
   const LedgerHead = ({ eyebrow, title, countNode, active, variant }) => (
     <div className={"sb-band sb-v-" + variant}>
-      <button className={"sb-head" + (active ? " on" : "")} onClick={openSearch}
-        aria-label="検索・絞り込みを開く">
+      <div className={"sb-head" + (active ? " on" : "")} onClick={openFilter}
+        role="button" tabIndex={0} aria-label="絞り込みを開く">
         <span className="sb-head-l">
           <span className="sb-eyebrow">{eyebrow}</span>
           <span className="sb-title">{title}</span>
         </span>
         <span className="sb-head-r">
           <span className="sb-count">{countNode}</span>
-          <i className="sb-find" aria-hidden="true">
+          <button type="button" className="sb-find" aria-label="検索を開く"
+            onClick={(e) => { e.stopPropagation(); openSearch(); }}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <circle cx="10.5" cy="10.5" r="6.5" /><line x1="15.4" y1="15.4" x2="21" y2="21" />
             </svg>
-          </i>
+          </button>
         </span>
-      </button>
+      </div>
       <div className="sb-rule" />
     </div>
   );
@@ -4733,7 +4753,7 @@ export default function App() {
       </div>
       <div className="adv-foot">
         {advActive ? <button className="adv-clear" onClick={() => setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "" })}>条件をクリア</button> : <span className="adv-hint">作品・区分・状態・年代で絞り込み</span>}
-        <button className="adv-close" onClick={closeSearch}>閉じる</button>
+        <button className="adv-close" onClick={closeFilter}>閉じる</button>
       </div>
     </div>
   );
@@ -4929,7 +4949,7 @@ export default function App() {
   );
 
   return (
-    <div className={"app " + (settings.theme === "light" ? "light" : "") + (detailKit || adding || promptEdit || profileOpen || setupOpen || titleDetail || searchOpen ? " lock" : "")}>
+    <div className={"app " + (settings.theme === "light" ? "light" : "") + (detailKit || adding || promptEdit || profileOpen || setupOpen || titleDetail || searchOpen || filterOpen ? " lock" : "")}>
       <style>{CSS}</style>
 
       {storageErr && (
@@ -5052,12 +5072,22 @@ export default function App() {
                       onChange={(e) => setQueries((s) => ({ ...s, z: e.target.value }))} />
                     <button className="search-x" onClick={() => setQueries((s) => ({ ...s, z: "" }))}>✕</button>
                   </div>
+                </div>
+              </div>
+            )}
+            {filterOpen && (
+              <div className="modal-bg search-modal-bg" onClick={closeFilter}>
+                <div className="modal search-modal" onClick={(e) => e.stopPropagation()}>
+                  <div className="sm-head">
+                    <span className="sm-title">{salonView ? <>繪<em>測</em>巻</> : <>博<em>物</em>誌</>} <span className="sm-eyebrow">FILTER</span></span>
+                    <button className="modal-x static" onClick={closeFilter}>✕</button>
+                  </div>
                   <AdvPanel />
                   <div className="drawer-sub">
                     <GfRow skey="gfZukan" />
                     <SortBar />
                     {salonView ? <SalonControls /> : <ViewToggle />}
-                    {!salonView && <button className="add-btn" onClick={() => { closeSearch(); setAdding("zukan"); }}>＋ 追加</button>}
+                    {!salonView && <button className="add-btn" onClick={() => { closeFilter(); setAdding("zukan"); }}>＋ 追加</button>}
                   </div>
                 </div>
               </div>
@@ -5117,12 +5147,22 @@ export default function App() {
                         onChange={(e) => setQueries((s) => ({ ...s, c: e.target.value }))} />
                       <button className="search-x" onClick={() => setQueries((s) => ({ ...s, c: "" }))}>✕</button>
                     </div>
+                  </div>
+                </div>
+              )}
+              {filterOpen && (
+                <div className="modal-bg search-modal-bg" onClick={closeFilter}>
+                  <div className="modal search-modal" onClick={(e) => e.stopPropagation()}>
+                    <div className="sm-head">
+                      <span className="sm-title">{isPlan ? <>発<em>注</em>簿</> : <>蔵<em>品</em>帳</>} <span className="sm-eyebrow">FILTER</span></span>
+                      <button className="modal-x static" onClick={closeFilter}>✕</button>
+                    </div>
                     <AdvPanel />
                     <div className="drawer-sub">
                       <GfRow skey="gfShuzo" />
                       <SortBar />
                       <ViewToggle />
-                      <button className="add-btn" onClick={() => { closeSearch(); setAdding(isPlan ? "plan" : "owned"); }}>＋ 追加</button>
+                      <button className="add-btn" onClick={() => { closeFilter(); setAdding(isPlan ? "plan" : "owned"); }}>＋ 追加</button>
                     </div>
                   </div>
                 </div>
@@ -5277,13 +5317,12 @@ export default function App() {
                 <div className="sb-head" style={{ cursor: "default" }}>
                   <span className="sb-head-l">
                     <span className="sb-eyebrow">RECORDS · 紀錄</span>
-                    <span className="sb-title">武<em>勇</em>傳</span>
+                    <span className="sb-title">解<em>体</em>書</span>
                   </span>
                 </div>
                 <div className="sb-rule" />
               </div>
               <section className="ana-sec">
-                <div className="year-head"><span className="year-num">記録</span><span className="year-rule" /><span className="year-count">RECORDS</span></div>
                 <div className="achv-grid">
                   {achievements.map((x) => {
                     const isNew = achvSeen && achvSeen.__b === 1 && achvSeen[x.id] !== x.key;
@@ -5945,11 +5984,11 @@ export default function App() {
       {/* ── 底部分頁 ── */}
       <nav className="tabbar pad-min" style={{ paddingBottom: "4px" }}>
         {[
-          ["zukan", zukanMode === "salon" ? "繪測" : "図鑑", zukanMode === "salon"
+          ["zukan", zukanMode === "salon" ? "畫廊" : "図鑑", zukanMode === "salon"
             ? (<svg className="tab-line-ico salon-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path className="pal-body" d="M12 4.6C16.8 4.6 20.4 7.5 20.4 11.3C20.4 13.7 18.7 14.5 17.3 14.5C16.4 14.5 15.6 14.3 15.6 13.5C15.6 12.8 16 12.5 16 11.9C16 11.2 15.4 10.7 14.5 10.7C12.9 10.7 12 12.4 12 14.1C12 16 12.9 17.2 12.2 18.1C11.8 18.5 11.3 18.7 10.7 18.7C6.7 18.7 4 15.1 4 11.3C4 7.5 7.4 4.6 12 4.6Z" strokeWidth="1.6" strokeLinejoin="round" /><circle className="pd1" cx="7.1" cy="10.4" r="1.25" /><circle className="pd2" cx="8.7" cy="7.6" r="1.25" /><circle className="pd3" cx="11.8" cy="6.7" r="1.25" /><circle className="pd4" cx="15" cy="7.6" r="1.25" /></svg>)
             : "▦"],
-          ["collection", collMode === "plan" ? "予定" : "収蔵", collMode === "plan" ? "◆" : "✦"],
-          ["analysis", anaMode === "analysis" ? "紀錄" : "敘勲", anaMode === "analysis"
+          ["collection", collMode === "plan" ? "予定" : "所持", collMode === "plan" ? "◆" : "✦"],
+          ["analysis", anaMode === "analysis" ? "紀錄" : "稱號", anaMode === "analysis"
             ? (<svg className="tab-line-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 4 V19 H20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><polyline points="6.5 14.5 10.5 10.5 13.5 12.5 18.5 6.5" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>)
             : (<svg className="tab-line-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 4h10v7a5 5 0 0 1-10 0V4z" /><path d="M7 6H4v2a3 3 0 0 0 3 3" /><path d="M17 6h3v2a3 3 0 0 1-3 3" /><path d="M12 16v3" /><path d="M8.5 21h7l-1-2h-5z" /></svg>)],
           ["settings", "設定", "⚙"],
@@ -7288,7 +7327,8 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .sb-head-r{display:flex;align-items:center;gap:11px;flex:none}
 .sb-count{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10.5px;letter-spacing:.12em;color:var(--ink-mid);white-space:nowrap}
 .sb-count b{color:var(--gold);font-size:13px}
-.sb-find{flex:none;display:flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid var(--line);border-radius:9px;color:var(--ink-mid);transition:color .2s,border-color .2s,background .2s}
+.sb-find{flex:none;display:flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid var(--line);border-radius:9px;color:var(--ink-mid);background:none;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:color .2s,border-color .2s,background .2s}
+.sb-find:active{transform:scale(.92)}
 .sb-find svg{width:15px;height:15px;display:block}
 .sb-head:active .sb-find{border-color:var(--gold);color:var(--gold)}
 .sb-head.on .sb-find{color:var(--gold);border-color:var(--gold);background:rgba(217,179,106,.09)}
@@ -7297,7 +7337,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
    ・減少動態の設定下でも表示する(本人の明示的な希望) ── */
 @keyframes sbRuleIn{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 @keyframes sbEyebrowIn{from{opacity:0;letter-spacing:.52em}to{opacity:1;letter-spacing:.30em}}
-@keyframes sbTitleIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+@keyframes sbTitleIn{from{opacity:0;letter-spacing:.30em}to{opacity:1;letter-spacing:.05em}}
 @keyframes sbCountIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 @keyframes sbFindIn{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:none}}
 /* 共通土台(全頁 発注簿版に統一・やや速め) */
@@ -7445,7 +7485,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .sl-chip{position:absolute;z-index:2;left:8px;bottom:8px;top:auto}
 .sl-body{padding:11px 12px 12px;transition:padding .26s ease}
 .salon-grid.cols-3 .sl-body{padding:8px 9px 10px}
-.sl-name{display:flex;align-items:center;justify-content:center;overflow:hidden;text-align:center}
+.sl-name{display:flex;align-items:flex-start;justify-content:center;overflow:hidden;text-align:center}
 .salon-grid.cols-2 .sl-name{height:50px}
 .salon-grid.cols-3 .sl-name{height:42px}
 .sl-name-fit{display:block;width:100%;font-family:var(--serif);font-weight:700;color:var(--ink-strong);line-height:1.18;word-break:break-word}
