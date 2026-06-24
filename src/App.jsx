@@ -4682,7 +4682,7 @@ export default function App() {
   const closeFilter = useCallback(() => { setFilterOpen(false); }, []);
   /* ── 簿冊表頭(博物誌/繪測巻/蔵品帳/発注簿):仿叙勲録の表頭。タップで検索窓 ── */
   const LedgerHead = ({ eyebrow, title, countNode, active, variant }) => (
-    <div className={"sb-band sb-v-" + variant}>
+    <div key={variant} className={"sb-band sb-v-" + variant}>
       <div className={"sb-head" + (active ? " on" : "")} onClick={openFilter}
         role="button" tabIndex={0} aria-label="絞り込みを開く">
         <span className="sb-head-l">
@@ -4837,7 +4837,7 @@ export default function App() {
     const sketchCrt = !rec.owned && !img; // 未入手かつ画像なし=ベクター→CRT風に
     if (salonView) {
       return (
-        <button className={`sl-card ${dim ? "dim" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""} ${rec.buildDate ? "built" : ""}`} onClick={onCardClick} {...longPress}>
+        <button key={kit.id} className={`sl-card ${dim ? "dim" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""} ${rec.buildDate ? "built" : ""}`} onClick={onCardClick} {...longPress}>
           <div className="sl-frame">
             {settings.showGrade && kit.grade ? <span className="sl-grade">{kit.grade}</span> : null}
             {img
@@ -4860,7 +4860,7 @@ export default function App() {
     if (settings.view === "list") {
       const closeSwipe = (e) => { const sc = e.currentTarget.closest(".kz-rowscroll"); if (sc) sc.scrollTo({ left: 0, behavior: "smooth" }); };
       return (
-        <div className="kz-rowscroll">
+        <div key={kit.id} className="kz-rowscroll">
           <button className={`kz-row ${dim ? "dim" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""} ${rec.buildDate ? "built" : ""}`} onClick={onCardClick} {...longPress}>
             <div className="kz-rframe">
               {img
@@ -4904,7 +4904,7 @@ export default function App() {
       settings.showCode && kit.code,
     ].filter(Boolean).join(" · ");
     return (
-      <button className={`kz-card ${dim ? "dim" : ""} ${settings.compact ? "compact" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""} ${rec.buildDate ? "built" : ""}`} onClick={onCardClick} {...longPress}>
+      <button key={kit.id} className={`kz-card ${dim ? "dim" : ""} ${settings.compact ? "compact" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""} ${rec.buildDate ? "built" : ""}`} onClick={onCardClick} {...longPress}>
         {noLine && <div className="kz-no">{noLine}</div>}
         {rec.buildDate ? <span className="kz-seal">済</span> : rec.plan ? <span className="kz-plan">予</span> : null}
         <div className="kz-frame">
@@ -4927,11 +4927,11 @@ export default function App() {
   const Grid = ({ kits }) => (
     <div className={salonView ? `salon-grid cols-${settings.salonCols || 2} fit-${settings.salonFit || "cover"}`
       : settings.view === "list" ? "list-wrap" : `grid-wrap ${settings.compact ? "compact" : ""}`}>
-      {kits.map((k) => <Card key={k.id} kit={k} />)}
+      {kits.map((k) => Card({ kit: k }))}
     </div>
   );
 
-  const detailKit = detail ? allKits.find((k) => k.id === detail) : null;
+  const detailKit = useMemo(() => (detail ? allKits.find((k) => k.id === detail) : null), [detail, allKits]);
   const detailRec = detailKit ? getRec(detailKit.id) : null;
   /* 掃描線:開くたびに各ビームへランダムな負の animation-delay を与え、
      開始位置(=出現タイミング)を毎回ばらけさせる。2本も同期しない。
@@ -5049,17 +5049,17 @@ export default function App() {
         <div key={tab} className="tab-page">
         {tab === "zukan" && (
           <>
-            <LedgerHead
-              key={salonView ? "salon" : "registry"}
-              variant={salonView ? "salon" : "registry"}
-              eyebrow={salonView ? "GALLERY · 画廊" : "REGISTRY · 図鑑"}
-              title={salonView
+            {LedgerHead({
+              variant: salonView ? "salon" : "registry",
+              eyebrow: salonView ? "GALLERY · 画廊" : "REGISTRY · 図鑑",
+              title: salonView
                 ? <>絵<em>測</em>巻</>
-                : <><span>博</span><em>物</em><span>誌</span></>}
-              active={!!queries.z || advActive}
-              countNode={salonView
+                : <><span>博</span><em>物</em><span>誌</span></>,
+              active: !!queries.z || advActive,
+              countNode: salonView
                 ? <><b>{sorted.length}</b> 点</>
-                : <><b>{sorted.length}</b> / {allKits.length} 収録</>} />
+                : <><b>{sorted.length}</b> / {allKits.length} 収録</>,
+            })}
             {searchOpen && (
               <div className="modal-bg search-modal-bg" onClick={closeSearch}>
                 <div className="modal search-modal" onClick={(e) => e.stopPropagation()}>
@@ -5097,10 +5097,10 @@ export default function App() {
               ? grouped.map(([year, kits]) => (
                   <section key={year} className="year-sec">
                     <div className="year-head"><span className="year-num">{year}</span><span className="year-rule" /><span className="year-count">{kits.length} 体</span></div>
-                    <Grid kits={kits} />
+                    {Grid({ kits })}
                   </section>
                 ))
-              : <Grid kits={visible} />}
+              : Grid({ kits: visible })}
             {sorted.length > limit && (
               <button ref={moreRef} className="more-btn" onClick={() => setLimit((n) => n + 80)}>
                 さらに表示(残り {sorted.length - limit} 件)
@@ -5126,15 +5126,15 @@ export default function App() {
           }
           return (
             <>
-              <LedgerHead
-                key={isPlan ? "requisition" : "holdings"}
-                variant={isPlan ? "requisition" : "holdings"}
-                eyebrow={isPlan ? "REQUISITION · 予定" : "HOLDINGS · 所持"}
-                title={isPlan ? <>発<em>注</em>簿</> : <>蔵<em>品</em>帳</>}
-                active={!!queries.c || advActive}
-                countNode={isPlan
+              {LedgerHead({
+                variant: isPlan ? "requisition" : "holdings",
+                eyebrow: isPlan ? "REQUISITION · 予定" : "HOLDINGS · 所持",
+                title: isPlan ? <>発<em>注</em>簿</> : <>蔵<em>品</em>帳</>,
+                active: !!queries.c || advActive,
+                countNode: isPlan
                   ? <><b>{listKits.length}</b> / {planAll} 発注</>
-                  : <><b>{listKits.length}</b> / {ownedAll} 収蔵</>} />
+                  : <><b>{listKits.length}</b> / {ownedAll} 収蔵</>,
+              })}
               {searchOpen && (
                 <div className="modal-bg search-modal-bg" onClick={closeSearch}>
                   <div className="modal search-modal" onClick={(e) => e.stopPropagation()}>
@@ -5170,7 +5170,7 @@ export default function App() {
               {(advActive || query || gf) && <div className="section-note"><button className="cond-clear" onClick={() => { haptic(); setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "" }); setQueries((s) => ({ ...s, c: "" })); setSettings((s) => ({ ...s, gfShuzo: "" })); }}>条件をクリア</button></div>}
               {listKits.length === 0
                 ? <p className="ana-note">検索条件に一致する{isPlan ? "予定" : "収蔵"}がありません。</p>
-                : <Grid kits={listVisible} />}
+                : Grid({ kits: listVisible })}
               {listKits.length > limit && (
                 <button ref={moreRef} className="more-btn" onClick={() => setLimit((n) => n + 80)}>
                   さらに表示(残り {listKits.length - limit} 件)
@@ -7431,7 +7431,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .tm-grd.on{border-color:rgba(217,179,106,.30);color:var(--gold);background:rgba(217,179,106,.08)}
 .title-need{color:var(--gold)}
 /* ═══ 図鑑 編目カード/リスト(金箔) ═══ */
-.kz-card{position:relative;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:11px 11px 10px;text-align:left;overflow:hidden;transition:border-color .12s,transform .12s}
+.kz-card{position:relative;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:11px 11px 10px;text-align:left;overflow:hidden;content-visibility:auto;contain-intrinsic-size:172px 190px;transition:border-color .12s,transform .12s}
 .kz-card:active{transform:scale(.985)}
 .kz-card.owned{border-color:rgba(217,179,106,.26)}
 .kz-card.owned::before{content:"";position:absolute;left:0;top:0;width:100%;height:2px;background:linear-gradient(90deg,#9c7838,#d9b36a,transparent);z-index:1}
@@ -7505,7 +7505,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .kz-plan{position:absolute;top:9px;right:9px;z-index:3;font-family:ui-monospace,monospace;font-size:11px;font-weight:700;color:var(--gold);border:1px dashed var(--gold);background:rgba(217,179,106,.05);border-radius:2px;padding:4px 5px;writing-mode:vertical-rl;letter-spacing:.06em}
 /* リスト */
 /* 左スワイプで「入手」「予定」アクションを表示(CSSスクロールスナップ) */
-.kz-rowscroll{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-ms-overflow-style:none}
+.kz-rowscroll{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-ms-overflow-style:none;content-visibility:auto;contain-intrinsic-size:390px 118px}
 .kz-rowscroll::-webkit-scrollbar{display:none}
 .kz-rowscroll > .kz-row{flex:0 0 100%;scroll-snap-align:start}
 .kz-ract{flex:0 0 auto;display:flex;align-items:stretch;scroll-snap-align:end;padding-left:8px}
