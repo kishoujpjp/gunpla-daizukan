@@ -4983,7 +4983,7 @@ export default function App() {
 
       <header className="head">
         {(() => {
-          const arc = tab === "zukan" ? (zukanMode === "salon" ? { jp: "繪測档案", en: "SALON" } : { jp: "機体档案", en: "REGISTRY" })
+          const arc = tab === "zukan" ? (zukanMode === "salon" ? { jp: "絵測档案", en: "SALON" } : { jp: "機体档案", en: "REGISTRY" })
             : tab === "collection" ? (collMode === "plan" ? { jp: "発注档案", en: "REQUISITION" } : { jp: "収蔵档案", en: "HOLDINGS" })
             : tab === "analysis" ? (anaMode === "analysis" ? { jp: "観測档案", en: "OBSERVATION" } : { jp: "叙勲档案", en: "DECORATIONS" })
             : { jp: "管理档案", en: "ADMINISTRATION" };
@@ -5052,9 +5052,9 @@ export default function App() {
             <LedgerHead
               key={salonView ? "salon" : "registry"}
               variant={salonView ? "salon" : "registry"}
-              eyebrow={salonView ? "GALLERY · 画廊" : "REGISTRY · 圖鑑"}
+              eyebrow={salonView ? "GALLERY · 画廊" : "REGISTRY · 図鑑"}
               title={salonView
-                ? <>繪<em>測</em>巻</>
+                ? <>絵<em>測</em>巻</>
                 : <><span>博</span><em>物</em><span>誌</span></>}
               active={!!queries.z || advActive}
               countNode={salonView
@@ -5064,7 +5064,7 @@ export default function App() {
               <div className="modal-bg search-modal-bg" onClick={closeSearch}>
                 <div className="modal search-modal" onClick={(e) => e.stopPropagation()}>
                   <div className="sm-head">
-                    <span className="sm-title">{salonView ? <>繪<em>測</em>巻</> : <>博<em>物</em>誌</>} <span className="sm-eyebrow">SEARCH</span></span>
+                    <span className="sm-title">{salonView ? <>絵<em>測</em>巻</> : <>博<em>物</em>誌</>} <span className="sm-eyebrow">SEARCH</span></span>
                     <button className="modal-x static" onClick={closeSearch}>✕</button>
                   </div>
                   <div className="toolbar">
@@ -5079,7 +5079,7 @@ export default function App() {
               <div className="modal-bg search-modal-bg" onClick={closeFilter}>
                 <div className="modal search-modal" onClick={(e) => e.stopPropagation()}>
                   <div className="sm-head">
-                    <span className="sm-title">{salonView ? <>繪<em>測</em>巻</> : <>博<em>物</em>誌</>} <span className="sm-eyebrow">FILTER</span></span>
+                    <span className="sm-title">{salonView ? <>絵<em>測</em>巻</> : <>博<em>物</em>誌</>} <span className="sm-eyebrow">FILTER</span></span>
                     <button className="modal-x static" onClick={closeFilter}>✕</button>
                   </div>
                   <AdvPanel />
@@ -5092,7 +5092,7 @@ export default function App() {
                 </div>
               </div>
             )}
-            <div className="section-note">{sorted.length} 件{advActive && <button className="cond-clear" onClick={() => { haptic(); setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "" }); }}>条件をクリア</button>}</div>
+            {(advActive || query || gf) && <div className="section-note"><button className="cond-clear" onClick={() => { haptic(); setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "" }); setQueries((s) => ({ ...s, z: "" })); setSettings((s) => ({ ...s, gfZukan: "" })); }}>条件をクリア</button></div>}
             {grouped
               ? grouped.map(([year, kits]) => (
                   <section key={year} className="year-sec">
@@ -5167,7 +5167,7 @@ export default function App() {
                   </div>
                 </div>
               )}
-              <div className="section-note">{isPlan ? "予定" : "収蔵"} {listKits.length} 体{advActive && <button className="cond-clear" onClick={() => { haptic(); setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "" }); }}>条件をクリア</button>}</div>
+              {(advActive || query || gf) && <div className="section-note"><button className="cond-clear" onClick={() => { haptic(); setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "" }); setQueries((s) => ({ ...s, c: "" })); setSettings((s) => ({ ...s, gfShuzo: "" })); }}>条件をクリア</button></div>}
               {listKits.length === 0
                 ? <p className="ana-note">検索条件に一致する{isPlan ? "予定" : "収蔵"}がありません。</p>
                 : <Grid kits={listVisible} />}
@@ -5316,7 +5316,7 @@ export default function App() {
               <div className="sb-band">
                 <div className="sb-head" style={{ cursor: "default" }}>
                   <span className="sb-head-l">
-                    <span className="sb-eyebrow">RECORDS · 紀錄</span>
+                    <span className="sb-eyebrow">RECORDS · 紀録</span>
                     <span className="sb-title">解<em>体</em>書</span>
                   </span>
                 </div>
@@ -5984,11 +5984,11 @@ export default function App() {
       {/* ── 底部分頁 ── */}
       <nav className="tabbar pad-min" style={{ paddingBottom: "4px" }}>
         {[
-          ["zukan", zukanMode === "salon" ? "畫廊" : "図鑑", zukanMode === "salon"
+          ["zukan", zukanMode === "salon" ? "画廊" : "図鑑", zukanMode === "salon"
             ? (<svg className="tab-line-ico salon-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path className="pal-body" d="M12 4.6C16.8 4.6 20.4 7.5 20.4 11.3C20.4 13.7 18.7 14.5 17.3 14.5C16.4 14.5 15.6 14.3 15.6 13.5C15.6 12.8 16 12.5 16 11.9C16 11.2 15.4 10.7 14.5 10.7C12.9 10.7 12 12.4 12 14.1C12 16 12.9 17.2 12.2 18.1C11.8 18.5 11.3 18.7 10.7 18.7C6.7 18.7 4 15.1 4 11.3C4 7.5 7.4 4.6 12 4.6Z" strokeWidth="1.6" strokeLinejoin="round" /><circle className="pd1" cx="7.1" cy="10.4" r="1.25" /><circle className="pd2" cx="8.7" cy="7.6" r="1.25" /><circle className="pd3" cx="11.8" cy="6.7" r="1.25" /><circle className="pd4" cx="15" cy="7.6" r="1.25" /></svg>)
             : "▦"],
           ["collection", collMode === "plan" ? "予定" : "所持", collMode === "plan" ? "◆" : "✦"],
-          ["analysis", anaMode === "analysis" ? "紀錄" : "稱號", anaMode === "analysis"
+          ["analysis", anaMode === "analysis" ? "紀録" : "称号", anaMode === "analysis"
             ? (<svg className="tab-line-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 4 V19 H20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><polyline points="6.5 14.5 10.5 10.5 13.5 12.5 18.5 6.5" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>)
             : (<svg className="tab-line-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 4h10v7a5 5 0 0 1-10 0V4z" /><path d="M7 6H4v2a3 3 0 0 0 3 3" /><path d="M17 6h3v2a3 3 0 0 1-3 3" /><path d="M12 16v3" /><path d="M8.5 21h7l-1-2h-5z" /></svg>)],
           ["settings", "設定", "⚙"],
@@ -6096,7 +6096,7 @@ input,textarea{font-family:var(--sans)}
 
 .body{padding:8px 14px 16px;max-width:920px;margin:0 auto}
 .section-note{font-size:11px;color:var(--ink-mid);letter-spacing:.1em;padding:6px 4px 10px}
-.cond-clear{margin-left:12px;font-size:11.5px;color:var(--shu);border-bottom:1px dashed var(--shu);padding-bottom:1px}
+.cond-clear{margin-left:0;font-size:11.5px;color:var(--shu);border-bottom:1px dashed var(--shu);padding-bottom:1px}
 .footnote{font-size:10.5px;color:var(--ink-dim);line-height:1.7;padding:18px 4px 6px}
 
 .toolbar{display:flex;gap:8px;padding:4px 0 6px}
@@ -7340,14 +7340,12 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 @keyframes sbTitleIn{from{opacity:0;letter-spacing:.30em}to{opacity:1;letter-spacing:.05em}}
 @keyframes sbCountIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 @keyframes sbFindIn{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:none}}
-/* 共通土台(全頁 発注簿版に統一・やや速め) */
+/* 共通土台:罫線・eyebrow は据え置き。標題と計数は列表(tab-page)と同期=pageIn */
 .sb-rule,.av-rule{transform-origin:left center;animation:sbRuleIn .50s cubic-bezier(.4,0,.2,1) .03s both}
 .sb-eyebrow,.av-eyebrow{animation:sbEyebrowIn .36s ease-out .10s both}
-.sb-title,.av-title{animation:sbTitleIn .44s cubic-bezier(.2,.7,.2,1) .18s both}
+.sb-title,.av-title{animation:pageIn .22s ease-out both}
 .sb-find{animation:sbFindIn .36s cubic-bezier(.2,.8,.3,1.2) .30s both}
-/* 発注簿の見せ場を全頁へ:計数が右からスライド(回彈なし) */
-@keyframes sbSlip{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
-.sb-count,.av-count{animation:sbSlip .42s cubic-bezier(.2,.7,.2,1) .26s both}
+.sb-count,.av-count{animation:pageIn .22s ease-out both}
 /* ── 検索浮動窓 ── */
 .search-modal{padding:18px 16px 22px}
 .search-modal-bg{z-index:60}
