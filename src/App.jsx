@@ -3342,6 +3342,22 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
       </div>
       )}
 
+      <div className="f-sec">記録<span>RECORD</span></div>
+      <div className="form-dates">
+        <label className="fld"><span>購入日</span>
+          <span className="date-wrap">
+            <input type="date" value={dates.purchaseDate} onChange={(e) => setDates((d) => ({ ...d, purchaseDate: e.target.value }))} />
+            {dates.purchaseDate && <button type="button" className="date-clear" onClick={() => setDates((d) => ({ ...d, purchaseDate: "" }))}>✕</button>}
+          </span>
+        </label>
+        <label className="fld"><span>制作完了日</span>
+          <span className="date-wrap">
+            <input type="date" value={dates.buildDate} onChange={(e) => setDates((d) => ({ ...d, buildDate: e.target.value }))} />
+            {dates.buildDate && <button type="button" className="date-clear" onClick={() => setDates((d) => ({ ...d, buildDate: "" }))}>✕</button>}
+          </span>
+        </label>
+      </div>
+
       <div className="f-sec">基本情報<span>BASIC</span></div>
       <div className="fld-row name-row">
         <label className="fld grow2"><span>機体名 *</span><input value={f.name} onChange={set("name")} placeholder="例: νガンダム Ver.Ka" /></label>
@@ -3373,25 +3389,6 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
         </div>
       </div>
       <label className="fld"><span>メモ</span><textarea rows={2} value={f.note} onChange={set("note")} placeholder="改修予定、塗装レシピ、保管場所など" /></label>
-
-      {(<>
-        <div className="f-sec">記録<span>RECORD</span></div>
-        <div className="form-dates">
-          <label className="fld"><span>購入日</span>
-            <span className="date-wrap">
-              <input type="date" value={dates.purchaseDate} onChange={(e) => setDates((d) => ({ ...d, purchaseDate: e.target.value }))} />
-              {dates.purchaseDate && <button type="button" className="date-clear" onClick={() => setDates((d) => ({ ...d, purchaseDate: "" }))}>✕</button>}
-            </span>
-          </label>
-          <label className="fld"><span>制作完了日</span>
-            <span className="date-wrap">
-              <input type="date" value={dates.buildDate} onChange={(e) => setDates((d) => ({ ...d, buildDate: e.target.value }))} />
-              {dates.buildDate && <button type="button" className="date-clear" onClick={() => setDates((d) => ({ ...d, buildDate: "" }))}>✕</button>}
-            </span>
-          </label>
-        </div>
-        <div className="rec-hint">購入日を入力すると自動で「入手済み」になり収蔵へ。完成日の入力で「完成」になります。</div>
-      </>)}
 
       <div className="form-actions">
         <button className="btn primary" disabled={!f.name.trim()}
@@ -3539,6 +3536,7 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [toastOut, setToastOut] = useState(false);
   const [titleDetail, setTitleDetail] = useState(null);
+  const [titleReturn, setTitleReturn] = useState(null);
   const [syncMsg, setSyncMsg] = useState("");
   const [storageErr, setStorageErr] = useState(""); // 端末保存失敗(容量不足等)の可視化
   const [setupOpen, setSetupOpen] = useState(false);
@@ -4779,7 +4777,13 @@ export default function App() {
     setCustomKits((cs) => cs.map((c) => (c.id === id ? { ...c, deleted: true, t: now } : c)));
     setRecords((r) => ({ ...r, [id]: stampRecAll({ owned: false, plan: false, purchaseDate: "", buildDate: "", deleted: true }, now) }));
     setImage(id, null);
-    setDetail(null); setEditing(false);
+    setDetail(null); setEditing(false); setTitleReturn(null);
+  };
+
+  /* 入手視窗を閉じる。称号条件頁から来た場合は条件頁へ戻す(称号一覧ではなく) */
+  const closeDetail = () => {
+    setDetail(null); setEditing(false); setTagInput("");
+    if (titleReturn) { setTitleDetail(titleReturn); setTitleReturn(null); }
   };
 
   /* ── 卡片 ── */
@@ -5028,7 +5032,7 @@ export default function App() {
             <LedgerHead
               key={salonView ? "salon" : "registry"}
               variant={salonView ? "salon" : "registry"}
-              eyebrow={salonView ? "SALON · 繪測巻" : "REGISTRY · 博物誌"}
+              eyebrow={salonView ? "GALLERY · 画廊" : "REGISTRY · 圖鑑"}
               title={salonView
                 ? <>繪<em>測</em>巻</>
                 : <><span>博</span><em>物</em><span>誌</span></>}
@@ -5095,7 +5099,7 @@ export default function App() {
               <LedgerHead
                 key={isPlan ? "requisition" : "holdings"}
                 variant={isPlan ? "requisition" : "holdings"}
-                eyebrow={isPlan ? "REQUISITION · 発注簿" : "HOLDINGS · 蔵品帳"}
+                eyebrow={isPlan ? "REQUISITION · 予定" : "HOLDINGS · 所持"}
                 title={isPlan ? <>発<em>注</em>簿</> : <>蔵<em>品</em>帳</>}
                 active={!!queries.c || advActive}
                 countNode={isPlan
@@ -5138,15 +5142,8 @@ export default function App() {
 
         {tab === "analysis" && (() => {
           const owned = allKits.filter((k) => getRec(k.id).owned);
-          const builderRow = anaMode === "analysis" ? (
-            <div className="builder-line">
-              <span>BUILDER<b>{settings.builderName || "—"}</b></span>
-              <span>ガンプラ歴<b>{careerStr(settings.builderSince)}</b></span>
-            </div>
-          ) : null;
           if (owned.length === 0) return (
             <>
-              {builderRow}
               <div className="empty">
                 <MechSketch seedKey="ana" owned={false} built={false} size={70} />
                 <p>分析できる収蔵がまだありません。</p>
@@ -5195,7 +5192,6 @@ export default function App() {
 
           return (
             <>
-              {builderRow}
               {anaMode === "record" ? (
               <>
               {(() => {
@@ -5205,6 +5201,8 @@ export default function App() {
                 const rank = (t) => (t.tier === 1 ? 0 : (t.tier === 0 ? (t.cur > 0 ? 1 : 2) : 3));
                 const pool = titles.filter(inUni);
                 const list = pool.slice().sort((a, b) => {
+                  const na = titleIsNew(a) ? 0 : 1, nb = titleIsNew(b) ? 0 : 1;
+                  if (na !== nb) return na - nb;
                   const r = rank(a) - rank(b);
                   if (r !== 0) return r;
                   if (rank(a) === 1) return (b.cur / b.need) - (a.cur / a.need);
@@ -5221,7 +5219,7 @@ export default function App() {
                     </defs></svg>
                     <button className="av-head" onClick={() => { haptic(); setSegOpen((o) => !o); }}>
                       <span className="av-head-l">
-                        <span className="av-eyebrow">{(curUni && curUni[0] !== "all" ? (UNI_PREFIX[curUni[0]] || curUni[1]) + " " : "") + "DECORATIONS · 称号録"}</span>
+                        <span className="av-eyebrow">{(curUni && curUni[0] !== "all" ? (UNI_PREFIX[curUni[0]] || curUni[1]) + " " : "") + "DECORATIONS · 称号"}</span>
                         <span className="av-title">叙<em>勲</em>録</span>
                       </span>
                       <span className="av-head-r">
@@ -5275,6 +5273,15 @@ export default function App() {
               </>
               ) : (
               <>
+              <div className="sb-band">
+                <div className="sb-head" style={{ cursor: "default" }}>
+                  <span className="sb-head-l">
+                    <span className="sb-eyebrow">RECORDS · 紀錄</span>
+                    <span className="sb-title">武<em>勇</em>傳</span>
+                  </span>
+                </div>
+                <div className="sb-rule" />
+              </div>
               <section className="ana-sec">
                 <div className="year-head"><span className="year-num">記録</span><span className="year-rule" /><span className="year-count">RECORDS</span></div>
                 <div className="achv-grid">
@@ -5644,7 +5651,7 @@ export default function App() {
         onClose={() => setSeriesPickerOpen(false)} />
 
       {detailKit && (
-        <div className="modal-bg" onClick={() => { setDetail(null); setEditing(false); setTagInput(""); }}>
+        <div className="modal-bg" onClick={closeDetail}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             {!editing ? (
               <>
@@ -5679,7 +5686,7 @@ export default function App() {
                     }}>⛶ 構図</button>
                   )}
                 </div>
-                <div className="dc-spec" onClick={() => { setDetail(null); setEditing(false); setTagInput(""); }}>
+                <div className="dc-spec" onClick={closeDetail}>
                   <div className="dc-srow"><span className="dc-k">原作</span><span className="dc-v">{detailKit.series || "—"}</span></div>
                   <div className="dc-srow"><span className="dc-k">分類</span><span className="dc-v dc-tags">
                     <GradeChip grade={detailKit.grade} />
@@ -5833,7 +5840,7 @@ export default function App() {
         const t = titleDetail;
         const ach = ACHIEVEMENTS.find((a) => a.id === t.id);
         const ex = ach ? explainAchievement(ach, allKits, getRec) : null;
-        const jump = (id) => { setTitleDetail(null); setEditing(false); setDetail(id); };
+        const jump = (id) => { setTitleReturn(t); setTitleDetail(null); setEditing(false); setDetail(id); };
         return (
           <div className="modal-bg" onClick={() => setTitleDetail(null)}>
             <div className="modal title-modal" onClick={(e) => e.stopPropagation()}>
@@ -7293,32 +7300,14 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 @keyframes sbTitleIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
 @keyframes sbCountIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 @keyframes sbFindIn{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:none}}
-/* 共通土台:罫線→eyebrow→標題→計数→検索鈕(やや緩やかに) */
-.sb-rule,.av-rule{transform-origin:left center;animation:sbRuleIn .58s cubic-bezier(.4,0,.2,1) .04s both}
-.sb-eyebrow,.av-eyebrow{animation:sbEyebrowIn .42s ease-out .12s both}
-.sb-title,.av-title{animation:sbTitleIn .52s cubic-bezier(.2,.7,.2,1) .22s both}
-.sb-count,.av-count{animation:sbCountIn .44s ease-out .32s both}
-.sb-find{animation:sbFindIn .42s cubic-bezier(.2,.8,.3,1.2) .38s both}
-/* ── 各頁の見せ場(招牌):金箔閃光なし。一つの記憶点のみ ── */
-/* 博物誌:逐字植字(活字を一文字ずつ据える) */
-@keyframes sbCharIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-.sb-v-registry .sb-title{animation:none}
-.sb-v-registry .sb-title>*{display:inline-block;animation:sbCharIn .50s cubic-bezier(.2,.7,.2,1) both}
-.sb-v-registry .sb-title>*:nth-child(1){animation-delay:.20s}
-.sb-v-registry .sb-title>*:nth-child(2){animation-delay:.30s}
-.sb-v-registry .sb-title>*:nth-child(3){animation-delay:.40s}
-/* 繪測巻:左→右に展巻(巻物を開く) */
-@keyframes sbClipIn{from{opacity:0;clip-path:inset(0 100% 0 0)}to{opacity:1;clip-path:inset(0 0 0 0)}}
-.sb-v-salon .sb-title{animation:sbClipIn .62s cubic-bezier(.3,.7,.2,1) .20s both}
-/* 蔵品帳:計数に押印(光なし。押し込み→僅かに反発→定着) */
-@keyframes sbPress{0%{opacity:0;transform:scale(1.16) translateY(-2px)}45%{opacity:1}68%{transform:scale(.95) translateY(1px)}100%{opacity:1;transform:none}}
-.sb-v-holdings .sb-count{animation:sbPress .50s cubic-bezier(.3,.6,.3,1) .34s both}
-/* 発注簿:伝票が右からスライド+わずかにオーバーシュート */
-@keyframes sbSlip{from{opacity:0;transform:translateX(15px)}60%{opacity:1}to{opacity:1;transform:none}}
-.sb-v-requisition .sb-count{animation:sbSlip .54s cubic-bezier(.25,.8,.3,1.28) .30s both}
-/* 叙勲録:標題を重く据え置く(微オーバーシュート。金光なし) */
-@keyframes sbSet{0%{opacity:0;transform:translateY(12px)}70%{opacity:1}85%{transform:translateY(-2px)}100%{opacity:1;transform:none}}
-.av-title{animation:sbSet .60s cubic-bezier(.3,.7,.25,1) .20s both}
+/* 共通土台(全頁 発注簿版に統一・やや速め) */
+.sb-rule,.av-rule{transform-origin:left center;animation:sbRuleIn .50s cubic-bezier(.4,0,.2,1) .03s both}
+.sb-eyebrow,.av-eyebrow{animation:sbEyebrowIn .36s ease-out .10s both}
+.sb-title,.av-title{animation:sbTitleIn .44s cubic-bezier(.2,.7,.2,1) .18s both}
+.sb-find{animation:sbFindIn .36s cubic-bezier(.2,.8,.3,1.2) .30s both}
+/* 発注簿の見せ場を全頁へ:計数が右からスライド(回彈なし) */
+@keyframes sbSlip{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+.sb-count,.av-count{animation:sbSlip .42s cubic-bezier(.2,.7,.2,1) .26s both}
 /* ── 検索浮動窓 ── */
 .search-modal{padding:18px 16px 22px}
 .search-modal-bg{z-index:60}
