@@ -3691,6 +3691,8 @@ const IDENT_PROMPT = `あなたはガンダムシリーズのプラモデル(ガ
 {"candidates":[{"code":"型式番号","name":"正式名称(日本語)","series":"作品名","confidence":0,"reason":"読み取った文字 または 外見の根拠"}]}
 特定できない場合は candidates を空配列にする。`;
 function _identStripJson(t) { return t ? String(t).replace(/```json/gi, "").replace(/```/g, "").trim() : ""; }
+const IDF_BIG5 = ["UC", "SEED", "W", "G", "BF"];
+const IDF_UNI_LABEL = { UC: "宇宙世紀(U.C.)", SEED: "コズミック・イラ(SEED系)", W: "アフターコロニー(Wガンダム系)", G: "フューチャーセンチュリー(Gガンダム系)", BF: "ビルドファイターズ系" };
 
 function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) {
   const [phase, setPhase] = useState("pick"); // pick | loading | result | error
@@ -3700,10 +3702,11 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
   const [q, setQ] = useState("");
   const [err, setErr] = useState("");
   const [hq, setHq] = useState(true);
-  const [selSeries, setSelSeries] = useState("");
+  const [selUni, setSelUni] = useState([]);
   const [selGrade, setSelGrade] = useState("");
   const [hint, setHint] = useState("");
   const fileRef = useRef(null);
+  const manualRef = useRef(null);
   const hasKey = !!(geminiKey || openaiKey);
 
   const callAI = async (b64, mime, dataUrl, prompt) => {
@@ -3749,7 +3752,9 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
     }
     const cSer = normJa(cand.series || ""), kSer = normJa(k.series || "");
     if (cSer && kSer && (kSer.includes(cSer) || cSer.includes(kSer))) sc += 15;
-    if (selSeries && normJa(k.series || "") === normJa(selSeries)) sc += 40;
+    const u = universeOfKit(k);
+    if (selUni.length) { if (selUni.includes(u)) sc += 30; else sc -= 40; }
+    else if (IDF_BIG5.includes(u)) sc -= 40;
     return sc;
   };
 
@@ -3763,7 +3768,8 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
       const mime = m ? m[1] : "image/jpeg";
       const b64 = m ? m[2] : (aiData.split(",")[1] || "");
       let prompt = IDENT_PROMPT;
-      if (selSeries) prompt += "\nユーザー情報: この機体は作品『" + selSeries + "』に登場する可能性が高い。この作品の機体を優先的に検討すること。";
+      if (selUni.length) prompt += "\nユーザー情報: この機体は次の世界観/作品系のいずれか: " + selUni.map((u) => IDF_UNI_LABEL[u] || u).join("、") + "。これらの作品系の機体を優先的に検討すること。";
+      else prompt += "\nユーザー情報: この機体は U.C.(宇宙世紀)・SEED・Wガンダム・Gガンダム・ビルド系 のいずれにも属さない作品の機体である可能性が高い。";
       if (hint.trim()) prompt += "\nユーザーからのヒント: " + hint.trim();
       const raw = await callAI(b64, mime, aiData, prompt);
       let parsed = null;
@@ -3792,10 +3798,10 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
     if (!s) return [];
     return allKits.filter((k) => normJa([k.name, k.code, k.series].filter(Boolean).join(" ")).includes(s)).slice(0, 20);
   }, [q, allKits]);
-  const seriesOpts = useMemo(() => [...new Set((allKits || []).map((k) => k.series).filter(Boolean))].sort(), [allKits]);
   const gradeOpts = useMemo(() => [...new Set((allKits || []).map((k) => k.grade).filter(Boolean))], [allKits]);
-  const shownMatches = (selGrade ? matches.filter((mm) => mm.kit.grade === selGrade) : matches).slice(0, 12);
-  const shownSearch = selGrade ? searchResults.filter((k) => k.grade === selGrade) : searchResults;
+  const uniOk = (k) => (selUni.length ? selUni.includes(universeOfKit(k)) : !IDF_BIG5.includes(universeOfKit(k)));
+  const shownMatches = matches.filter((mm) => (!selGrade || mm.kit.grade === selGrade) && uniOk(mm.kit)).slice(0, 12);
+  const shownSearch = searchResults.filter((k) => (!selGrade || k.grade === selGrade) && uniOk(k));
 
   const attach = (kit) => {
     onAttach(kit.id, storeImg);
@@ -3821,13 +3827,15 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
               <button className={"idf-hqbtn" + (hq ? " on" : "")} onClick={() => setHq(true)}>高精度(推奨)</button>
             </div>
             <div className="idf-hints">
-              <label className="idf-field">
-                <span>作品で絞る(任意・精度向上)</span>
-                <select value={selSeries} onChange={(e) => setSelSeries(e.target.value)}>
-                  <option value="">指定なし</option>
-                  {seriesOpts.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </label>
+              <div className="idf-field">
+                <span>世界観で絞る（任意・複数可。未選択＝上記以外の世界として絞り込み）</span>
+                <div className="idf-unis">
+                  {[["UC", "UC"], ["SEED", "SEED"], ["W", "W"], ["G", "G"], ["BF", "BF"]].map(([v, l]) => (
+                    <button key={v} type="button" className={"idf-ubtn" + (selUni.includes(v) ? " on" : "")}
+                      onClick={() => setSelUni(selUni.includes(v) ? selUni.filter((x) => x !== v) : [...selUni, v])}>{l}</button>
+                  ))}
+                </div>
+              </div>
               <label className="idf-field">
                 <span>ヒント(任意・AIへ送信)</span>
                 <input value={hint} onChange={(e) => setHint(e.target.value)} placeholder="例: ○○の主役機 / 特徴的な配色" />
@@ -3854,7 +3862,7 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
                 <div className="idf-chips">
                   {cands.slice(0, 5).map((cd, i) => {
                     const lab = (cd.name || cd.code || "?") + (cd.code && cd.name ? " " + cd.code : "");
-                    return <button key={i} className="idf-chip" onClick={() => setQ(cd.name || cd.code || "")}>{lab}{cd.confidence ? " (" + cd.confidence + "%)" : ""}</button>;
+                    return <button key={i} className="idf-chip" onClick={() => { setQ(cd.name || cd.code || ""); setTimeout(() => { if (manualRef.current) manualRef.current.scrollIntoView({ behavior: "smooth", block: "start" }); }, 60); }}>{lab}{cd.confidence ? " (" + cd.confidence + "%)" : ""}</button>;
                   })}
                 </div>
               </div>
@@ -3880,7 +3888,7 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
             ) : (matches.length > 0 && selGrade
               ? <p className="idf-note">選択したグレード({selGrade})の候補が見つかりません。グレード選択を解除するか、下で検索してください。</p>
               : null)}
-            <div className="idf-manual">
+            <div className="idf-manual" ref={manualRef}>
               <div className="idf-sub">手動で検索</div>
               <div className="toolbar">
                 <input className="search" placeholder="名称・型式・原作で検索" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -8371,6 +8379,10 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .idf-field{display:flex;flex-direction:column;gap:5px}
 .idf-field>span{font-size:11.5px;color:var(--ink-mid);letter-spacing:.02em}
 .idf-field select,.idf-field input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink-strong);font-size:14px}
+.idf-unis{display:flex;flex-wrap:wrap;gap:8px}
+.idf-ubtn{flex:1 1 0;min-width:52px;padding:11px 0;border:1px solid var(--line);border-radius:8px;background:var(--panel);
+  color:var(--ink-mid);font-size:14px;font-family:var(--serif);cursor:pointer;transition:all .15s}
+.idf-ubtn.on{border-color:var(--gold);color:var(--gold);background:rgba(217,179,106,.12)}
 .idf-gfilter{display:flex;align-items:center;gap:10px;margin:2px 2px 12px;flex-wrap:wrap}
 .idf-gfilter>span{font-size:11.5px;color:var(--ink-mid)}
 .idf-grades{display:flex;flex-wrap:wrap;gap:6px}
