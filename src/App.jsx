@@ -3699,15 +3699,18 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
   const [q, setQ] = useState("");
   const [err, setErr] = useState("");
   const [hq, setHq] = useState(true);
+  const [selSeries, setSelSeries] = useState("");
+  const [selGrade, setSelGrade] = useState("");
+  const [hint, setHint] = useState("");
   const fileRef = useRef(null);
   const hasKey = !!(geminiKey || openaiKey);
 
-  const callAI = async (b64, mime, dataUrl) => {
+  const callAI = async (b64, mime, dataUrl, prompt) => {
     if (geminiKey) {
       const model = hq ? "gemini-2.5-pro" : "gemini-2.5-flash";
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(geminiKey)}`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: [{ parts: [{ inline_data: { mime_type: mime, data: b64 } }, { text: IDENT_PROMPT }] }], generationConfig: { responseMimeType: "application/json", temperature: 0.2 } }),
+        body: JSON.stringify({ contents: [{ parts: [{ inline_data: { mime_type: mime, data: b64 } }, { text: prompt }] }], generationConfig: { responseMimeType: "application/json", temperature: 0.2 } }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error.message || "Gemini error");
@@ -3717,7 +3720,7 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + openaiKey },
       body: JSON.stringify({ model: hq ? "gpt-4o" : "gpt-4o-mini", temperature: 0.2, response_format: { type: "json_object" },
-        messages: [{ role: "user", content: [{ type: "text", text: IDENT_PROMPT }, { type: "image_url", image_url: { url: dataUrl } }] }] }),
+        messages: [{ role: "user", content: [{ type: "text", text: prompt }, { type: "image_url", image_url: { url: dataUrl } }] }] }),
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error.message || "OpenAI error");
@@ -3745,6 +3748,7 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
     }
     const cSer = normJa(cand.series || ""), kSer = normJa(k.series || "");
     if (cSer && kSer && (kSer.includes(cSer) || cSer.includes(kSer))) sc += 15;
+    if (selSeries && normJa(k.series || "") === normJa(selSeries)) sc += 40;
     return sc;
   };
 
@@ -3757,7 +3761,10 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
       const m = /^data:([^;]+);base64,(.*)$/.exec(aiData);
       const mime = m ? m[1] : "image/jpeg";
       const b64 = m ? m[2] : (aiData.split(",")[1] || "");
-      const raw = await callAI(b64, mime, aiData);
+      let prompt = IDENT_PROMPT;
+      if (selSeries) prompt += "\nユーザー情報: この機体は作品『" + selSeries + "』に登場する可能性が高い。この作品の機体を優先的に検討すること。";
+      if (hint.trim()) prompt += "\nユーザーからのヒント: " + hint.trim();
+      const raw = await callAI(b64, mime, aiData, prompt);
       let parsed = null;
       try { parsed = JSON.parse(_identStripJson(raw)); } catch (e) { parsed = null; }
       const list = (parsed && Array.isArray(parsed.candidates)) ? parsed.candidates : [];
@@ -3773,7 +3780,7 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
           if (!prev || total > prev.total) best.set(k.id, { kit: k, conf, reason: cd.reason || "", total });
         }
       }
-      const out = [...best.values()].sort((a, b) => b.total - a.total).slice(0, 15);
+      const out = [...best.values()].sort((a, b) => b.total - a.total).slice(0, 24);
       setMatches(out);
       setPhase("result");
     } catch (e) { setErr((e && e.message) || String(e)); setPhase("error"); }
@@ -3784,6 +3791,10 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
     if (!s) return [];
     return allKits.filter((k) => normJa([k.name, k.code, k.series].filter(Boolean).join(" ")).includes(s)).slice(0, 20);
   }, [q, allKits]);
+  const seriesOpts = useMemo(() => [...new Set((allKits || []).map((k) => k.series).filter(Boolean))].sort(), [allKits]);
+  const gradeOpts = useMemo(() => [...new Set((allKits || []).map((k) => k.grade).filter(Boolean))], [allKits]);
+  const shownMatches = (selGrade ? matches.filter((mm) => mm.kit.grade === selGrade) : matches).slice(0, 12);
+  const shownSearch = selGrade ? searchResults.filter((k) => k.grade === selGrade) : searchResults;
 
   const attach = (kit) => {
     onAttach(kit.id, storeImg);
@@ -3808,6 +3819,19 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
               <button className={"idf-hqbtn" + (!hq ? " on" : "")} onClick={() => setHq(false)}>標準・速い</button>
               <button className={"idf-hqbtn" + (hq ? " on" : "")} onClick={() => setHq(true)}>高精度(推奨)</button>
             </div>
+            <div className="idf-hints">
+              <label className="idf-field">
+                <span>作品で絞る(任意・精度向上)</span>
+                <select value={selSeries} onChange={(e) => setSelSeries(e.target.value)}>
+                  <option value="">指定なし</option>
+                  {seriesOpts.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </label>
+              <label className="idf-field">
+                <span>ヒント(任意・AIへ送信)</span>
+                <input value={hint} onChange={(e) => setHint(e.target.value)} placeholder="例: ○○の主役機 / 特徴的な配色" />
+              </label>
+            </div>
             <button className="btn primary idf-choose" onClick={() => fileRef.current && fileRef.current.click()}>画像を選ぶ / 撮影</button>
             <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }}
               onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) runIdentify(f); }} />
@@ -3826,17 +3850,27 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
             {cands.length > 0
               ? <p className="idf-ailine">AI推定: {cands.slice(0, 3).map((cd) => cd.name + (cd.confidence ? "（" + cd.confidence + "%）" : "")).join(" / ")}</p>
               : <p className="idf-note">AIは機体を特定できませんでした。下で検索して選んでください。</p>}
-            {matches.length > 0 && (
+            {gradeOpts.length > 0 && (
+              <div className="idf-gfilter">
+                <span>グレードで絞る</span>
+                <div className="idf-grades">
+                  {gradeOpts.map((g) => <button key={g} type="button" className={"idf-gbtn" + (selGrade === g ? " on" : "")} onClick={() => setSelGrade(selGrade === g ? "" : g)}>{g}</button>)}
+                </div>
+              </div>
+            )}
+            {shownMatches.length > 0 ? (
               <div className="idf-cands">
                 <div className="idf-sub">候補（グレードを含め選択）</div>
-                {matches.map(({ kit, conf, reason }) => (
+                {shownMatches.map(({ kit, conf, reason }) => (
                   <button key={kit.id} className="fix-row" onClick={() => attach(kit)}>
                     <span className="fix-row-name">{kit.name}{conf ? <em className="idf-conf"> {conf}%</em> : null}</span>
                     <span className="fix-row-sub">{[kit.grade, kit.code, kit.series].filter(Boolean).join(" · ")}{reason ? " ／ " + reason : ""}</span>
                   </button>
                 ))}
               </div>
-            )}
+            ) : (matches.length > 0 && selGrade
+              ? <p className="idf-note">選択したグレード({selGrade})の候補が見つかりません。グレード選択を解除するか、下で検索してください。</p>
+              : null)}
             <div className="idf-manual">
               <div className="idf-sub">手動で検索</div>
               <div className="toolbar">
@@ -3844,7 +3878,7 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
                 {q && <button className="search-x" onClick={() => setQ("")}>✕</button>}
               </div>
               <div className="fix-results">
-                {searchResults.map((k) => (
+                {shownSearch.map((k) => (
                   <button key={k.id} className="fix-row" onClick={() => attach(k)}>
                     <span className="fix-row-name">{k.name}</span>
                     <span className="fix-row-sub">{[k.grade, k.code, k.series].filter(Boolean).join(" · ")}</span>
@@ -8318,6 +8352,15 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .idf-hq>span{font-size:12px;color:var(--ink-mid);margin-right:2px}
 .idf-hqbtn{flex:1;padding:10px 0;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink-mid);font-size:13px;cursor:pointer;transition:all .15s}
 .idf-hqbtn.on{border-color:var(--gold);color:var(--gold);background:rgba(217,179,106,.1)}
+.idf-hints{margin-bottom:18px;display:flex;flex-direction:column;gap:12px}
+.idf-field{display:flex;flex-direction:column;gap:5px}
+.idf-field>span{font-size:11.5px;color:var(--ink-mid);letter-spacing:.02em}
+.idf-field select,.idf-field input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink-strong);font-size:14px}
+.idf-gfilter{display:flex;align-items:center;gap:10px;margin:2px 2px 12px;flex-wrap:wrap}
+.idf-gfilter>span{font-size:11.5px;color:var(--ink-mid)}
+.idf-grades{display:flex;flex-wrap:wrap;gap:6px}
+.idf-gbtn{padding:6px 12px;border:1px solid var(--line);border-radius:7px;background:var(--panel);color:var(--ink-mid);font-size:12.5px;cursor:pointer;transition:all .15s}
+.idf-gbtn.on{border-color:var(--gold);color:var(--gold);background:rgba(217,179,106,.1)}
 
 /* ── クイズ ── */
 .quiz-bg{position:fixed;inset:0;z-index:120;background:var(--bg2);display:flex;flex-direction:column;
