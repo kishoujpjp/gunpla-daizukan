@@ -3143,6 +3143,226 @@ function KitFixModal({ allKits, onClose }) {
   );
 }
 
+/* ───────────────── クイズ(Phase 1:機体事実類) ───────────────── */
+function _qShuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+function _qPickDistinct(pool, exclude, n) {
+  const out = [];
+  for (const v of _qShuffle(pool)) {
+    if (out.length >= n) break;
+    if (v == null || v === "" || v === exclude || out.includes(v)) continue;
+    out.push(v);
+  }
+  return out;
+}
+/* allKits から単一正解・3択の問題を count 問生成 */
+function buildKitFactQuiz(allKits, count) {
+  const kits = (allKits || []).filter((k) => k && k.name);
+  const allGrades = [...new Set(kits.map((k) => k.grade).filter(Boolean))];
+  const allSeries = [...new Set(kits.map((k) => k.series).filter(Boolean))];
+  const allYears = [...new Set(kits.map((k) => (k.ym || "").slice(0, 4)).filter((y) => y.length === 4))];
+
+  const makeGrade = (k) => {
+    if (!k.grade) return null;
+    const d = _qPickDistinct(allGrades, k.grade, 2);
+    if (d.length < 2) return null;
+    const opts = _qShuffle([k.grade, ...d]);
+    return { sub: "grade", kitId: k.id, options: opts, answer: opts.indexOf(k.grade),
+      prompt: "「" + k.name + "」（" + (k.code || "?") + " ／ " + (((k.ym || "").replace("-", ".")) || "—") + "）のグレードは?",
+      explain: k.name + " は " + k.grade + "。" };
+  };
+  const makeYear = (k) => {
+    const y = (k.ym || "").slice(0, 4);
+    if (y.length !== 4) return null;
+    const near = allYears.filter((yy) => yy !== y && Math.abs(+yy - +y) <= 6);
+    const d = _qPickDistinct(near.length >= 2 ? near : allYears, y, 2);
+    if (d.length < 2) return null;
+    const opts = _qShuffle([y, ...d]);
+    return { sub: "year", kitId: k.id, options: opts.map((o) => o + "年"), answer: opts.indexOf(y),
+      prompt: "「" + k.name + "」（" + (k.grade || "") + " " + (k.code || "") + "）の発売年は?",
+      explain: k.name + " の発売は " + ((k.ym || "").replace("-", ".")) + "。" };
+  };
+  const makeSeries = (k) => {
+    if (!k.series) return null;
+    const d = _qPickDistinct(allSeries, k.series, 2);
+    if (d.length < 2) return null;
+    const opts = _qShuffle([k.series, ...d]);
+    return { sub: "series", kitId: k.id, options: opts, answer: opts.indexOf(k.series),
+      prompt: "「" + k.name + "」（" + (k.grade || "") + " " + (k.code || "") + "）が登場する作品は?",
+      explain: k.name + " は『" + k.series + "』。" };
+  };
+  const makers = [makeGrade, makeYear, makeSeries];
+  const pool = _qShuffle(kits);
+  const out = [];
+  const used = new Set();
+  const tryFill = (allowSameKit) => {
+    for (const k of pool) {
+      if (out.length >= count) break;
+      if (!allowSameKit && out.some((q) => q.kitId === k.id)) continue;
+      for (const mk of _qShuffle(makers)) {
+        const q = mk(k);
+        if (!q) continue;
+        const key = q.kitId + ":" + q.sub;
+        if (used.has(key)) continue;
+        used.add(key); out.push(q); break;
+      }
+    }
+  };
+  tryFill(false);
+  if (out.length < count) tryFill(true);
+  return out.slice(0, count);
+}
+
+const QUIZ_LIMIT = 15000; // 1問の制限時間(ms)
+function QuizModal({ allKits, onClose }) {
+  const [phase, setPhase] = useState("config"); // config | playing | result
+  const [questions, setQuestions] = useState([]);
+  const [qi, setQi] = useState(0);
+  const [answered, setAnswered] = useState(null); // null | { picked, correct }
+  const [score, setScore] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [maxStreak, setMaxStreak] = useState(0);
+  const [remain, setRemain] = useState(QUIZ_LIMIT);
+  const [best, setBest] = useState(null);
+
+  const deadlineRef = useRef(0);
+  const timerRef = useRef(null);
+  const stopTimer = () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } };
+
+  // ベスト読込
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      try { const r = await window.storage.get("mg_quiz_best"); if (live && r && r.value) setBest(JSON.parse(r.value)); }
+      catch (e) {}
+    })();
+    return () => { live = false; };
+  }, []);
+
+  // タイマー(Date.now差分でiOS背景でも壊れない)
+  useEffect(() => {
+    if (phase !== "playing" || answered !== null) { stopTimer(); return; }
+    deadlineRef.current = Date.now() + QUIZ_LIMIT;
+    setRemain(QUIZ_LIMIT);
+    stopTimer();
+    timerRef.current = setInterval(() => {
+      const r = deadlineRef.current - Date.now();
+      if (r <= 0) { stopTimer(); setRemain(0); setAnswered({ picked: -1, correct: false }); setStreak(0); }
+      else setRemain(r);
+    }, 100);
+    return stopTimer;
+  }, [phase, qi, answered]);
+
+  // 結果保存
+  useEffect(() => {
+    if (phase !== "result") return;
+    const total = questions.length || 1;
+    const rate = Math.round((score / total) * 100);
+    const nb = { rate: Math.max(rate, (best && best.rate) || 0), streak: Math.max(maxStreak, (best && best.streak) || 0) };
+    setBest(nb);
+    try { window.storage.set("mg_quiz_best", JSON.stringify(nb)); } catch (e) {}
+  }, [phase]);
+
+  const start = (n) => {
+    const qs = buildKitFactQuiz(allKits, n);
+    if (qs.length === 0) { alert("出題できる機体データがありません。"); return; }
+    setQuestions(qs); setQi(0); setAnswered(null);
+    setScore(0); setStreak(0); setMaxStreak(0); setPhase("playing");
+  };
+  const choose = (idx) => {
+    if (answered !== null) return;
+    stopTimer();
+    const correct = idx === questions[qi].answer;
+    setAnswered({ picked: idx, correct });
+    if (correct) {
+      setScore((s) => s + 1);
+      setStreak((st) => { const ns = st + 1; setMaxStreak((m) => Math.max(m, ns)); return ns; });
+    } else setStreak(0);
+  };
+  const next = () => {
+    if (qi + 1 >= questions.length) { setPhase("result"); }
+    else { setQi((i) => i + 1); setAnswered(null); }
+  };
+  const abort = () => {
+    if (window.confirm("クイズを中断しますか?(進行中の結果は記録されません)")) { stopTimer(); onClose(); }
+  };
+
+  const q = questions[qi];
+  const ratio = Math.max(0, Math.min(1, remain / QUIZ_LIMIT));
+  const low = ratio <= 0.25;
+
+  return (
+    <div className="quiz-bg">
+      <div className="quiz-wrap">
+        {phase === "config" && (
+          <div className="quiz-config">
+            <div className="quiz-eyebrow">QUIZ · 知識試験</div>
+            <h2 className="quiz-h">機体知識<em>試験</em></h2>
+            <p className="quiz-lead">図鑑データから出題。グレード・発売年・原作を当てよう。各問{QUIZ_LIMIT / 1000}秒。</p>
+            <div className="quiz-count">出題数を選ぶ</div>
+            <div className="quiz-count-row">
+              {[5, 10, 15].map((n) => (
+                <button key={n} className="quiz-cbtn" onClick={() => start(n)}>{n}問</button>
+              ))}
+            </div>
+            {best && <div className="quiz-best">自己ベスト　正答率 {best.rate}%　／　最大連続 {best.streak}</div>}
+            <button className="quiz-close" onClick={onClose}>閉じる</button>
+          </div>
+        )}
+
+        {phase === "playing" && q && (
+          <div className="quiz-play">
+            <div className="quiz-top">
+              <span className="quiz-prog">{qi + 1} / {questions.length}</span>
+              <span className="quiz-sc">正解 {score}　連続 {streak}</span>
+              <button className="quiz-abort" onClick={abort}>中断</button>
+            </div>
+            <div className="quiz-timer"><span className={"quiz-timer-fill" + (low ? " low" : "")} style={{ width: (ratio * 100) + "%" }} /></div>
+            <div className="quiz-q">{q.prompt}</div>
+            <div className="quiz-opts">
+              {q.options.map((o, i) => {
+                let cls = "quiz-opt";
+                if (answered) {
+                  if (i === q.answer) cls += " correct";
+                  else if (i === answered.picked) cls += " wrong";
+                  else cls += " dim";
+                }
+                return <button key={i} className={cls} disabled={!!answered} onClick={() => choose(i)}>{o}</button>;
+              })}
+            </div>
+            {answered && (
+              <div className={"quiz-fb " + (answered.correct ? "ok" : "ng")}>
+                <div className="quiz-fb-mark">{answered.correct ? "◎ 正解" : (answered.picked === -1 ? "✕ 時間切れ" : "✕ 不正解")}</div>
+                <div className="quiz-fb-ex">{q.explain}</div>
+                <button className="quiz-next" onClick={next}>{qi + 1 >= questions.length ? "結果を見る" : "次の問題へ"}</button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {phase === "result" && (
+          <div className="quiz-result">
+            <div className="quiz-eyebrow">RESULT · 結果</div>
+            <div className="quiz-score">{score}<span> / {questions.length}</span></div>
+            <div className="quiz-rate">正答率 {Math.round((score / (questions.length || 1)) * 100)}%　最大連続 {maxStreak}</div>
+            {best && <div className="quiz-best">自己ベスト　正答率 {best.rate}%　／　最大連続 {best.streak}</div>}
+            <div className="quiz-res-btns">
+              <button className="quiz-cbtn" onClick={() => setPhase("config")}>もう一度</button>
+              <button className="quiz-close" onClick={onClose}>閉じる</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const AI_MODELS = [
   { group: "Google · Gemini(Nano Banana)", items: [
     { id: "gemini-3-pro-image", label: "Nano Banana Pro(最高品質)" },
@@ -3719,6 +3939,7 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [fixOpen, setFixOpen] = useState(false);
+  const [quizOpen, setQuizOpen] = useState(false);
   const [achvSeen, setAchvSeen] = useState(null);
   const [achvPop, setAchvPop] = useState(null);
   const [titleUniverse, setTitleUniverse] = useState("all");
@@ -5123,7 +5344,7 @@ export default function App() {
   );
 
   return (
-    <div className={"app " + (settings.theme === "light" ? "light" : "") + (detailKit || adding || promptEdit || profileOpen || setupOpen || titleDetail || searchOpen || filterOpen || fixOpen ? " lock" : "")}>
+    <div className={"app " + (settings.theme === "light" ? "light" : "") + (detailKit || adding || promptEdit || profileOpen || setupOpen || titleDetail || searchOpen || filterOpen || fixOpen || quizOpen ? " lock" : "")}>
       <style>{CSS}</style>
 
       {storageErr && (
@@ -5493,6 +5714,7 @@ export default function App() {
                     <span className="sb-eyebrow">RECORDS · 紀録</span>
                     <span className="sb-title">解<em>題</em>書</span>
                   </span>
+                  <button className="quiz-entry" onClick={() => setQuizOpen(true)}>知識試験<i>◇</i></button>
                 </div>
                 <div className="sb-rule" />
               </div>
@@ -5782,6 +6004,7 @@ export default function App() {
       </main>
 
       {fixOpen && <KitFixModal allKits={allKits} onClose={() => setFixOpen(false)} />}
+      {quizOpen && <QuizModal allKits={allKits} onClose={() => setQuizOpen(false)} />}
 
       {/* ── 詳細 / 編輯彈窗 ── */}
       {planConfirm && (
@@ -7553,6 +7776,67 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
   color:var(--ink-mid);font-size:13px;cursor:pointer;transition:all .15s}
 .fix-toggle.on{border-color:var(--gold);color:var(--gold);background:rgba(217,179,106,.1)}
 .fix-send{width:100%;margin-top:14px}
+
+/* ── クイズ ── */
+.quiz-bg{position:fixed;inset:0;z-index:120;background:var(--bg2);display:flex;flex-direction:column;
+  padding:calc(env(safe-area-inset-top) + 20px) 16px calc(env(safe-area-inset-bottom) + 20px);
+  animation:quizIn .2s ease-out both}
+@keyframes quizIn{from{opacity:0}to{opacity:1}}
+.quiz-wrap{width:100%;max-width:520px;margin:0 auto;flex:1;display:flex;flex-direction:column;min-height:0}
+.quiz-eyebrow{font-size:11px;letter-spacing:.18em;color:var(--ink-mid)}
+.quiz-config,.quiz-result{margin:auto 0}
+.quiz-h{font-family:var(--serif);font-size:30px;color:var(--ink-strong);margin:6px 0 10px;font-weight:600}
+.quiz-h em{font-style:normal;color:var(--gold)}
+.quiz-lead{font-size:13px;color:var(--ink-mid);line-height:1.7;margin-bottom:26px}
+.quiz-count{font-size:12px;color:var(--ink-mid);letter-spacing:.1em;margin-bottom:10px}
+.quiz-count-row{display:flex;gap:10px}
+.quiz-cbtn{flex:1;padding:16px 0;border:1px solid var(--line);border-radius:11px;background:var(--panel);
+  color:var(--ink-strong);font-family:var(--serif);font-size:17px;cursor:pointer;transition:all .15s}
+.quiz-cbtn:active{transform:scale(.98)}
+.quiz-cbtn:hover{border-color:var(--gold);color:var(--gold)}
+.quiz-best{margin-top:22px;font-size:12px;color:var(--ink-mid);letter-spacing:.04em}
+.quiz-close{margin-top:26px;align-self:flex-start;font-size:13px;color:var(--ink-mid);
+  border-bottom:1px dashed var(--line);padding-bottom:1px;cursor:pointer}
+.quiz-play{flex:1;display:flex;flex-direction:column;min-height:0}
+.quiz-top{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.quiz-prog{font-family:var(--serif);font-size:15px;color:var(--ink-strong)}
+.quiz-sc{font-size:11.5px;color:var(--ink-mid);letter-spacing:.04em}
+.quiz-abort{margin-left:auto;font-size:12px;color:var(--ink-mid);border:1px solid var(--line);
+  border-radius:7px;padding:6px 12px;cursor:pointer}
+.quiz-abort:active{transform:scale(.97)}
+.quiz-timer{height:5px;border-radius:3px;background:var(--line);overflow:hidden;margin-bottom:26px}
+.quiz-timer-fill{display:block;height:100%;background:var(--gold);transition:width .12s linear}
+.quiz-timer-fill.low{background:#d96b5e}
+.quiz-q{font-family:var(--serif);font-size:19px;line-height:1.6;color:var(--ink-strong);margin-bottom:22px}
+.quiz-opts{display:flex;flex-direction:column;gap:11px}
+.quiz-opt{width:100%;text-align:left;padding:16px 18px;border:1px solid var(--line);border-radius:11px;
+  background:var(--panel);color:var(--ink-strong);font-size:15.5px;cursor:pointer;transition:all .15s}
+.quiz-opt:not(:disabled):active{transform:scale(.99)}
+.quiz-opt:not(:disabled):hover{border-color:var(--gold)}
+.quiz-opt.correct{border-color:#6fb98f;background:rgba(111,185,143,.16)}
+.quiz-opt.wrong{border-color:#d96b5e;background:rgba(217,107,94,.13)}
+.quiz-opt.dim{opacity:.42}
+.quiz-fb{margin-top:auto;padding-top:18px}
+.quiz-fb-mark{font-family:var(--serif);font-size:18px;margin-bottom:6px}
+.quiz-fb.ok .quiz-fb-mark{color:#6fb98f}
+.quiz-fb.ng .quiz-fb-mark{color:#d96b5e}
+.quiz-fb-ex{font-size:12.5px;color:var(--ink-mid);line-height:1.6;margin-bottom:14px}
+.quiz-next{width:100%;padding:15px 0;border-radius:11px;border:none;background:var(--gold);
+  color:#1b1b1b;font-family:var(--serif);font-size:16px;cursor:pointer}
+.quiz-next:active{transform:scale(.99)}
+.quiz-result{text-align:center}
+.quiz-score{font-family:var(--serif);font-size:64px;color:var(--gold);line-height:1}
+.quiz-score span{font-size:26px;color:var(--ink-mid)}
+.quiz-rate{margin-top:12px;font-size:14px;color:var(--ink-strong)}
+.quiz-res-btns{display:flex;gap:10px;margin-top:30px;justify-content:center;align-items:center}
+.quiz-res-btns .quiz-cbtn{flex:0 1 160px}
+.quiz-res-btns .quiz-close{margin-top:0;align-self:center}
+.quiz-entry{margin-left:auto;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);
+  border-radius:8px;padding:7px 13px;background:var(--panel);color:var(--gold);font-family:var(--serif);
+  font-size:13px;cursor:pointer;transition:all .15s}
+.quiz-entry:active{transform:scale(.97)}
+.quiz-entry:hover{border-color:var(--gold)}
+.quiz-entry i{font-style:normal;font-size:11px;opacity:.85}
 .search-modal-bg{z-index:60}
 .sm-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px}
 .sm-title{font-family:var(--serif);font-weight:800;font-size:19px;color:var(--ink-strong);letter-spacing:.04em}
