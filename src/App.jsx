@@ -3392,10 +3392,16 @@ function buildQuiz(allKits, recs, count, category, achQuiz, photoKits) {
   return out;
 }
 
-const QUIZ_LIMIT = 15000; // 1問の制限時間(ms)
+const QUIZ_LIMIT = 16000; // 1問の制限時間(ms)
 const QUIZ_RECMIN = 4;
-function QuizModal({ allKits, getRec, images, extras, albumMeta, onClose }) {
+const QUIZ_INF_BATCH = 30;
+function evalRank(rate) {
+  return rate >= 100 ? { t: "皆伝", c: "gold" } : rate >= 80 ? { t: "師範", c: "gold" }
+    : rate >= 60 ? { t: "目録", c: "silver" } : rate >= 40 ? { t: "切紙", c: "bronze" } : { t: "見習", c: "" };
+}
+function QuizModal({ allKits, getRec, images, extras, albumMeta, builderName, onClose }) {
   const [phase, setPhase] = useState("config");
+  const [mode, setMode] = useState("normal");
   const [cat, setCat] = useState("mix");
   const [questions, setQuestions] = useState([]);
   const [qi, setQi] = useState(0);
@@ -3406,12 +3412,22 @@ function QuizModal({ allKits, getRec, images, extras, albumMeta, onClose }) {
   const [maxStreak, setMaxStreak] = useState(0);
   const [remain, setRemain] = useState(QUIZ_LIMIT);
   const [best, setBest] = useState(null);
+  const [board, setBoard] = useState([]);
+  const [runCount, setRunCount] = useState(0);
+  const [runRank, setRunRank] = useState(0);
+  const [runNew, setRunNew] = useState(false);
 
   const deadlineRef = useRef(0);
   const timerRef = useRef(null);
+  const advRef = useRef(null);
   const selRef = useRef([]);
+  const scoreRef = useRef(0);
+  const boardRef = useRef([]);
   useEffect(() => { selRef.current = sel; }, [sel]);
+  useEffect(() => { scoreRef.current = score; }, [score]);
+  useEffect(() => { boardRef.current = board; }, [board]);
   const stopTimer = () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } };
+  useEffect(() => () => { stopTimer(); if (advRef.current) clearTimeout(advRef.current); }, []);
 
   const recs = useMemo(() => {
     try {
@@ -3421,7 +3437,6 @@ function QuizModal({ allKits, getRec, images, extras, albumMeta, onClose }) {
   }, [allKits]);
   const recCount = recs.length;
 
-  // 画像プール
   const photoKits = useMemo(() => {
     try {
       return (allKits || []).filter((k) => hasAnyImage(k.id, images, extras)).map((k) => {
@@ -3433,11 +3448,9 @@ function QuizModal({ allKits, getRec, images, extras, albumMeta, onClose }) {
   }, [allKits, images, extras, albumMeta]);
   const photoCount = photoKits.length;
 
-  // 称号インデックス(候補機体)
   const achQuiz = useMemo(() => {
     try {
-      const perAch = [];
-      const kitToAch = new Map();
+      const perAch = []; const kitToAch = new Map();
       for (const ach of ACHIEVEMENTS) {
         let ex;
         try { ex = explainAchievement(ach, allKits, getRec); } catch (e) { continue; }
@@ -3459,13 +3472,49 @@ function QuizModal({ allKits, getRec, images, extras, albumMeta, onClose }) {
 
   useEffect(() => {
     let live = true;
-    (async () => { try { const r = await window.storage.get("mg_quiz_best"); if (live && r && r.value) setBest(JSON.parse(r.value)); } catch (e) {} })();
+    (async () => {
+      try { const r = await window.storage.get("mg_quiz_best"); if (live && r && r.value) setBest(JSON.parse(r.value)); } catch (e) {}
+      try { const r2 = await window.storage.get("mg_quiz_infinite"); if (live && r2 && r2.value) { const b = JSON.parse(r2.value); setBoard(b); boardRef.current = b; } } catch (e) {}
+    })();
     return () => { live = false; };
   }, []);
 
+  const genBatch = (n) => buildQuiz(allKits, recs, n, "mix", achQuiz, photoKits);
   const grade = (correct) => {
     if (correct) { setScore((s) => s + 1); setStreak((st) => { const ns = st + 1; setMaxStreak((m) => Math.max(m, ns)); return ns; }); }
     else setStreak(0);
+  };
+  const advance = () => {
+    setQuestions((qs) => (qi + 1 >= qs.length ? [...qs, ...genBatch(QUIZ_INF_BATCH)] : qs));
+    setQi((i) => i + 1); setAnswered(null); setSel([]);
+  };
+  const endInfinite = (count) => {
+    const name = (builderName && builderName.trim()) || "NO NAME";
+    const prevMax = (boardRef.current || []).reduce((m, e) => Math.max(m, e.count), 0);
+    const entry = { name, count, date: new Date().toISOString().slice(0, 10) };
+    const arr = [...(boardRef.current || []), entry].sort((a, b) => (b.count - a.count) || (a.date < b.date ? -1 : 1)).slice(0, 10);
+    boardRef.current = arr; setBoard(arr);
+    try { window.storage.set("mg_quiz_infinite", JSON.stringify(arr)); } catch (e) {}
+    setRunCount(count); setRunRank(arr.indexOf(entry) + 1); setRunNew(count > prevMax && count > 0);
+  };
+  const finalize = (correct, picked, timeout) => {
+    stopTimer();
+    setAnswered({ picked, correct, timeout: !!timeout });
+    grade(correct);
+    if (correct) {
+      haptic();
+      if (mode === "infinite") { if (advRef.current) clearTimeout(advRef.current); advRef.current = setTimeout(advance, 650); }
+    } else {
+      hapticStrong();
+      if (mode === "infinite") endInfinite(scoreRef.current);
+    }
+  };
+  const onTimeout = () => {
+    const cur = questions[qi];
+    let correct = false;
+    if (cur && Array.isArray(cur.answer)) { const ans = cur.answer, s = selRef.current; correct = s.length === ans.length && s.every((x) => ans.includes(x)); }
+    if (mode === "infinite") correct = false;
+    finalize(correct, cur && Array.isArray(cur.answer) ? selRef.current.slice() : -1, true);
   };
 
   useEffect(() => {
@@ -3475,21 +3524,14 @@ function QuizModal({ allKits, getRec, images, extras, albumMeta, onClose }) {
     stopTimer();
     timerRef.current = setInterval(() => {
       const r = deadlineRef.current - Date.now();
-      if (r <= 0) {
-        stopTimer(); setRemain(0);
-        const cur = questions[qi];
-        if (cur && Array.isArray(cur.answer)) {
-          const ans = cur.answer; const s = selRef.current;
-          const ok = s.length === ans.length && s.every((x) => ans.includes(x));
-          setAnswered({ picked: s.slice(), correct: ok }); grade(ok);
-        } else { setAnswered({ picked: -1, correct: false }); grade(false); }
-      } else setRemain(r);
+      if (r <= 0) { stopTimer(); setRemain(0); onTimeout(); }
+      else setRemain(r);
     }, 100);
     return stopTimer;
   }, [phase, qi, answered]);
 
   useEffect(() => {
-    if (phase !== "result") return;
+    if (phase !== "result" || mode === "infinite") return;
     const total = questions.length || 1;
     const rate = Math.round((score / total) * 100);
     const nb = { rate: Math.max(rate, (best && best.rate) || 0), streak: Math.max(maxStreak, (best && best.streak) || 0) };
@@ -3498,31 +3540,35 @@ function QuizModal({ allKits, getRec, images, extras, albumMeta, onClose }) {
   }, [phase]);
 
   const start = (n) => {
+    setMode("normal");
     const qs = buildQuiz(allKits, recs, n, cat, achQuiz, photoKits);
     if (qs.length === 0) { alert("出題できるデータが足りません。"); return; }
     setQuestions(qs); setQi(0); setAnswered(null); setSel([]);
     setScore(0); setStreak(0); setMaxStreak(0); setPhase("playing");
   };
+  const startInfinite = () => {
+    setMode("infinite");
+    const qs = genBatch(QUIZ_INF_BATCH);
+    if (qs.length === 0) { alert("出題できるデータが足りません。"); return; }
+    setQuestions(qs); setQi(0); setAnswered(null); setSel([]);
+    setScore(0); setStreak(0); setMaxStreak(0); setRunCount(0); setRunRank(0); setRunNew(false); setPhase("playing");
+  };
   const choose = (i) => {
     if (answered !== null) return;
     const cur = questions[qi];
     if (Array.isArray(cur.answer)) { setSel((s) => (s.includes(i) ? s.filter((x) => x !== i) : [...s, i])); return; }
-    stopTimer();
-    const correct = i === cur.answer;
-    setAnswered({ picked: i, correct }); grade(correct);
+    finalize(i === cur.answer, i, false);
   };
   const submitMulti = () => {
     if (answered !== null) return;
-    stopTimer();
     const ans = questions[qi].answer;
-    const correct = sel.length === ans.length && sel.every((x) => ans.includes(x));
-    setAnswered({ picked: sel.slice(), correct }); grade(correct);
+    finalize(sel.length === ans.length && sel.every((x) => ans.includes(x)), sel.slice(), false);
   };
   const next = () => {
     if (qi + 1 >= questions.length) setPhase("result");
     else { setQi((i) => i + 1); setAnswered(null); setSel([]); }
   };
-  const abort = () => { if (window.confirm("クイズを中断しますか?(進行中の結果は記録されません)")) { stopTimer(); onClose(); } };
+  const abort = () => { if (window.confirm("クイズを中断しますか?(進行中の結果は記録されません)")) { stopTimer(); if (advRef.current) clearTimeout(advRef.current); onClose(); } };
 
   const q = questions[qi];
   const isMulti = q && Array.isArray(q.answer);
@@ -3530,6 +3576,8 @@ function QuizModal({ allKits, getRec, images, extras, albumMeta, onClose }) {
   const low = ratio <= 0.25;
   const cats = [["mix", "ミックス"], ["fig", "図鑑"], ["rec", "記録"], ["ach", "称号"], ["img", "画像"]];
   const catOff = (v) => (v === "rec" && recCount < QUIZ_RECMIN) || (v === "img" && photoCount < QUIZ_RECMIN) || (v === "ach" && achCount < 3);
+  const rate = Math.round((score / (questions.length || 1)) * 100);
+  const er = evalRank(rate);
 
   return (
     <div className="quiz-bg">
@@ -3539,7 +3587,8 @@ function QuizModal({ allKits, getRec, images, extras, albumMeta, onClose }) {
             <div className="quiz-eyebrow">QUIZ · 知識試験</div>
             <h2 className="quiz-h">機体知識<em>試験</em></h2>
             <p className="quiz-lead">図鑑・記録・称号・画像から出題。各問{QUIZ_LIMIT / 1000}秒。</p>
-            <div className="quiz-count">出題ジャンル</div>
+            <button className="quiz-inf" onClick={startInfinite}>無限モード<span>全領域・無制限・一問でも誤れば終了</span></button>
+            <div className="quiz-count">通常モード — 出題ジャンル</div>
             <div className="quiz-cats">
               {cats.map(([v, l]) => {
                 const off = catOff(v);
@@ -3551,7 +3600,19 @@ function QuizModal({ allKits, getRec, images, extras, albumMeta, onClose }) {
             <div className="quiz-count-row">
               {[5, 10, 15].map((n) => <button key={n} className="quiz-cbtn" onClick={() => start(n)}>{n}問</button>)}
             </div>
-            {best && <div className="quiz-best">自己ベスト　正答率 {best.rate}%　／　最大連続 {best.streak}</div>}
+            {best && <div className="quiz-best">通常モード自己ベスト　正答率 {best.rate}%　／　最大連続 {best.streak}</div>}
+            {board && board.length > 0 && (
+              <div className="quiz-board">
+                <div className="quiz-board-h">無限モード番付<span>INFINITE RANKING</span></div>
+                {board.slice(0, 8).map((e, i) => (
+                  <div key={i} className={"qb-row" + (i < 3 ? " top top" + (i + 1) : "")}>
+                    <span className="qb-rank">{i < 3 ? ["①", "②", "③"][i] : i + 1}</span>
+                    <span className="qb-name">{e.name}</span>
+                    <span className="qb-count">{e.count}<i>問</i></span>
+                  </div>
+                ))}
+              </div>
+            )}
             <button className="quiz-close" onClick={onClose}>閉じる</button>
           </div>
         )}
@@ -3559,7 +3620,7 @@ function QuizModal({ allKits, getRec, images, extras, albumMeta, onClose }) {
         {phase === "playing" && q && (
           <div className="quiz-play">
             <div className="quiz-top">
-              <span className="quiz-prog">{qi + 1} / {questions.length}</span>
+              <span className="quiz-prog">{mode === "infinite" ? "∞ " + (qi + 1) + "問目" : (qi + 1) + " / " + questions.length}</span>
               <span className="quiz-sc">正解 {score}　連続 {streak}</span>
               <button className="quiz-abort" onClick={abort}>中断</button>
             </div>
@@ -3580,9 +3641,11 @@ function QuizModal({ allKits, getRec, images, extras, albumMeta, onClose }) {
             {isMulti && !answered && <button className="quiz-decide" onClick={submitMulti}>決定する（{sel.length}件選択）</button>}
             {answered && (
               <div className={"quiz-fb " + (answered.correct ? "ok" : "ng")}>
-                <div className="quiz-fb-mark">{answered.correct ? "◎ 正解" : (!isMulti && answered.picked === -1 ? "✕ 時間切れ" : "✕ 不正解")}</div>
-                <div className="quiz-fb-ex">{q.explain}</div>
-                <button className="quiz-next" onClick={next}>{qi + 1 >= questions.length ? "結果を見る" : "次の問題へ"}</button>
+                <div className="quiz-fb-mark">{answered.correct ? (mode === "infinite" ? "◎ 正解 ・ " + (qi + 1) + "問突破" : "◎ 正解") : (answered.timeout ? "✕ 時間切れ" : "✕ 不正解")}</div>
+                {(mode === "normal" || !answered.correct) && <div className="quiz-fb-ex">{q.explain}</div>}
+                {mode === "normal"
+                  ? <button className="quiz-next" onClick={next}>{qi + 1 >= questions.length ? "結果を見る" : "次の問題へ"}</button>
+                  : (!answered.correct && <button className="quiz-next" onClick={() => setPhase("result")}>結果へ</button>)}
               </div>
             )}
           </div>
@@ -3590,10 +3653,23 @@ function QuizModal({ allKits, getRec, images, extras, albumMeta, onClose }) {
 
         {phase === "result" && (
           <div className="quiz-result">
-            <div className="quiz-eyebrow">RESULT · 結果</div>
-            <div className="quiz-score">{score}<span> / {questions.length}</span></div>
-            <div className="quiz-rate">正答率 {Math.round((score / (questions.length || 1)) * 100)}%　最大連続 {maxStreak}</div>
-            {best && <div className="quiz-best">自己ベスト　正答率 {best.rate}%　／　最大連続 {best.streak}</div>}
+            {mode === "infinite" ? (
+              <>
+                <div className="quiz-eyebrow">INFINITE · 無限モード</div>
+                {runNew && <div className="qr-new">★ 自己新記録 ★</div>}
+                <div className="qr-ring"><div className="qr-big">{runCount}</div><div className="qr-unit">問突破</div></div>
+                {runRank > 0 && <div className={"qr-rank" + (runRank <= 3 ? " top" : "")}>番付 第 {runRank} 位</div>}
+                <div className="quiz-rate">挑戦者　{(builderName && builderName.trim()) || "NO NAME"}</div>
+              </>
+            ) : (
+              <>
+                <div className="quiz-eyebrow">RESULT · 結果</div>
+                <div className={"qr-badge " + er.c}>{er.t}</div>
+                <div className="qr-ring"><div className="qr-big">{score}</div><div className="qr-unit">/ {questions.length}</div></div>
+                <div className="quiz-rate">正答率 {rate}%　最大連続 {maxStreak}</div>
+                {best && <div className="quiz-best">自己ベスト　正答率 {best.rate}%　／　最大連続 {best.streak}</div>}
+              </>
+            )}
             <div className="quiz-res-btns">
               <button className="quiz-cbtn" onClick={() => setPhase("config")}>もう一度</button>
               <button className="quiz-close" onClick={onClose}>閉じる</button>
@@ -6246,7 +6322,7 @@ export default function App() {
       </main>
 
       {fixOpen && <KitFixModal allKits={allKits} onClose={() => setFixOpen(false)} />}
-      {quizOpen && <QuizModal allKits={allKits} getRec={getRec} images={images} extras={extras} albumMeta={albumMeta} onClose={() => setQuizOpen(false)} />}
+      {quizOpen && <QuizModal allKits={allKits} getRec={getRec} images={images} extras={extras} albumMeta={albumMeta} builderName={settings.builderName} onClose={() => setQuizOpen(false)} />}
 
       {/* ── 詳細 / 編輯彈窗 ── */}
       {planConfirm && (
@@ -8049,10 +8125,10 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .quiz-timer{height:5px;border-radius:3px;background:var(--line);overflow:hidden;margin-bottom:26px}
 .quiz-timer-fill{display:block;height:100%;background:var(--gold);transition:width .12s linear}
 .quiz-timer-fill.low{background:#d96b5e}
-.quiz-q{font-family:var(--serif);font-size:19px;line-height:1.6;color:var(--ink-strong);margin-bottom:22px}
+.quiz-q{font-family:var(--serif);font-size:21px;line-height:1.6;color:var(--ink-strong);margin-bottom:22px}
 .quiz-opts{display:flex;flex-direction:column;gap:11px}
 .quiz-opt{width:100%;text-align:left;padding:16px 18px;border:1px solid var(--line);border-radius:11px;
-  background:var(--panel);color:var(--ink-strong);font-size:15.5px;cursor:pointer;transition:all .15s}
+  background:var(--panel);color:var(--ink-strong);font-size:17.5px;cursor:pointer;transition:all .15s}
 .quiz-opt:not(:disabled):active{transform:scale(.99)}
 .quiz-opt:not(:disabled):hover{border-color:var(--gold)}
 .quiz-opt.correct{border-color:#6fb98f;background:rgba(111,185,143,.16)}
@@ -8094,6 +8170,45 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .quiz-media{width:100%;max-width:300px;aspect-ratio:1;margin:0 auto 18px;border:1px solid var(--line);
   border-radius:12px;overflow:hidden;background:#0c0c0c}
 .quiz-media img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .3s ease}
+/* 無限モード入口 */
+.quiz-inf{width:100%;margin:4px 0 24px;padding:18px 20px;border-radius:13px;border:1px solid var(--gold);
+  background:linear-gradient(135deg,rgba(217,179,106,.16),rgba(217,179,106,.04));color:var(--gold);
+  font-family:var(--serif);font-size:20px;cursor:pointer;display:flex;flex-direction:column;gap:4px;align-items:flex-start;transition:all .15s}
+.quiz-inf:active{transform:scale(.99)}
+.quiz-inf span{font-size:11.5px;color:var(--ink-mid);letter-spacing:.04em;font-family:inherit}
+/* 番付(排行榜) */
+.quiz-board{margin-top:24px;border-top:1px solid var(--line);padding-top:16px}
+.quiz-board-h{font-family:var(--serif);font-size:15px;color:var(--ink-strong);margin-bottom:12px;display:flex;align-items:baseline;gap:8px}
+.quiz-board-h span{font-size:10px;letter-spacing:.18em;color:var(--ink-mid)}
+.qb-row{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:8px;margin-bottom:5px;background:var(--panel);border:1px solid transparent}
+.qb-rank{font-family:var(--serif);font-size:14px;color:var(--ink-mid);min-width:22px;text-align:center}
+.qb-name{flex:1;font-size:13.5px;color:var(--ink-strong);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qb-count{font-family:var(--serif);font-size:16px;color:var(--ink-strong)}
+.qb-count i{font-style:normal;font-size:11px;color:var(--ink-mid);margin-left:2px}
+.qb-row.top{border-color:var(--line)}
+.qb-row.top1{background:linear-gradient(100deg,rgba(217,179,106,.22),rgba(217,179,106,.05));border-color:var(--gold)}
+.qb-row.top1 .qb-rank,.qb-row.top1 .qb-count{color:var(--gold)}
+.qb-row.top1 .qb-name{color:var(--gold)}
+.qb-row.top2{background:rgba(190,196,204,.12);border-color:rgba(190,196,204,.5)}
+.qb-row.top2 .qb-rank,.qb-row.top2 .qb-count{color:#c2c8d0}
+.qb-row.top3{background:rgba(198,140,92,.12);border-color:rgba(198,140,92,.5)}
+.qb-row.top3 .qb-rank,.qb-row.top3 .qb-count{color:#c88c5c}
+/* 結果リデザイン */
+.quiz-result{text-align:center}
+.qr-badge{display:inline-block;margin:0 auto 18px;padding:6px 22px;border-radius:999px;border:1px solid var(--line);
+  font-family:var(--serif);font-size:18px;color:var(--ink-mid);letter-spacing:.1em}
+.qr-badge.gold{border-color:var(--gold);color:var(--gold);background:rgba(217,179,106,.1)}
+.qr-badge.silver{border-color:rgba(190,196,204,.6);color:#c2c8d0;background:rgba(190,196,204,.08)}
+.qr-badge.bronze{border-color:rgba(198,140,92,.6);color:#c88c5c;background:rgba(198,140,92,.08)}
+.qr-ring{width:188px;height:188px;margin:0 auto 16px;border-radius:50%;border:2px solid var(--gold);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(circle,rgba(217,179,106,.08),transparent 70%);box-shadow:0 0 0 6px rgba(217,179,106,.06)}
+.qr-big{font-family:var(--serif);font-size:74px;line-height:1;color:var(--gold)}
+.qr-unit{font-size:14px;color:var(--ink-mid);margin-top:4px}
+.qr-rank{font-family:var(--serif);font-size:17px;color:var(--ink-strong);margin-bottom:6px}
+.qr-rank.top{color:var(--gold)}
+.qr-new{font-family:var(--serif);font-size:16px;color:var(--gold);letter-spacing:.12em;margin-bottom:10px;animation:qrNew 1.6s ease-in-out infinite}
+@keyframes qrNew{0%,100%{opacity:1}50%{opacity:.45}}
 .search-modal-bg{z-index:60}
 .sm-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px}
 .sm-title{font-family:var(--serif);font-weight:800;font-size:19px;color:var(--ink-strong);letter-spacing:.04em}
