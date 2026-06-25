@@ -5158,13 +5158,14 @@ export default function App() {
       return d && d.slice(0, 4) === ty && Number(k.price) > 0 ? s + Number(k.price) : s;
     }, 0);
     const prem = owned.filter((k) => k.premium).length;
-    const sighted = owned.filter((k) => hasAnyImage(k.id, images, extras)).length;
+    const sighted = allKits.filter((k) => hasAnyImage(k.id, images, extras)).length;
+    const shotOwned = owned.filter((k) => hasAnyImage(k.id, images, extras)).length;
     const pcv = (v) => Math.round((v / owned.length) * 100);
     const list = [];
     list.push({ id: "total", label: "収蔵総数", value: `${owned.length}体`, sub: "" });
     list.push({ id: "prem", label: "プレバン限定", value: `${prem}体`, sub: `収蔵の ${pcv(prem)}%` });
     list.push({ id: "built", label: "完成", value: `${builtL.length}体`, sub: `完成率 ${pcv(builtL.length)}%` });
-    list.push({ id: "sighted", label: "目撃数", value: `${sighted}体`, sub: `撮影率 ${pcv(sighted)}%` });
+    list.push({ id: "sighted", label: "目撃数", value: `${sighted}体`, sub: `撮影率 ${pcv(shotOwned)}%` });
     list.push({ id: "tsumi_n", label: "積み", value: `${tsumiN}体`, sub: `未制作 ${pcv(tsumiN)}%` });
     list.push({ id: "yspend", label: "年間消費", value: fmtYen(ySpend), sub: `${ty}年購入分・定価` });
     list.push({ id: "tprice", label: "定価合計", value: fmtYen(totalPrice), sub: `記録 ${priced.length} 体分` });
