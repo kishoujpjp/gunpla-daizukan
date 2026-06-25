@@ -3683,11 +3683,12 @@ function QuizModal({ allKits, getRec, images, extras, albumMeta, builderName, on
 
 /* ───────── AI機体判別(Phase A):画像→候補→確認して図鑑に追加 ───────── */
 const IDENT_PROMPT = `あなたはガンダムシリーズのプラモデル(ガンプラ)に精通した機体識別の専門家です。
-画像に写るモビルスーツ(機体)を特定してください。箱・パッケージ・説明書が写っている場合は、印刷された商品名・型式番号を読み取って最優先で使うこと。
-各候補について、可能な限り「型式番号(例: RX-78-2, ZGMF-X10A, GN-001)」「正式名称(日本語)」「登場作品」を答えること。型式番号が最重要の手がかりです。
+最優先のルール: まず画像内の印刷文字(箱・パッケージ・説明書の表紙・品番ラベル・型式番号・作品ロゴ)を探し、読み取れた文字をそのまま根拠にすること。文字が読み取れる場合は、外見からの推測よりも読み取った文字を優先する。
+文字が一切読み取れない場合のみ、外見(シルエット・配色・特徴部位)から機体を推定する。
+各候補について可能な限り「型式番号(例: RX-78-2, ZGMF-X10A, GN-001)」「正式名称(日本語)」「登場作品」を答えること。型式番号が最重要の手がかり。
 グレード(HG/MG/RG/PG等)やスケールは画像からは判別できないため答えないこと。
 確信度の高い順に最大5件。出力は次のJSONのみ。前後の文やマークダウンは一切付けないこと:
-{"candidates":[{"code":"型式番号","name":"正式名称(日本語)","series":"作品名","confidence":0,"reason":"配色・特徴部位などの根拠"}]}
+{"candidates":[{"code":"型式番号","name":"正式名称(日本語)","series":"作品名","confidence":0,"reason":"読み取った文字 または 外見の根拠"}]}
 特定できない場合は candidates を空配列にする。`;
 function _identStripJson(t) { return t ? String(t).replace(/```json/gi, "").replace(/```/g, "").trim() : ""; }
 
@@ -3774,7 +3775,7 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
         const conf = Number(cd.confidence) || 0;
         for (const k of allKits) {
           const s = scoreKit(k, cd);
-          if (s < 45) continue;
+          if (s < 38) continue;
           const total = s + conf * 0.3;
           const prev = best.get(k.id);
           if (!prev || total > prev.total) best.set(k.id, { kit: k, conf, reason: cd.reason || "", total });
@@ -3847,9 +3848,17 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
         {phase === "result" && (
           <div className="idf-result">
             {storeImg && <div className="idf-preview"><img src={storeImg} alt="" /></div>}
-            {cands.length > 0
-              ? <p className="idf-ailine">AI推定: {cands.slice(0, 3).map((cd) => cd.name + (cd.confidence ? "（" + cd.confidence + "%）" : "")).join(" / ")}</p>
-              : <p className="idf-note">AIは機体を特定できませんでした。下で検索して選んでください。</p>}
+            {cands.length > 0 ? (
+              <div className="idf-ai">
+                <div className="idf-sub">AIの推定（タップで検索）</div>
+                <div className="idf-chips">
+                  {cands.slice(0, 5).map((cd, i) => {
+                    const lab = (cd.name || cd.code || "?") + (cd.code && cd.name ? " " + cd.code : "");
+                    return <button key={i} className="idf-chip" onClick={() => setQ(cd.name || cd.code || "")}>{lab}{cd.confidence ? " (" + cd.confidence + "%)" : ""}</button>;
+                  })}
+                </div>
+              </div>
+            ) : <p className="idf-note">AIは機体を特定できませんでした。箱・説明書が写るように撮ると精度が大きく上がります。下で検索しても選べます。</p>}
             {gradeOpts.length > 0 && (
               <div className="idf-gfilter">
                 <span>グレードで絞る</span>
@@ -8343,6 +8352,12 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .idf-preview{width:140px;height:140px;margin:6px auto 12px;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:#0c0c0c}
 .idf-preview img{width:100%;height:100%;object-fit:cover;display:block}
 .idf-ailine{font-size:12.5px;color:var(--ink-strong);line-height:1.6;margin:0 2px 12px;text-align:center}
+.idf-ai{margin:2px 2px 14px}
+.idf-chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
+.idf-chip{padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);
+  color:var(--ink-strong);font-size:12.5px;cursor:pointer;transition:all .15s;text-align:left}
+.idf-chip:active{transform:scale(.98)}
+.idf-chip:hover{border-color:var(--gold);color:var(--gold)}
 .idf-sub{font-size:11px;letter-spacing:.1em;color:var(--ink-mid);margin:8px 2px 8px}
 .idf-cands{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
 .idf-conf{font-style:normal;color:var(--gold);font-size:12px;margin-left:4px}
