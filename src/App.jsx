@@ -435,7 +435,7 @@ const MAX_SYNC_BYTES = 4 * 1024 * 1024;
    キーは値を空にするのではなく【削除】する。受信側の applyMeta /
    importData は `{ ...prev, ...incoming.settings }` で合成するため、
    削除しておけば既存の端末ローカルの値が上書きされず温存される。 */
-const SECRET_KEYS = ["geminiKey", "supaKey"];
+const SECRET_KEYS = ["geminiKey", "openaiKey", "supaKey"];
 const stripSecrets = (settings) => {
   const out = { ...(settings || {}) };
   for (const k of SECRET_KEYS) delete out[k];
@@ -3009,6 +3009,24 @@ const AI_STYLES = [
     prompt: "Completely redraw this entire image — BOTH the subject AND the background — as a 1980s Japanese robot/mecha anime cel-animation frame. Fully re-render everything by hand in that era's style: rough, slightly uneven hand-drawn ink outlines, visibly hand-painted limited flat colors with hard two-tone cel shading, and the coarse texture of vintage analog animation cels. Embrace imperfection — the linework should look hand-inked and a little rough, not clean or digital. Add a moderate amount of film grain / analog noise and slight VHS-style softness throughout. Nothing should remain photographic; the whole frame must read as a hand-drawn 80s anime cel. Output only the image." },
 ];
 
+/* AI画像モデル定義(画像生成/編集系)。providerは model 名から判定 */
+const AI_MODELS = [
+  { group: "Google · Gemini(Nano Banana)", items: [
+    { id: "gemini-3-pro-image", label: "Nano Banana Pro(最高品質)" },
+    { id: "gemini-3.1-flash-image", label: "Nano Banana 2(高速)" },
+    { id: "gemini-2.5-flash-image", label: "Nano Banana(従来)" },
+  ] },
+  { group: "OpenAI · GPT Image", items: [
+    { id: "gpt-image-2", label: "GPT Image 2(最新)" },
+    { id: "gpt-image-1.5", label: "GPT Image 1.5" },
+    { id: "gpt-image-1-mini", label: "GPT Image 1 mini(軽量)" },
+  ] },
+];
+const isOpenAImodel = (m) => /^gpt-image/.test(m || "");
+const aiProviderLabel = (m) => (isOpenAImodel(m) ? "OpenAI" : "Google Gemini");
+/* 選択モデルに対応する端末ローカルのAPIキーを返す */
+const aiActiveKey = (ai) => (ai ? (isOpenAImodel(ai.model) ? ai.openaiKey || "" : ai.geminiKey || "") : "");
+
 function AIRestyleModal({ src, apiKey, model, prompts, onAdopt, onClose }) {
   const [style, setStyle] = useState(AI_STYLES[0].id);
   const [busy, setBusy] = useState(false);
@@ -3021,21 +3039,43 @@ function AIRestyleModal({ src, apiKey, model, prompts, onAdopt, onClose }) {
       const b64 = src.split(",")[1];
       const mime = (src.match(/^data:([^;]+);/) || [])[1] || "image/jpeg";
       const prompt = (prompts && prompts[style]) || AI_STYLES.find((s) => s.id === style).prompt;
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
-        {
+      if (isOpenAImodel(model)) {
+        /* OpenAI 画像編集: /v1/images/edits(multipart, b64_json を返す) */
+        const blob = await (await fetch(src)).blob();
+        const ext = ((blob.type.split("/")[1] || "png").replace("jpeg", "jpg"));
+        const form = new FormData();
+        form.append("model", model);
+        form.append("image", blob, `kit.${ext}`);
+        form.append("prompt", prompt);
+        form.append("size", "auto");
+        const res = await fetch("https://api.openai.com/v1/images/edits", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ contents: [{ parts: [{ inline_data: { mime_type: mime, data: b64 } }, { text: prompt }] }] }),
-        }
-      );
-      const data = await res.json();
-      if (!res.ok) throw new Error((data.error && data.error.message) || "HTTP " + res.status);
-      const parts = (((data.candidates || [])[0] || {}).content || {}).parts || [];
-      const imgPart = parts.find((pt) => pt.inline_data || pt.inlineData);
-      if (!imgPart) throw new Error("画像が返されませんでした(セーフティブロックの可能性があります)");
-      const pd = imgPart.inline_data || imgPart.inlineData;
-      setResult(`data:${pd.mime_type || pd.mimeType || "image/png"};base64,${pd.data}`);
+          headers: { Authorization: `Bearer ${apiKey}` },
+          body: form,
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error((data.error && data.error.message) || "HTTP " + res.status);
+        const out = data.data && data.data[0] && data.data[0].b64_json;
+        if (!out) throw new Error("画像が返されませんでした(モデレーションの可能性があります)");
+        setResult(`data:image/png;base64,${out}`);
+      } else {
+        /* Google Gemini: generateContent(inline_data で画像返却) */
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ contents: [{ parts: [{ inline_data: { mime_type: mime, data: b64 } }, { text: prompt }] }] }),
+          }
+        );
+        const data = await res.json();
+        if (!res.ok) throw new Error((data.error && data.error.message) || "HTTP " + res.status);
+        const parts = (((data.candidates || [])[0] || {}).content || {}).parts || [];
+        const imgPart = parts.find((pt) => pt.inline_data || pt.inlineData);
+        if (!imgPart) throw new Error("画像が返されませんでした(セーフティブロックの可能性があります)");
+        const pd = imgPart.inline_data || imgPart.inlineData;
+        setResult(`data:${pd.mime_type || pd.mimeType || "image/png"};base64,${pd.data}`);
+      }
     } catch (e) { setError(String((e && e.message) || e)); }
     setBusy(false);
   };
@@ -3059,7 +3099,7 @@ function AIRestyleModal({ src, apiKey, model, prompts, onAdopt, onClose }) {
   return (
     <div className="crop-bg">
       <div className="crop-panel">
-        <div className="crop-head">AIスタイル変換<span>nano banana</span></div>
+        <div className="crop-head">AIスタイル変換<span>{model}</span></div>
         <div className="ai-styles">
           {AI_STYLES.map((s) => (
             <button key={s.id} className={`opt ${style === s.id ? "on" : ""}`}
@@ -3082,7 +3122,7 @@ function AIRestyleModal({ src, apiKey, model, prompts, onAdopt, onClose }) {
           <button className="btn" disabled={busy} onClick={generate}>{busy ? "生成中…" : result ? "もう一度生成" : "生成する"}</button>
           <button className="btn" disabled={busy} onClick={onClose}>やめる</button>
         </div>
-        <p className="ai-note">画像はお使いの端末からGoogle Gemini APIへ直接送信されます。</p>
+        <p className="ai-note">画像はお使いの端末から{aiProviderLabel(model)} APIへ直接送信されます。</p>
       </div>
     </div>
   );
@@ -3316,7 +3356,7 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
               {onFrame && <button type="button" className="mini-btn" onClick={() => onFrame(sel)}>⛶ 構図を調整</button>}
               {!atCap && <button type="button" className="mini-btn" onClick={() => setCropSrc((album.find((a) => a.ref === sel) || {}).src)}>✂ 切り抜き(新規)</button>}
               {!atCap && <button type="button" className="mini-btn ai" onClick={() => {
-                if (!ai || !ai.key) { alert("設定タブで Gemini APIキーを入力してください"); return; }
+                if (!aiActiveKey(ai)) { alert(aiProviderLabel(ai && ai.model) + " のAPIキーを設定タブで入力してください"); return; }
                 setAiSrc((album.find((a) => a.ref === sel) || {}).src); setAiOpen(true);
               }}>✨ AI変換(新規)</button>}
               <button type="button" className="mini-btn ghost" onClick={() => {
@@ -3349,7 +3389,7 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
           </div>
           <button className="mini-btn ai" onClick={() => {
             if (!previewImg) { alert("先に画像を設定してください"); return; }
-            if (!ai || !ai.key) { alert("設定タブで Gemini APIキーを入力してください"); return; }
+            if (!aiActiveKey(ai)) { alert(aiProviderLabel(ai && ai.model) + " のAPIキーを設定タブで入力してください"); return; }
             setAiOpen(true);
           }}>✨ AIスタイル変換</button>
           {previewImg && <button className="mini-btn" onClick={() => setCropSrc(previewImg)}>✂ 切り抜き</button>}
@@ -3416,7 +3456,7 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
       {cropSrc && <CropModal src={cropSrc} onCancel={() => setCropSrc(null)}
         onDone={(out) => { applyNewImage(out); setCropSrc(null); }} />}
       {aiOpen && (albumMode ? aiSrc : previewImg) && (
-        <AIRestyleModal src={albumMode ? aiSrc : previewImg} apiKey={ai && ai.key} model={(ai && ai.model) || "gemini-2.5-flash-image"}
+        <AIRestyleModal src={albumMode ? aiSrc : previewImg} apiKey={aiActiveKey(ai)} model={(ai && ai.model) || "gemini-2.5-flash-image"}
           prompts={ai && ai.prompts}
           onAdopt={(out) => { applyNewImage(out); setAiOpen(false); }}
           onClose={() => setAiOpen(false)} />
@@ -3518,7 +3558,7 @@ export default function App() {
   const [images, setImages] = useState({});
   const [extras, setExtras] = useState({});       // 追加画像 {xid: src}
   const [albumMeta, setAlbumMeta] = useState({});  // {kitId:{order,thumb,acquire,framing}}
-  const [settings, setSettings] = useState({ view: "list", compact: false, dimUnowned: true, showCode: true, showSeries: false, showPrice: true, showNo: false, showGrade: true, showYm: true, salonCols: 2, salonFit: "cover", listGrade: true, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "min", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", geminiModel: "gemini-2.5-flash-image" });
+  const [settings, setSettings] = useState({ view: "list", compact: false, dimUnowned: true, showCode: true, showSeries: false, showPrice: true, showNo: false, showGrade: true, showYm: true, salonCols: 2, salonFit: "cover", listGrade: true, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "min", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", openaiKey: "", geminiModel: "gemini-2.5-flash-image" });
   const [sortKey, setSortKey] = useState("year");
   const [sortDir, setSortDir] = useState("asc");
   const [queries, setQueries] = useState({ z: "", c: "" });
@@ -5317,7 +5357,7 @@ export default function App() {
                 <div className="sb-head" style={{ cursor: "default" }}>
                   <span className="sb-head-l">
                     <span className="sb-eyebrow">RECORDS · 紀録</span>
-                    <span className="sb-title">解<em>体</em>書</span>
+                    <span className="sb-title">解<em>題</em>書</span>
                   </span>
                 </div>
                 <div className="sb-rule" />
@@ -5485,15 +5525,25 @@ export default function App() {
               </button>
             </div>
 
-            <h2 className="panel-title">AI画像生成<span>NANO BANANA</span></h2>
+            <h2 className="panel-title">AI画像生成<span>IMAGE AI</span></h2>
             <div className="opt-group">
               <label className="fld pad"><span>Gemini APIキー(この端末にのみ保存)</span>
                 <input type="password" value={settings.geminiKey || ""} placeholder="AIza..."
                   onChange={(e) => setSettings((s) => ({ ...s, geminiKey: e.target.value }))} />
               </label>
-              <label className="fld pad"><span>画像生成モデル</span>
-                <input value={settings.geminiModel || ""} placeholder="gemini-2.5-flash-image"
-                  onChange={(e) => setSettings((s) => ({ ...s, geminiModel: e.target.value }))} />
+              <label className="fld pad"><span>OpenAI APIキー(この端末にのみ保存)</span>
+                <input type="password" value={settings.openaiKey || ""} placeholder="sk-..."
+                  onChange={(e) => setSettings((s) => ({ ...s, openaiKey: e.target.value }))} />
+              </label>
+              <label className="fld pad"><span>画像生成モデル(選択した提供元のキーを使用)</span>
+                <select value={settings.geminiModel || "gemini-2.5-flash-image"}
+                  onChange={(e) => setSettings((s) => ({ ...s, geminiModel: e.target.value }))}>
+                  {AI_MODELS.map((g) => (
+                    <optgroup key={g.group} label={g.group}>
+                      {g.items.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+                    </optgroup>
+                  ))}
+                </select>
               </label>
               <div className="fld pad"><span>スタイル別プロンプト(タップで編集・点灯=カスタム済み)</span>
                 <div className="prompt-chips">
@@ -5754,7 +5804,7 @@ export default function App() {
                 </div>
                 <KitForm
                   seriesOptions={seriesOptions}
-                  ai={{ key: settings.geminiKey, model: settings.geminiModel, prompts: settings.aiPrompts }}
+                  ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, model: settings.geminiModel, prompts: settings.aiPrompts }}
                   initial={detailKit}
                   currentImg={images[detailKit.id]}
                   album={kitAlbum(detailKit.id)}
@@ -5790,7 +5840,7 @@ export default function App() {
               <span>機体を追加</span>
               <button className="modal-x static" onClick={() => setAdding(false)}>✕</button>
             </div>
-            <KitForm seriesOptions={seriesOptions} ai={{ key: settings.geminiKey, model: settings.geminiModel, prompts: settings.aiPrompts }} initial={{}} currentImg={null} isCustom={false}
+            <KitForm seriesOptions={seriesOptions} ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, model: settings.geminiModel, prompts: settings.aiPrompts }} initial={{}} currentImg={null} isCustom={false}
               onSave={saveNew} onCancel={() => setAdding(false)} />
           </div>
         </div>
