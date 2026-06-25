@@ -3682,12 +3682,13 @@ function QuizModal({ allKits, getRec, images, extras, albumMeta, builderName, on
 }
 
 /* ───────── AI機体判別(Phase A):画像→候補→確認して図鑑に追加 ───────── */
-const IDENT_PROMPT = `あなたはガンダムのプラモデル(ガンプラ)識別の専門家です。画像の機体がどのモビルスーツ(MS)かを推定してください。
-重要: グレード(HG/MG/RG/PG等)やスケールは画像から判別できないため推定しないこと。機体(型式/名称)のみ推定する。
-最大3件の候補を確信度の高い順に挙げ、各候補に簡潔な根拠(配色・特徴部位)を付ける。
-出力は次のJSONのみ。前後の説明やマークダウンは一切付けないこと:
-{"candidates":[{"name":"日本語の機体名","code":"型式番号があれば","series":"作品名があれば","confidence":0,"reason":"根拠"}]}
-判別できない場合は candidates を空配列にする。`;
+const IDENT_PROMPT = `あなたはガンダムシリーズのプラモデル(ガンプラ)に精通した機体識別の専門家です。
+画像に写るモビルスーツ(機体)を特定してください。箱・パッケージ・説明書が写っている場合は、印刷された商品名・型式番号を読み取って最優先で使うこと。
+各候補について、可能な限り「型式番号(例: RX-78-2, ZGMF-X10A, GN-001)」「正式名称(日本語)」「登場作品」を答えること。型式番号が最重要の手がかりです。
+グレード(HG/MG/RG/PG等)やスケールは画像からは判別できないため答えないこと。
+確信度の高い順に最大5件。出力は次のJSONのみ。前後の文やマークダウンは一切付けないこと:
+{"candidates":[{"code":"型式番号","name":"正式名称(日本語)","series":"作品名","confidence":0,"reason":"配色・特徴部位などの根拠"}]}
+特定できない場合は candidates を空配列にする。`;
 function _identStripJson(t) { return t ? String(t).replace(/```json/gi, "").replace(/```/g, "").trim() : ""; }
 
 function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) {
@@ -3697,12 +3698,13 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
   const [matches, setMatches] = useState([]);
   const [q, setQ] = useState("");
   const [err, setErr] = useState("");
+  const [hq, setHq] = useState(true);
   const fileRef = useRef(null);
   const hasKey = !!(geminiKey || openaiKey);
 
   const callAI = async (b64, mime, dataUrl) => {
     if (geminiKey) {
-      const model = "gemini-2.5-flash";
+      const model = hq ? "gemini-2.5-pro" : "gemini-2.5-flash";
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(geminiKey)}`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ contents: [{ parts: [{ inline_data: { mime_type: mime, data: b64 } }, { text: IDENT_PROMPT }] }], generationConfig: { responseMimeType: "application/json", temperature: 0.2 } }),
@@ -3714,7 +3716,7 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
     }
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + openaiKey },
-      body: JSON.stringify({ model: "gpt-4o-mini", temperature: 0.2, response_format: { type: "json_object" },
+      body: JSON.stringify({ model: hq ? "gpt-4o" : "gpt-4o-mini", temperature: 0.2, response_format: { type: "json_object" },
         messages: [{ role: "user", content: [{ type: "text", text: IDENT_PROMPT }, { type: "image_url", image_url: { url: dataUrl } }] }] }),
     });
     const data = await res.json();
@@ -3722,15 +3724,28 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
     return (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || "";
   };
 
-  const matchKits = (cand) => {
-    const nName = normJa(cand.name || "");
-    const nCode = normJa(cand.code || "");
-    if (!nName && !nCode) return [];
-    return allKits.filter((k) => {
-      const hay = normJa([k.name, k.code].filter(Boolean).join(" "));
-      const codeHay = normJa(k.code || "");
-      return (nName && hay.includes(nName)) || (nCode && nCode.length >= 3 && codeHay.includes(nCode));
-    });
+  const normCode = (s) => normJa(s || "").replace(/[\s\-_./()]/g, "");
+  const scoreKit = (k, cand) => {
+    let sc = 0;
+    const cCode = normCode(cand.code), kCode = normCode(k.code);
+    if (cCode && cCode.length >= 3 && kCode) {
+      if (kCode === cCode) sc += 100;
+      else if (kCode.indexOf(cCode) === 0 || cCode.indexOf(kCode) === 0) sc += 75;
+      else if (kCode.includes(cCode) || cCode.includes(kCode)) sc += 55;
+    }
+    const cName = normJa(cand.name || ""), kName = normJa(k.name || "");
+    if (cName && kName) {
+      if (kName === cName) sc += 60;
+      else if (kName.includes(cName) || cName.includes(kName)) sc += 42;
+      else {
+        const ct = (cName.match(/[\u3040-\u30ff\u4e00-\u9fffa-z0-9]+/g) || []);
+        const shared = ct.filter((t) => t.length >= 2 && kName.includes(t)).length;
+        if (shared) sc += Math.min(30, shared * 14);
+      }
+    }
+    const cSer = normJa(cand.series || ""), kSer = normJa(k.series || "");
+    if (cSer && kSer && (kSer.includes(cSer) || cSer.includes(kSer))) sc += 15;
+    return sc;
   };
 
   const runIdentify = async (file) => {
@@ -3747,15 +3762,19 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
       try { parsed = JSON.parse(_identStripJson(raw)); } catch (e) { parsed = null; }
       const list = (parsed && Array.isArray(parsed.candidates)) ? parsed.candidates : [];
       setCands(list);
-      const seen = new Set(); const out = [];
+      const best = new Map(); // kitId -> {kit, conf, reason, total}
       for (const cd of list) {
-        for (const k of matchKits(cd)) {
-          if (seen.has(k.id)) continue;
-          seen.add(k.id); out.push({ kit: k, conf: Number(cd.confidence) || 0, reason: cd.reason || "" });
+        const conf = Number(cd.confidence) || 0;
+        for (const k of allKits) {
+          const s = scoreKit(k, cd);
+          if (s < 45) continue;
+          const total = s + conf * 0.3;
+          const prev = best.get(k.id);
+          if (!prev || total > prev.total) best.set(k.id, { kit: k, conf, reason: cd.reason || "", total });
         }
       }
-      out.sort((a, b) => b.conf - a.conf);
-      setMatches(out.slice(0, 12));
+      const out = [...best.values()].sort((a, b) => b.total - a.total).slice(0, 15);
+      setMatches(out);
       setPhase("result");
     } catch (e) { setErr((e && e.message) || String(e)); setPhase("error"); }
   };
@@ -3783,6 +3802,12 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
         {phase === "pick" && hasKey && (
           <div className="idf-pick">
             <p className="idf-lead">写真を選ぶと、AIが機体(MS)を推定し、図鑑の候補を提示します。グレードは写真で判別できないため、候補からあなたが選びます。</p>
+            <p className="idf-tip">ヒント: 箱・パッケージ・説明書が写るように撮ると、印刷された名称・型番をAIが読み取り、精度が大きく上がります。</p>
+            <div className="idf-hq">
+              <span>精度</span>
+              <button className={"idf-hqbtn" + (!hq ? " on" : "")} onClick={() => setHq(false)}>標準・速い</button>
+              <button className={"idf-hqbtn" + (hq ? " on" : "")} onClick={() => setHq(true)}>高精度(推奨)</button>
+            </div>
             <button className="btn primary idf-choose" onClick={() => fileRef.current && fileRef.current.click()}>画像を選ぶ / 撮影</button>
             <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }}
               onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) runIdentify(f); }} />
@@ -8288,6 +8313,11 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .idf-cands{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
 .idf-conf{font-style:normal;color:var(--gold);font-size:12px;margin-left:4px}
 .idf-manual{margin-top:14px;border-top:1px solid var(--line);padding-top:8px}
+.idf-tip{font-size:12px;color:var(--gold);line-height:1.7;margin:0 2px 16px;padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:rgba(217,179,106,.06)}
+.idf-hq{display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.idf-hq>span{font-size:12px;color:var(--ink-mid);margin-right:2px}
+.idf-hqbtn{flex:1;padding:10px 0;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink-mid);font-size:13px;cursor:pointer;transition:all .15s}
+.idf-hqbtn.on{border-color:var(--gold);color:var(--gold);background:rgba(217,179,106,.1)}
 
 /* ── クイズ ── */
 .quiz-bg{position:fixed;inset:0;z-index:120;background:var(--bg2);display:flex;flex-direction:column;
