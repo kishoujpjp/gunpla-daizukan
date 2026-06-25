@@ -3010,7 +3010,10 @@ const AI_STYLES = [
 ];
 
 /* AI画像モデル定義(画像生成/編集系)。providerは model 名から判定 */
-/* 機体情報の修正提案。検索→選択→編集→差分をAI可読JSONでメール送信(アプリのデータは変更しない) */
+/* 機体情報の修正提案。検索→選択→編集→差分を送信(アプリのデータは変更しない)。
+   送信先: REPORT_API(Cloudflare Worker 等)を設定すれば POST、未設定/失敗時はメールにフォールバック。 */
+const REPORT_API = "";    // 例: "https://gunpla-report.xxxx.workers.dev"(建てたら設定)
+const REPORT_SECRET = ""; // Worker の REPORT_SECRET と同じ値(※フロントに露出・簡易的なbot避けのみ)
 function KitFixModal({ allKits, onClose }) {
   const [q, setQ] = useState("");
   const [picked, setPicked] = useState(null);
@@ -3034,7 +3037,7 @@ function KitFixModal({ allKits, onClose }) {
   };
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
-  const submit = () => {
+  const submit = async () => {
     const FIELDS = [
       ["name", picked.name || ""],
       ["code", picked.code || ""],
@@ -3054,15 +3057,41 @@ function KitFixModal({ allKits, onClose }) {
     });
     if (Object.keys(changes).length === 0) { alert("変更がありません。修正してから送信してください。"); return; }
     const payload = { type: "kit_correction", id: picked.id, no: picked.no, name: picked.name, changes };
-    const body =
-      "ガンプラ大図鑑 — 機体情報の修正提案\n\n" +
-      "対象: " + (picked.name || "") + " (" + (picked.code || "") + ") / id=" + picked.id + "\n\n" +
-      "▼ 機械処理用(変更フィールドのみ・old→new):\n" +
-      "```json\n" + JSON.stringify(payload, null, 2) + "\n```\n\n" +
-      "▼ 補足・出典(任意):\n";
-    const subject = "【機体情報修正】" + (picked.name || "") + " (" + (picked.code || "") + ")";
-    window.location.href =
-      "mailto:kishoujpjp@gmail.com?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
+
+    // メール送信(フォールバック)
+    const mailFallback = () => {
+      const body =
+        "ガンプラ大図鑑 — 機体情報の修正提案\n\n" +
+        "対象: " + (picked.name || "") + " (" + (picked.code || "") + ") / id=" + picked.id + "\n\n" +
+        "▼ 機械処理用(変更フィールドのみ・old→new):\n" +
+        "```json\n" + JSON.stringify(payload, null, 2) + "\n```\n\n" +
+        "▼ 補足・出典(任意):\n";
+      const subject = "【機体情報修正】" + (picked.name || "") + " (" + (picked.code || "") + ")";
+      window.location.href =
+        "mailto:kishoujpjp@gmail.com?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
+    };
+
+    // REPORT_API が設定済みなら POST、失敗時はメールへ
+    if (REPORT_API) {
+      try {
+        const res = await fetch(REPORT_API, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(REPORT_SECRET ? { "X-Report-Secret": REPORT_SECRET } : {}),
+          },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        alert("修正提案を送信しました。ありがとうございます。");
+        onClose();
+        return;
+      } catch (e) {
+        mailFallback();
+        return;
+      }
+    }
+    mailFallback();
   };
 
   return (
