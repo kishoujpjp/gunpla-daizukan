@@ -3161,70 +3161,177 @@ function _qPickDistinct(pool, exclude, n) {
   }
   return out;
 }
-/* allKits から単一正解・3択の問題を count 問生成 */
-function buildKitFactQuiz(allKits, count) {
+/* allKits + recs(所持記録)から count 問を生成。category: mix | fig | rec */
+function buildQuiz(allKits, recs, count, category) {
   const kits = (allKits || []).filter((k) => k && k.name);
   const allGrades = [...new Set(kits.map((k) => k.grade).filter(Boolean))];
   const allSeries = [...new Set(kits.map((k) => k.series).filter(Boolean))];
   const allYears = [...new Set(kits.map((k) => (k.ym || "").slice(0, 4)).filter((y) => y.length === 4))];
+  const premiumKits = kits.filter((k) => k.premium);
+  const normalKits = kits.filter((k) => !k.premium);
+  const pickKit = () => kits[Math.floor(Math.random() * kits.length)];
+  const lbl = (k) => k.name + (k.grade ? "（" + k.grade + "）" : "");
 
+  // ── 図鑑(機体事実) ──
   const makeGrade = (k) => {
-    if (!k.grade) return null;
+    if (!k || !k.grade) return null;
     const d = _qPickDistinct(allGrades, k.grade, 2);
     if (d.length < 2) return null;
     const opts = _qShuffle([k.grade, ...d]);
-    return { sub: "grade", kitId: k.id, options: opts, answer: opts.indexOf(k.grade),
+    return { sub: "grade", sig: "g:" + k.id, options: opts, answer: opts.indexOf(k.grade),
       prompt: "「" + k.name + "」（" + (k.code || "?") + " ／ " + (((k.ym || "").replace("-", ".")) || "—") + "）のグレードは?",
       explain: k.name + " は " + k.grade + "。" };
   };
   const makeYear = (k) => {
+    if (!k) return null;
     const y = (k.ym || "").slice(0, 4);
     if (y.length !== 4) return null;
     const near = allYears.filter((yy) => yy !== y && Math.abs(+yy - +y) <= 6);
     const d = _qPickDistinct(near.length >= 2 ? near : allYears, y, 2);
     if (d.length < 2) return null;
     const opts = _qShuffle([y, ...d]);
-    return { sub: "year", kitId: k.id, options: opts.map((o) => o + "年"), answer: opts.indexOf(y),
+    return { sub: "year", sig: "y:" + k.id, options: opts.map((o) => o + "年"), answer: opts.indexOf(y),
       prompt: "「" + k.name + "」（" + (k.grade || "") + " " + (k.code || "") + "）の発売年は?",
       explain: k.name + " の発売は " + ((k.ym || "").replace("-", ".")) + "。" };
   };
   const makeSeries = (k) => {
-    if (!k.series) return null;
+    if (!k || !k.series) return null;
     const d = _qPickDistinct(allSeries, k.series, 2);
     if (d.length < 2) return null;
     const opts = _qShuffle([k.series, ...d]);
-    return { sub: "series", kitId: k.id, options: opts, answer: opts.indexOf(k.series),
+    return { sub: "series", sig: "s:" + k.id, options: opts, answer: opts.indexOf(k.series),
       prompt: "「" + k.name + "」（" + (k.grade || "") + " " + (k.code || "") + "）が登場する作品は?",
       explain: k.name + " は『" + k.series + "』。" };
   };
-  const makers = [makeGrade, makeYear, makeSeries];
-  const pool = _qShuffle(kits);
-  const out = [];
-  const used = new Set();
-  const tryFill = (allowSameKit) => {
-    for (const k of pool) {
-      if (out.length >= count) break;
-      if (!allowSameKit && out.some((q) => q.kitId === k.id)) continue;
-      for (const mk of _qShuffle(makers)) {
-        const q = mk(k);
-        if (!q) continue;
-        const key = q.kitId + ":" + q.sub;
-        if (used.has(key)) continue;
-        used.add(key); out.push(q); break;
-      }
-    }
+  const makePreban = () => {
+    if (premiumKits.length < 1 || normalKits.length < 2) return null;
+    const pN = 1 + Math.floor(Math.random() * Math.min(3, premiumKits.length));
+    const nN = 5 - pN;
+    if (normalKits.length < nN) return null;
+    const objs = _qShuffle([..._qShuffle(premiumKits).slice(0, pN), ..._qShuffle(normalKits).slice(0, nN)]);
+    const labels = objs.map(lbl);
+    if (new Set(labels).size !== labels.length) return null;
+    const answer = objs.map((k, i) => (k.premium ? i : -1)).filter((i) => i >= 0);
+    return { sub: "preban", multi: true, sig: "pb:" + objs.map((k) => k.id).sort().join(","),
+      options: labels, answer,
+      prompt: "次のうち P-Bandai(プレミアムバンダイ)限定はどれ?（複数選択可）",
+      explain: "P-Bandai限定: " + objs.filter((k) => k.premium).map((k) => k.name).join("、") };
   };
-  tryFill(false);
-  if (out.length < count) tryFill(true);
-  return out.slice(0, count);
+
+  // ── 記録(あなたのデータ) ──
+  const earliestBy = (field, prompt) => () => {
+    const pool = recs.filter((r) => r[field]);
+    if (pool.length < 4) return null;
+    const pick = _qShuffle(pool).slice(0, 4);
+    let min = pick[0];
+    for (const r of pick) if (r[field] < min[field]) min = r;
+    if (pick.filter((r) => r[field] === min[field]).length > 1) return null;
+    return { sub: "early_" + field, sig: "e" + field + ":" + pick.map((r) => r.id).sort().join(","),
+      options: pick.map(lbl), answer: pick.indexOf(min), prompt,
+      explain: min.name + "（" + min[field] + "）。" };
+  };
+  const builtYear = () => {
+    const built = recs.filter((r) => r.buildDate && r.buildDate.length >= 4);
+    if (built.length < 1) return null;
+    const target = _qShuffle(built)[0];
+    const y = target.buildDate.slice(0, 4);
+    const others = _qShuffle(recs.filter((r) => r.id !== target.id && !(r.buildDate && r.buildDate.slice(0, 4) === y)));
+    if (others.length < 3) return null;
+    const objs = _qShuffle([target, ...others.slice(0, 3)]);
+    return { sub: "built_year", sig: "by:" + y + ":" + target.id, options: objs.map(lbl),
+      answer: objs.indexOf(target), prompt: "次のうち、" + y + "年に完成させたのは?",
+      explain: target.name + " を " + target.buildDate + " に完成。" };
+  };
+  const countGrade = () => {
+    const byG = {};
+    recs.forEach((r) => { if (r.grade) byG[r.grade] = (byG[r.grade] || 0) + 1; });
+    const grades = Object.keys(byG);
+    if (grades.length === 0) return null;
+    const g = _qShuffle(grades)[0];
+    const cc = byG[g];
+    const cand = [cc - 2, cc - 1, cc + 1, cc + 2, cc + 3].filter((n) => n > 0 && n !== cc);
+    const d = _qPickDistinct(cand, cc, 2);
+    if (d.length < 2) return null;
+    const opts = _qShuffle([cc, ...d]);
+    return { sub: "count_grade", sig: "cg:" + g, options: opts.map((n) => n + "個"), answer: opts.indexOf(cc),
+      prompt: "あなたが所持している " + g + " は何個?", explain: g + " は " + cc + "個 所持。" };
+  };
+  const mostGrade = () => {
+    const byG = {};
+    recs.forEach((r) => { if (r.grade) byG[r.grade] = (byG[r.grade] || 0) + 1; });
+    const entries = Object.entries(byG).sort((a, b) => b[1] - a[1]);
+    if (entries.length < 3 || entries[0][1] === entries[1][1]) return null;
+    const top = entries[0][0];
+    const d = _qShuffle(entries.slice(1).map((e) => e[0])).slice(0, 2);
+    if (d.length < 2) return null;
+    const opts = _qShuffle([top, ...d]);
+    return { sub: "most_grade", sig: "mg", options: opts, answer: opts.indexOf(top),
+      prompt: "あなたの所持で最も多いグレードは?", explain: "最多は " + top + "（" + byG[top] + "個）。" };
+  };
+  const mostExp = () => {
+    const priced = recs.filter((r) => Number(r.price) > 0);
+    if (priced.length < 4) return null;
+    const top = priced.reduce((m, r) => (Number(r.price) > Number(m.price) ? r : m));
+    const others = _qShuffle(priced.filter((r) => r.id !== top.id && Number(r.price) !== Number(top.price))).slice(0, 3);
+    if (others.length < 3) return null;
+    const objs = _qShuffle([top, ...others]);
+    return { sub: "most_exp", sig: "me", options: objs.map(lbl), answer: objs.indexOf(top),
+      prompt: "あなたの所持で最も定価が高い機体は?", explain: top.name + "（¥" + Number(top.price).toLocaleString() + "）。" };
+  };
+  const totalBuilt = () => {
+    if (recs.length < 5) return null;
+    const cc = recs.filter((r) => r.buildDate).length;
+    const cand = [cc - 2, cc - 1, cc + 1, cc + 2, cc + 3].filter((n) => n >= 0 && n !== cc);
+    const d = _qPickDistinct(cand, cc, 2);
+    if (d.length < 2) return null;
+    const opts = _qShuffle([cc, ...d]);
+    return { sub: "total_built", sig: "tb", options: opts.map((n) => n + "体"), answer: opts.indexOf(cc),
+      prompt: "あなたが完成させた機体は何体?", explain: "完成は " + cc + "体。" };
+  };
+  const oldestYear = () => {
+    const withY = recs.filter((r) => (r.ym || "").length >= 4);
+    if (withY.length < 4) return null;
+    const oldest = withY.reduce((m, r) => (r.ym < m.ym ? r : m));
+    const others = _qShuffle(withY.filter((r) => r.id !== oldest.id && r.ym.slice(0, 7) !== oldest.ym.slice(0, 7))).slice(0, 3);
+    if (others.length < 3) return null;
+    const objs = _qShuffle([oldest, ...others]);
+    return { sub: "oldest_year", sig: "oy", options: objs.map(lbl), answer: objs.indexOf(oldest),
+      prompt: "あなたの所持で最も発売年が古い機体は?", explain: oldest.name + "（" + (oldest.ym || "").replace("-", ".") + "）。" };
+  };
+
+  const figProducers = [() => makeGrade(pickKit()), () => makeYear(pickKit()), () => makeSeries(pickKit()), makePreban];
+  const recProducers = [
+    earliestBy("purchaseDate", "次のうち、最も早く入手したのは?"),
+    earliestBy("buildDate", "次のうち、最初に完成させたのは?"),
+    builtYear, countGrade, mostGrade, mostExp, totalBuilt, oldestYear,
+  ];
+  let producers = category === "fig" ? figProducers : category === "rec" ? recProducers : [...figProducers, ...recProducers];
+  if (!producers.length) producers = figProducers;
+
+  const out = [];
+  const sigs = new Set();
+  let attempts = 0;
+  const maxAttempts = count * 50 + 300;
+  while (out.length < count && attempts < maxAttempts) {
+    attempts++;
+    const p = producers[Math.floor(Math.random() * producers.length)];
+    const qq = p();
+    if (!qq || sigs.has(qq.sig)) continue;
+    sigs.add(qq.sig);
+    out.push(qq);
+  }
+  return out;
 }
 
 const QUIZ_LIMIT = 15000; // 1問の制限時間(ms)
-function QuizModal({ allKits, onClose }) {
-  const [phase, setPhase] = useState("config"); // config | playing | result
+const QUIZ_RECMIN = 4;
+function QuizModal({ allKits, getRec, onClose }) {
+  const [phase, setPhase] = useState("config");
+  const [cat, setCat] = useState("mix");
   const [questions, setQuestions] = useState([]);
   const [qi, setQi] = useState(0);
-  const [answered, setAnswered] = useState(null); // null | { picked, correct }
+  const [answered, setAnswered] = useState(null);
+  const [sel, setSel] = useState([]);
   const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
   const [maxStreak, setMaxStreak] = useState(0);
@@ -3233,19 +3340,29 @@ function QuizModal({ allKits, onClose }) {
 
   const deadlineRef = useRef(0);
   const timerRef = useRef(null);
+  const selRef = useRef([]);
+  useEffect(() => { selRef.current = sel; }, [sel]);
   const stopTimer = () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } };
 
-  // ベスト読込
+  const recs = useMemo(() => {
+    try {
+      return (allKits || []).filter((k) => { const r = getRec && getRec(k.id); return r && r.owned; })
+        .map((k) => { const r = (getRec && getRec(k.id)) || {}; return { id: k.id, name: k.name, grade: k.grade, series: k.series, code: k.code, ym: k.ym, price: k.price, premium: !!k.premium, purchaseDate: r.purchaseDate || "", buildDate: r.buildDate || "" }; });
+    } catch (e) { return []; }
+  }, [allKits]);
+  const recCount = recs.length;
+
   useEffect(() => {
     let live = true;
-    (async () => {
-      try { const r = await window.storage.get("mg_quiz_best"); if (live && r && r.value) setBest(JSON.parse(r.value)); }
-      catch (e) {}
-    })();
+    (async () => { try { const r = await window.storage.get("mg_quiz_best"); if (live && r && r.value) setBest(JSON.parse(r.value)); } catch (e) {} })();
     return () => { live = false; };
   }, []);
 
-  // タイマー(Date.now差分でiOS背景でも壊れない)
+  const grade = (correct) => {
+    if (correct) { setScore((s) => s + 1); setStreak((st) => { const ns = st + 1; setMaxStreak((m) => Math.max(m, ns)); return ns; }); }
+    else setStreak(0);
+  };
+
   useEffect(() => {
     if (phase !== "playing" || answered !== null) { stopTimer(); return; }
     deadlineRef.current = Date.now() + QUIZ_LIMIT;
@@ -3253,13 +3370,19 @@ function QuizModal({ allKits, onClose }) {
     stopTimer();
     timerRef.current = setInterval(() => {
       const r = deadlineRef.current - Date.now();
-      if (r <= 0) { stopTimer(); setRemain(0); setAnswered({ picked: -1, correct: false }); setStreak(0); }
-      else setRemain(r);
+      if (r <= 0) {
+        stopTimer(); setRemain(0);
+        const cur = questions[qi];
+        if (cur && Array.isArray(cur.answer)) {
+          const ans = cur.answer; const s = selRef.current;
+          const ok = s.length === ans.length && s.every((x) => ans.includes(x));
+          setAnswered({ picked: s.slice(), correct: ok }); grade(ok);
+        } else { setAnswered({ picked: -1, correct: false }); grade(false); }
+      } else setRemain(r);
     }, 100);
     return stopTimer;
   }, [phase, qi, answered]);
 
-  // 結果保存
   useEffect(() => {
     if (phase !== "result") return;
     const total = questions.length || 1;
@@ -3270,32 +3393,37 @@ function QuizModal({ allKits, onClose }) {
   }, [phase]);
 
   const start = (n) => {
-    const qs = buildKitFactQuiz(allKits, n);
-    if (qs.length === 0) { alert("出題できる機体データがありません。"); return; }
-    setQuestions(qs); setQi(0); setAnswered(null);
+    const qs = buildQuiz(allKits, recs, n, cat);
+    if (qs.length === 0) { alert("出題できるデータが足りません。"); return; }
+    setQuestions(qs); setQi(0); setAnswered(null); setSel([]);
     setScore(0); setStreak(0); setMaxStreak(0); setPhase("playing");
   };
-  const choose = (idx) => {
+  const choose = (i) => {
+    if (answered !== null) return;
+    const cur = questions[qi];
+    if (Array.isArray(cur.answer)) { setSel((s) => (s.includes(i) ? s.filter((x) => x !== i) : [...s, i])); return; }
+    stopTimer();
+    const correct = i === cur.answer;
+    setAnswered({ picked: i, correct }); grade(correct);
+  };
+  const submitMulti = () => {
     if (answered !== null) return;
     stopTimer();
-    const correct = idx === questions[qi].answer;
-    setAnswered({ picked: idx, correct });
-    if (correct) {
-      setScore((s) => s + 1);
-      setStreak((st) => { const ns = st + 1; setMaxStreak((m) => Math.max(m, ns)); return ns; });
-    } else setStreak(0);
+    const ans = questions[qi].answer;
+    const correct = sel.length === ans.length && sel.every((x) => ans.includes(x));
+    setAnswered({ picked: sel.slice(), correct }); grade(correct);
   };
   const next = () => {
-    if (qi + 1 >= questions.length) { setPhase("result"); }
-    else { setQi((i) => i + 1); setAnswered(null); }
+    if (qi + 1 >= questions.length) setPhase("result");
+    else { setQi((i) => i + 1); setAnswered(null); setSel([]); }
   };
-  const abort = () => {
-    if (window.confirm("クイズを中断しますか?(進行中の結果は記録されません)")) { stopTimer(); onClose(); }
-  };
+  const abort = () => { if (window.confirm("クイズを中断しますか?(進行中の結果は記録されません)")) { stopTimer(); onClose(); } };
 
   const q = questions[qi];
+  const isMulti = q && Array.isArray(q.answer);
   const ratio = Math.max(0, Math.min(1, remain / QUIZ_LIMIT));
   const low = ratio <= 0.25;
+  const cats = [["mix", "ミックス"], ["fig", "図鑑"], ["rec", "記録"]];
 
   return (
     <div className="quiz-bg">
@@ -3304,12 +3432,18 @@ function QuizModal({ allKits, onClose }) {
           <div className="quiz-config">
             <div className="quiz-eyebrow">QUIZ · 知識試験</div>
             <h2 className="quiz-h">機体知識<em>試験</em></h2>
-            <p className="quiz-lead">図鑑データから出題。グレード・発売年・原作を当てよう。各問{QUIZ_LIMIT / 1000}秒。</p>
-            <div className="quiz-count">出題数を選ぶ</div>
+            <p className="quiz-lead">図鑑データやあなたの記録から出題。各問{QUIZ_LIMIT / 1000}秒。</p>
+            <div className="quiz-count">出題ジャンル</div>
             <div className="quiz-count-row">
-              {[5, 10, 15].map((n) => (
-                <button key={n} className="quiz-cbtn" onClick={() => start(n)}>{n}問</button>
-              ))}
+              {cats.map(([v, l]) => {
+                const off = v === "rec" && recCount < QUIZ_RECMIN;
+                return <button key={v} className={"quiz-chip" + (cat === v ? " on" : "") + (off ? " off" : "")} disabled={off} onClick={() => setCat(v)}>{l}</button>;
+              })}
+            </div>
+            {recCount < QUIZ_RECMIN && <div className="quiz-note">「記録」ジャンルは所持データが{QUIZ_RECMIN}件以上で解放（現在 {recCount} 件）。</div>}
+            <div className="quiz-count">出題数</div>
+            <div className="quiz-count-row">
+              {[5, 10, 15].map((n) => <button key={n} className="quiz-cbtn" onClick={() => start(n)}>{n}問</button>)}
             </div>
             {best && <div className="quiz-best">自己ベスト　正答率 {best.rate}%　／　最大連続 {best.streak}</div>}
             <button className="quiz-close" onClick={onClose}>閉じる</button>
@@ -3329,16 +3463,17 @@ function QuizModal({ allKits, onClose }) {
               {q.options.map((o, i) => {
                 let cls = "quiz-opt";
                 if (answered) {
-                  if (i === q.answer) cls += " correct";
-                  else if (i === answered.picked) cls += " wrong";
+                  if (isMulti ? q.answer.includes(i) : i === q.answer) cls += " correct";
+                  else if (isMulti ? answered.picked.includes(i) : i === answered.picked) cls += " wrong";
                   else cls += " dim";
-                }
+                } else if (isMulti && sel.includes(i)) cls += " on";
                 return <button key={i} className={cls} disabled={!!answered} onClick={() => choose(i)}>{o}</button>;
               })}
             </div>
+            {isMulti && !answered && <button className="quiz-decide" onClick={submitMulti}>決定する（{sel.length}件選択）</button>}
             {answered && (
               <div className={"quiz-fb " + (answered.correct ? "ok" : "ng")}>
-                <div className="quiz-fb-mark">{answered.correct ? "◎ 正解" : (answered.picked === -1 ? "✕ 時間切れ" : "✕ 不正解")}</div>
+                <div className="quiz-fb-mark">{answered.correct ? "◎ 正解" : (!isMulti && answered.picked === -1 ? "✕ 時間切れ" : "✕ 不正解")}</div>
                 <div className="quiz-fb-ex">{q.explain}</div>
                 <button className="quiz-next" onClick={next}>{qi + 1 >= questions.length ? "結果を見る" : "次の問題へ"}</button>
               </div>
@@ -6004,7 +6139,7 @@ export default function App() {
       </main>
 
       {fixOpen && <KitFixModal allKits={allKits} onClose={() => setFixOpen(false)} />}
-      {quizOpen && <QuizModal allKits={allKits} onClose={() => setQuizOpen(false)} />}
+      {quizOpen && <QuizModal allKits={allKits} getRec={getRec} onClose={() => setQuizOpen(false)} />}
 
       {/* ── 詳細 / 編輯彈窗 ── */}
       {planConfirm && (
@@ -7837,6 +7972,16 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .quiz-entry:active{transform:scale(.97)}
 .quiz-entry:hover{border-color:var(--gold)}
 .quiz-entry i{font-style:normal;font-size:11px;opacity:.85}
+.quiz-chip{flex:1;padding:12px 0;border:1px solid var(--line);border-radius:9px;background:var(--panel);
+  color:var(--ink-mid);font-size:14px;cursor:pointer;transition:all .15s}
+.quiz-chip.on{border-color:var(--gold);color:var(--gold);background:rgba(217,179,106,.1)}
+.quiz-chip.off{opacity:.4;cursor:not-allowed}
+.quiz-note{margin-top:10px;font-size:11.5px;color:var(--ink-mid);line-height:1.6}
+.quiz-config .quiz-count-row + .quiz-count{margin-top:22px}
+.quiz-opt.on{border-color:var(--gold);background:rgba(217,179,106,.12)}
+.quiz-decide{width:100%;margin-top:14px;padding:13px 0;border-radius:11px;border:1px solid var(--gold);
+  background:transparent;color:var(--gold);font-family:var(--serif);font-size:15px;cursor:pointer}
+.quiz-decide:active{transform:scale(.99)}
 .search-modal-bg{z-index:60}
 .sm-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px}
 .sm-title{font-family:var(--serif);font-weight:800;font-size:19px;color:var(--ink-strong);letter-spacing:.04em}
