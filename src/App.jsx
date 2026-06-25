@@ -3681,6 +3681,159 @@ function QuizModal({ allKits, getRec, images, extras, albumMeta, builderName, on
   );
 }
 
+/* ───────── AI機体判別(Phase A):画像→候補→確認して図鑑に追加 ───────── */
+const IDENT_PROMPT = `あなたはガンダムのプラモデル(ガンプラ)識別の専門家です。画像の機体がどのモビルスーツ(MS)かを推定してください。
+重要: グレード(HG/MG/RG/PG等)やスケールは画像から判別できないため推定しないこと。機体(型式/名称)のみ推定する。
+最大3件の候補を確信度の高い順に挙げ、各候補に簡潔な根拠(配色・特徴部位)を付ける。
+出力は次のJSONのみ。前後の説明やマークダウンは一切付けないこと:
+{"candidates":[{"name":"日本語の機体名","code":"型式番号があれば","series":"作品名があれば","confidence":0,"reason":"根拠"}]}
+判別できない場合は candidates を空配列にする。`;
+function _identStripJson(t) { return t ? String(t).replace(/```json/gi, "").replace(/```/g, "").trim() : ""; }
+
+function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) {
+  const [phase, setPhase] = useState("pick"); // pick | loading | result | error
+  const [storeImg, setStoreImg] = useState("");
+  const [cands, setCands] = useState([]);
+  const [matches, setMatches] = useState([]);
+  const [q, setQ] = useState("");
+  const [err, setErr] = useState("");
+  const fileRef = useRef(null);
+  const hasKey = !!(geminiKey || openaiKey);
+
+  const callAI = async (b64, mime, dataUrl) => {
+    if (geminiKey) {
+      const model = "gemini-2.5-flash";
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(geminiKey)}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents: [{ parts: [{ inline_data: { mime_type: mime, data: b64 } }, { text: IDENT_PROMPT }] }], generationConfig: { responseMimeType: "application/json", temperature: 0.2 } }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message || "Gemini error");
+      const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
+      return parts.map((p) => p.text || "").join("");
+    }
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + openaiKey },
+      body: JSON.stringify({ model: "gpt-4o-mini", temperature: 0.2, response_format: { type: "json_object" },
+        messages: [{ role: "user", content: [{ type: "text", text: IDENT_PROMPT }, { type: "image_url", image_url: { url: dataUrl } }] }] }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message || "OpenAI error");
+    return (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || "";
+  };
+
+  const matchKits = (cand) => {
+    const nName = normJa(cand.name || "");
+    const nCode = normJa(cand.code || "");
+    if (!nName && !nCode) return [];
+    return allKits.filter((k) => {
+      const hay = normJa([k.name, k.code].filter(Boolean).join(" "));
+      const codeHay = normJa(k.code || "");
+      return (nName && hay.includes(nName)) || (nCode && nCode.length >= 3 && codeHay.includes(nCode));
+    });
+  };
+
+  const runIdentify = async (file) => {
+    setErr(""); setPhase("loading");
+    try {
+      const storeData = await fileToCompressedDataURL(file, 480, 0.74);
+      const aiData = await fileToCompressedDataURL(file, 1024, 0.82);
+      setStoreImg(storeData);
+      const m = /^data:([^;]+);base64,(.*)$/.exec(aiData);
+      const mime = m ? m[1] : "image/jpeg";
+      const b64 = m ? m[2] : (aiData.split(",")[1] || "");
+      const raw = await callAI(b64, mime, aiData);
+      let parsed = null;
+      try { parsed = JSON.parse(_identStripJson(raw)); } catch (e) { parsed = null; }
+      const list = (parsed && Array.isArray(parsed.candidates)) ? parsed.candidates : [];
+      setCands(list);
+      const seen = new Set(); const out = [];
+      for (const cd of list) {
+        for (const k of matchKits(cd)) {
+          if (seen.has(k.id)) continue;
+          seen.add(k.id); out.push({ kit: k, conf: Number(cd.confidence) || 0, reason: cd.reason || "" });
+        }
+      }
+      out.sort((a, b) => b.conf - a.conf);
+      setMatches(out.slice(0, 12));
+      setPhase("result");
+    } catch (e) { setErr((e && e.message) || String(e)); setPhase("error"); }
+  };
+
+  const searchResults = useMemo(() => {
+    const s = normJa(q.trim());
+    if (!s) return [];
+    return allKits.filter((k) => normJa([k.name, k.code, k.series].filter(Boolean).join(" ")).includes(s)).slice(0, 20);
+  }, [q, allKits]);
+
+  const attach = (kit) => {
+    onAttach(kit.id, storeImg);
+    alert("「" + kit.name + "（" + (kit.grade || "") + "）」に画像を追加しました。");
+    onClose();
+  };
+
+  return (
+    <div className="modal-bg search-modal-bg" onClick={onClose}>
+      <div className="modal search-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="sm-head">
+          <span className="sm-title">機体<em>判別</em> <span className="sm-eyebrow">AI IDENTIFY</span></span>
+          <button className="modal-x static" onClick={onClose}>✕</button>
+        </div>
+        {!hasKey && <p className="idf-note">設定タブで Gemini か OpenAI の APIキーを入力してください(画像はそのAIに送信されます)。</p>}
+        {phase === "pick" && hasKey && (
+          <div className="idf-pick">
+            <p className="idf-lead">写真を選ぶと、AIが機体(MS)を推定し、図鑑の候補を提示します。グレードは写真で判別できないため、候補からあなたが選びます。</p>
+            <button className="btn primary idf-choose" onClick={() => fileRef.current && fileRef.current.click()}>画像を選ぶ / 撮影</button>
+            <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }}
+              onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) runIdentify(f); }} />
+          </div>
+        )}
+        {phase === "loading" && <div className="idf-loading">AIが判別中…</div>}
+        {phase === "error" && (
+          <div className="idf-pick">
+            <p className="idf-note">判別に失敗しました: {err}</p>
+            <button className="btn primary idf-choose" onClick={() => setPhase("pick")}>やり直す</button>
+          </div>
+        )}
+        {phase === "result" && (
+          <div className="idf-result">
+            {storeImg && <div className="idf-preview"><img src={storeImg} alt="" /></div>}
+            {cands.length > 0
+              ? <p className="idf-ailine">AI推定: {cands.slice(0, 3).map((cd) => cd.name + (cd.confidence ? "（" + cd.confidence + "%）" : "")).join(" / ")}</p>
+              : <p className="idf-note">AIは機体を特定できませんでした。下で検索して選んでください。</p>}
+            {matches.length > 0 && (
+              <div className="idf-cands">
+                <div className="idf-sub">候補（グレードを含め選択）</div>
+                {matches.map(({ kit, conf, reason }) => (
+                  <button key={kit.id} className="fix-row" onClick={() => attach(kit)}>
+                    <span className="fix-row-name">{kit.name}{conf ? <em className="idf-conf"> {conf}%</em> : null}</span>
+                    <span className="fix-row-sub">{[kit.grade, kit.code, kit.series].filter(Boolean).join(" · ")}{reason ? " ／ " + reason : ""}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="idf-manual">
+              <div className="idf-sub">手動で検索</div>
+              <div className="toolbar">
+                <input className="search" placeholder="名称・型式・原作で検索" value={q} onChange={(e) => setQ(e.target.value)} />
+                {q && <button className="search-x" onClick={() => setQ("")}>✕</button>}
+              </div>
+              <div className="fix-results">
+                {searchResults.map((k) => (
+                  <button key={k.id} className="fix-row" onClick={() => attach(k)}>
+                    <span className="fix-row-name">{k.name}</span>
+                    <span className="fix-row-sub">{[k.grade, k.code, k.series].filter(Boolean).join(" · ")}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const AI_MODELS = [
   { group: "Google · Gemini(Nano Banana)", items: [
     { id: "gemini-3-pro-image", label: "Nano Banana Pro(最高品質)" },
@@ -4258,6 +4411,7 @@ export default function App() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [fixOpen, setFixOpen] = useState(false);
   const [quizOpen, setQuizOpen] = useState(false);
+  const [identifyOpen, setIdentifyOpen] = useState(false);
   const [achvSeen, setAchvSeen] = useState(null);
   const [achvPop, setAchvPop] = useState(null);
   const [titleUniverse, setTitleUniverse] = useState("all");
@@ -4961,6 +5115,27 @@ export default function App() {
     setImgBusy(false);
   };
 
+  /* AI判別 等から画像を1台に追加(主画像が空なら主に、あれば追加画像に)。既存の分片保存を再利用。 */
+  const attachPhoto = useCallback(async (kitId, dataURL) => {
+    if (!dataURL) return;
+    if (!images[kitId]) {
+      const next = { ...images, [kitId]: dataURL };
+      setImages(next);
+      const idx = hashId(kitId) % IMG_SHARDS;
+      const m = {};
+      for (const [k, v] of Object.entries(next)) if (hashId(k) % IMG_SHARDS === idx) m[k] = v;
+      await saveKey("mg_imgs_" + idx, JSON.stringify(m));
+    } else {
+      const xid = newXid(kitId);
+      const nextX = { ...extras, [xid]: dataURL };
+      setExtras(nextX);
+      const idx = hashId(xid) % XTRA_SHARDS;
+      const m = {};
+      for (const [k, v] of Object.entries(nextX)) if (hashId(k) % XTRA_SHARDS === idx) m[k] = v;
+      await saveKey("mg_xtra_" + idx, JSON.stringify(m));
+    }
+  }, [images, extras, saveKey]);
+
   /* ── ローカル画像をファイル名(=kit_id)で一括取り込み ──
      例: b001.jpg → 機体 b001 に紐付け。画像は 480px JPEG へ圧縮(同期上限に安全)。
      8 シャードを各1回だけ保存+推送。ファイル名が kit_id に一致しない物は未対応として一覧。 */
@@ -5663,7 +5838,7 @@ export default function App() {
   );
 
   return (
-    <div className={"app " + (settings.theme === "light" ? "light" : "") + (detailKit || adding || promptEdit || profileOpen || setupOpen || titleDetail || searchOpen || filterOpen || fixOpen || quizOpen ? " lock" : "")}>
+    <div className={"app " + (settings.theme === "light" ? "light" : "") + (detailKit || adding || promptEdit || profileOpen || setupOpen || titleDetail || searchOpen || filterOpen || fixOpen || quizOpen || identifyOpen ? " lock" : "")}>
       <style>{CSS}</style>
 
       {storageErr && (
@@ -6286,6 +6461,9 @@ export default function App() {
               </button>
               <input ref={localImgRef} type="file" accept="image/*" multiple style={{ display: "none" }}
                 onChange={(e) => { importLocalImages(e.target.files); e.target.value = ""; }} />
+              <button className="opt" onClick={() => setIdentifyOpen(true)}>
+                <span>画像から機体を判別して追加(AI)</span><i>◎</i>
+              </button>
               <button className="opt" disabled={imgBusy} onClick={precacheImages}>
                 <span>オフライン用に画像を保存(プリキャッシュ)</span><i>⤓</i>
               </button>
@@ -6324,6 +6502,7 @@ export default function App() {
 
       {fixOpen && <KitFixModal allKits={allKits} onClose={() => setFixOpen(false)} />}
       {quizOpen && <QuizModal allKits={allKits} getRec={getRec} images={images} extras={extras} albumMeta={albumMeta} builderName={settings.builderName} onClose={() => setQuizOpen(false)} />}
+      {identifyOpen && <KitIdentifyModal allKits={allKits} geminiKey={settings.geminiKey} openaiKey={settings.openaiKey} onAttach={attachPhoto} onClose={() => setIdentifyOpen(false)} />}
 
       {/* ── 詳細 / 編輯彈窗 ── */}
       {planConfirm && (
@@ -8095,6 +8274,20 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
   color:var(--ink-mid);font-size:13px;cursor:pointer;transition:all .15s}
 .fix-toggle.on{border-color:var(--gold);color:var(--gold);background:rgba(217,179,106,.1)}
 .fix-send{width:100%;margin-top:14px}
+/* AI機体判別 */
+.idf-note{font-size:12.5px;color:var(--ink-mid);line-height:1.7;margin:10px 2px}
+.idf-pick{padding:8px 2px 4px}
+.idf-lead{font-size:13px;color:var(--ink-mid);line-height:1.8;margin-bottom:18px}
+.idf-choose{width:100%}
+.idf-loading{padding:40px 0;text-align:center;font-family:var(--serif);font-size:15px;color:var(--ink-mid)}
+.idf-result{max-height:74vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.idf-preview{width:140px;height:140px;margin:6px auto 12px;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:#0c0c0c}
+.idf-preview img{width:100%;height:100%;object-fit:cover;display:block}
+.idf-ailine{font-size:12.5px;color:var(--ink-strong);line-height:1.6;margin:0 2px 12px;text-align:center}
+.idf-sub{font-size:11px;letter-spacing:.1em;color:var(--ink-mid);margin:8px 2px 8px}
+.idf-cands{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.idf-conf{font-style:normal;color:var(--gold);font-size:12px;margin-left:4px}
+.idf-manual{margin-top:14px;border-top:1px solid var(--line);padding-top:8px}
 
 /* ── クイズ ── */
 .quiz-bg{position:fixed;inset:0;z-index:120;background:var(--bg2);display:flex;flex-direction:column;
