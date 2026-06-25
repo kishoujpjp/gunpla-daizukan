@@ -3010,6 +3010,110 @@ const AI_STYLES = [
 ];
 
 /* AI画像モデル定義(画像生成/編集系)。providerは model 名から判定 */
+/* 機体情報の修正提案。検索→選択→編集→差分をAI可読JSONでメール送信(アプリのデータは変更しない) */
+function KitFixModal({ allKits, onClose }) {
+  const [q, setQ] = useState("");
+  const [picked, setPicked] = useState(null);
+  const [form, setForm] = useState(null);
+
+  const results = useMemo(() => {
+    const s = normJa(q.trim());
+    if (!s) return [];
+    return allKits
+      .filter((k) => normJa([k.name, k.code, k.series, k.no].filter(Boolean).join(" ")).includes(s))
+      .slice(0, 25);
+  }, [q, allKits]);
+
+  const pick = (k) => {
+    setPicked(k);
+    setForm({
+      name: k.name || "", code: k.code || "", series: k.series || "",
+      ym: k.ym || "", price: k.price != null ? String(k.price) : "",
+      grade: k.grade || "", line: k.line || "", premium: !!k.premium,
+    });
+  };
+  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  const submit = () => {
+    const FIELDS = [
+      ["name", picked.name || ""],
+      ["code", picked.code || ""],
+      ["series", picked.series || ""],
+      ["ym", picked.ym || ""],
+      ["price", picked.price != null ? String(picked.price) : ""],
+      ["grade", picked.grade || ""],
+      ["line", picked.line || ""],
+      ["premium", picked.premium ? "true" : "false"],
+    ];
+    const changes = {};
+    FIELDS.forEach(([key, oldVal]) => {
+      let nv = key === "premium" ? (form.premium ? "true" : "false") : form[key];
+      nv = String(nv == null ? "" : nv).trim();
+      const ov = String(oldVal).trim();
+      if (nv !== ov) changes[key] = { old: ov, new: nv };
+    });
+    if (Object.keys(changes).length === 0) { alert("変更がありません。修正してから送信してください。"); return; }
+    const payload = { type: "kit_correction", id: picked.id, no: picked.no, name: picked.name, changes };
+    const body =
+      "ガンプラ大図鑑 — 機体情報の修正提案\n\n" +
+      "対象: " + (picked.name || "") + " (" + (picked.code || "") + ") / id=" + picked.id + "\n\n" +
+      "▼ 機械処理用(変更フィールドのみ・old→new):\n" +
+      "```json\n" + JSON.stringify(payload, null, 2) + "\n```\n\n" +
+      "▼ 補足・出典(任意):\n";
+    const subject = "【機体情報修正】" + (picked.name || "") + " (" + (picked.code || "") + ")";
+    window.location.href =
+      "mailto:kishoujpjp@gmail.com?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
+  };
+
+  return (
+    <div className="modal-bg search-modal-bg" onClick={onClose}>
+      <div className="modal search-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="sm-head">
+          <span className="sm-title">機体情報<em>修正</em> <span className="sm-eyebrow">{picked ? "EDIT" : "SEARCH"}</span></span>
+          <button className="modal-x static" onClick={onClose}>✕</button>
+        </div>
+        {!picked ? (
+          <>
+            <div className="toolbar">
+              <input className="search" placeholder="名称・型式・原作で検索" value={q} autoFocus
+                onChange={(e) => setQ(e.target.value)} />
+              {q && <button className="search-x" onClick={() => setQ("")}>✕</button>}
+            </div>
+            <div className="fix-results">
+              {q.trim() && results.length === 0 && <p className="fix-empty">該当する機体がありません。</p>}
+              {results.map((k) => (
+                <button key={k.id} className="fix-row" onClick={() => pick(k)}>
+                  <span className="fix-row-name">{k.name}</span>
+                  <span className="fix-row-sub">{[k.grade, k.code, k.series].filter(Boolean).join(" · ")}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="fix-form">
+            <div className="fix-target">対象 <b>{picked.name}</b>（{picked.code || "—"}）
+              <button className="fix-back" onClick={() => { setPicked(null); setForm(null); }}>別の機体</button>
+            </div>
+            <label className="fld pad"><span>名称</span><input value={form.name} onChange={set("name")} /></label>
+            <label className="fld pad"><span>型式番号</span><input value={form.code} onChange={set("code")} placeholder="RX-78-2" /></label>
+            <label className="fld pad"><span>原作</span><input value={form.series} onChange={set("series")} /></label>
+            <label className="fld pad"><span>発売年月</span><input type="month" value={form.ym} onChange={set("ym")} /></label>
+            <label className="fld pad"><span>定価(円)</span><input type="number" inputMode="numeric" value={form.price} onChange={set("price")} /></label>
+            <label className="fld pad"><span>グレード</span><input value={form.grade} onChange={set("grade")} placeholder="HG / MG / RG ..." /></label>
+            <label className="fld pad"><span>ブランド</span><input value={form.line} onChange={set("line")} /></label>
+            <div className="fld pad"><span>P-Bandai限定</span>
+              <button type="button" className={"fix-toggle" + (form.premium ? " on" : "")}
+                onClick={() => setForm((f) => ({ ...f, premium: !f.premium }))}>{form.premium ? "はい" : "いいえ"}</button>
+            </div>
+            <button className="btn primary fix-send" onClick={submit}>修正をメールで送信</button>
+            <p className="footnote">変更したフィールドのみ、AIが読み取りやすいJSON形式でメール本文に入ります。送信でメールアプリが開きます。</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const AI_MODELS = [
   { group: "Google · Gemini(Nano Banana)", items: [
     { id: "gemini-3-pro-image", label: "Nano Banana Pro(最高品質)" },
@@ -3585,6 +3689,7 @@ export default function App() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [fixOpen, setFixOpen] = useState(false);
   const [achvSeen, setAchvSeen] = useState(null);
   const [achvPop, setAchvPop] = useState(null);
   const [titleUniverse, setTitleUniverse] = useState("all");
@@ -4989,7 +5094,7 @@ export default function App() {
   );
 
   return (
-    <div className={"app " + (settings.theme === "light" ? "light" : "") + (detailKit || adding || promptEdit || profileOpen || setupOpen || titleDetail || searchOpen || filterOpen ? " lock" : "")}>
+    <div className={"app " + (settings.theme === "light" ? "light" : "") + (detailKit || adding || promptEdit || profileOpen || setupOpen || titleDetail || searchOpen || filterOpen || fixOpen ? " lock" : "")}>
       <style>{CSS}</style>
 
       {storageErr && (
@@ -5629,7 +5734,6 @@ export default function App() {
               {[
                 ["バグ報告", "⚠", "不具合・バグを報告する"],
                 ["改善提案", "✎", "改善のご提案を送る"],
-                ["機能追加", "✦", "新機能をリクエストする"],
               ].map(([label, icon, desc]) => (
                 <button key={label} className="opt" onClick={() => {
                   const subject = encodeURIComponent("【" + label + "】ガンプラ大図鑑");
@@ -5638,12 +5742,17 @@ export default function App() {
                   <span>{desc}</span><i>{icon}</i>
                 </button>
               ))}
+              <button className="opt" onClick={() => setFixOpen(true)}>
+                <span>機体情報の修正を提案する</span><i>✑</i>
+              </button>
             </div>
             <p className="footnote">タップするとメールアプリが開きます。件名のタグはそのままで、本文にご記入のうえ送信してください。</p>
           </div>
         )}
         </div>
       </main>
+
+      {fixOpen && <KitFixModal allKits={allKits} onClose={() => setFixOpen(false)} />}
 
       {/* ── 詳細 / 編輯彈窗 ── */}
       {planConfirm && (
@@ -7398,6 +7507,23 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .sb-count,.av-count{animation:pageIn .22s ease-out both}
 /* ── 検索浮動窓 ── */
 .search-modal{padding:18px 16px 22px}
+/* 機体情報修正フロー */
+.fix-results{margin-top:10px;max-height:46vh;overflow-y:auto;display:flex;flex-direction:column;gap:6px;-webkit-overflow-scrolling:touch}
+.fix-row{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;
+  background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:10px 12px;cursor:pointer;
+  transition:border-color .15s,background .15s}
+.fix-row:active{transform:scale(.99)}
+.fix-row-name{font-family:var(--serif);font-size:14px;color:var(--ink-strong)}
+.fix-row-sub{font-size:11px;color:var(--ink-mid);letter-spacing:.02em}
+.fix-empty{margin:14px 2px;font-size:12.5px;color:var(--ink-mid)}
+.fix-form{margin-top:8px;max-height:70vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.fix-target{font-size:12.5px;color:var(--ink-mid);margin:2px 2px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.fix-target b{color:var(--ink-strong);font-family:var(--serif)}
+.fix-back{margin-left:auto;font-size:11.5px;color:var(--gold);border-bottom:1px dashed var(--gold);padding-bottom:1px;cursor:pointer}
+.fix-toggle{min-width:64px;padding:7px 14px;border:1px solid var(--line);border-radius:7px;background:var(--panel);
+  color:var(--ink-mid);font-size:13px;cursor:pointer;transition:all .15s}
+.fix-toggle.on{border-color:var(--gold);color:var(--gold);background:rgba(217,179,106,.1)}
+.fix-send{width:100%;margin-top:14px}
 .search-modal-bg{z-index:60}
 .sm-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px}
 .sm-title{font-family:var(--serif);font-weight:800;font-size:19px;color:var(--ink-strong);letter-spacing:.04em}
