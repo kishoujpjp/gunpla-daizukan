@@ -3694,7 +3694,7 @@ function _identStripJson(t) { return t ? String(t).replace(/```json/gi, "").repl
 const IDF_BIG5 = ["UC", "SEED", "W", "G", "BF"];
 const IDF_UNI_LABEL = { UC: "宇宙世紀(U.C.)", SEED: "コズミック・イラ(SEED系)", W: "アフターコロニー(Wガンダム系)", G: "フューチャーセンチュリー(Gガンダム系)", BF: "ビルドファイターズ系" };
 
-function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) {
+function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach, onClose }) {
   const [phase, setPhase] = useState("pick"); // pick | loading | result | error
   const [storeImg, setStoreImg] = useState("");
   const [cands, setCands] = useState([]);
@@ -3702,7 +3702,7 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
   const [q, setQ] = useState("");
   const [err, setErr] = useState("");
   const [hq, setHq] = useState(true);
-  const [selUni, setSelUni] = useState([]);
+  const [selUni, setSelUni] = useState("");
   const [selGrade, setSelGrade] = useState("");
   const [hint, setHint] = useState("");
   const fileRef = useRef(null);
@@ -3753,7 +3753,7 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
     const cSer = normJa(cand.series || ""), kSer = normJa(k.series || "");
     if (cSer && kSer && (kSer.includes(cSer) || cSer.includes(kSer))) sc += 15;
     const u = universeOfKit(k);
-    if (selUni.length) { if (selUni.includes(u)) sc += 30; else sc -= 40; }
+    if (selUni) { if (u === selUni) sc += 30; else sc -= 40; }
     else if (IDF_BIG5.includes(u)) sc -= 40;
     return sc;
   };
@@ -3768,7 +3768,7 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
       const mime = m ? m[1] : "image/jpeg";
       const b64 = m ? m[2] : (aiData.split(",")[1] || "");
       let prompt = IDENT_PROMPT;
-      if (selUni.length) prompt += "\nユーザー情報: この機体は次の世界観/作品系のいずれか: " + selUni.map((u) => IDF_UNI_LABEL[u] || u).join("、") + "。これらの作品系の機体を優先的に検討すること。";
+      if (selUni) prompt += "\nユーザー情報: この機体は『" + (IDF_UNI_LABEL[selUni] || selUni) + "』の作品系の機体である。この作品系を優先的に検討すること。";
       else prompt += "\nユーザー情報: この機体は U.C.(宇宙世紀)・SEED・Wガンダム・Gガンダム・ビルド系 のいずれにも属さない作品の機体である可能性が高い。";
       if (hint.trim()) prompt += "\nユーザーからのヒント: " + hint.trim();
       const raw = await callAI(b64, mime, aiData, prompt);
@@ -3799,7 +3799,7 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
     return allKits.filter((k) => normJa([k.name, k.code, k.series].filter(Boolean).join(" ")).includes(s)).slice(0, 20);
   }, [q, allKits]);
   const gradeOpts = useMemo(() => [...new Set((allKits || []).map((k) => k.grade).filter(Boolean))], [allKits]);
-  const uniOk = (k) => (selUni.length ? selUni.includes(universeOfKit(k)) : !IDF_BIG5.includes(universeOfKit(k)));
+  const uniOk = (k) => (selUni ? universeOfKit(k) === selUni : !IDF_BIG5.includes(universeOfKit(k)));
   const shownMatches = matches.filter((mm) => (!selGrade || mm.kit.grade === selGrade) && uniOk(mm.kit)).slice(0, 12);
   const shownSearch = searchResults.filter((k) => (!selGrade || k.grade === selGrade) && uniOk(k));
 
@@ -3828,11 +3828,11 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
             </div>
             <div className="idf-hints">
               <div className="idf-field">
-                <span>世界観で絞る（任意・複数可。未選択＝上記以外の世界として絞り込み）</span>
+                <span>世界観で絞る（任意・1つ。未選択＝上記以外の世界として絞り込み）</span>
                 <div className="idf-unis">
                   {[["UC", "UC"], ["SEED", "SEED"], ["W", "W"], ["G", "G"], ["BF", "BF"]].map(([v, l]) => (
-                    <button key={v} type="button" className={"idf-ubtn" + (selUni.includes(v) ? " on" : "")}
-                      onClick={() => setSelUni(selUni.includes(v) ? selUni.filter((x) => x !== v) : [...selUni, v])}>{l}</button>
+                    <button key={v} type="button" className={"idf-ubtn" + (selUni === v ? " on" : "")}
+                      onClick={() => setSelUni(selUni === v ? "" : v)}>{l}</button>
                   ))}
                 </div>
               </div>
@@ -3841,8 +3841,8 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, onAttach, onClose }) 
                 <input value={hint} onChange={(e) => setHint(e.target.value)} placeholder="例: ○○の主役機 / 特徴的な配色" />
               </label>
             </div>
-            <button className="btn primary idf-choose" onClick={() => fileRef.current && fileRef.current.click()}>画像を選ぶ / 撮影</button>
-            <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }}
+            <button className="btn primary idf-choose" onClick={() => fileRef.current && fileRef.current.click()}>{cameraMode ? "カメラを起動して撮影" : "画像を選ぶ / 撮影"}</button>
+            <input ref={fileRef} type="file" accept="image/*" capture={cameraMode ? "environment" : undefined} style={{ display: "none" }}
               onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) runIdentify(f); }} />
           </div>
         )}
@@ -4488,6 +4488,7 @@ export default function App() {
   const [fixOpen, setFixOpen] = useState(false);
   const [quizOpen, setQuizOpen] = useState(false);
   const [identifyOpen, setIdentifyOpen] = useState(false);
+  const [identifyCam, setIdentifyCam] = useState(false);
   const [achvSeen, setAchvSeen] = useState(null);
   const [achvPop, setAchvPop] = useState(null);
   const [titleUniverse, setTitleUniverse] = useState("all");
@@ -5964,7 +5965,6 @@ export default function App() {
               <span className="hf-part" key={arc.en}><i className="hf-rl">Ⓡ</i>{arc.en}</span>
               <span className="hf-gate gt" style={{ left: "32%" }} /><span className="hf-gate gt" style={{ left: "58%" }} /><span className="hf-gate gl" style={{ top: "50%" }} />
               <div className="hf-top">
-                <div className="hf-vbar" key={arc.jp}><span className="hf-vbar-t">{arc.jp}</span></div>
                 <div className="hf-rcol">
                   <div className="hf-main">
                     <div className="nf-left">
@@ -5975,6 +5975,7 @@ export default function App() {
                   </div>
                   <div className="hf-rule" />
                   <div className="hf-stats">
+                    <button className="hf-seal" aria-label="カメラで機体を判別" onClick={(e) => { e.stopPropagation(); haptic(); setIdentifyCam(true); setIdentifyOpen(true); }}>鑑</button>
                     {isDecor ? (
                       <>
                         <div className="s"><b><Roll value={titles.length} resetKey={arc.jp} /></b><span>称号</span></div>
@@ -6537,7 +6538,7 @@ export default function App() {
               </button>
               <input ref={localImgRef} type="file" accept="image/*" multiple style={{ display: "none" }}
                 onChange={(e) => { importLocalImages(e.target.files); e.target.value = ""; }} />
-              <button className="opt" onClick={() => setIdentifyOpen(true)}>
+              <button className="opt" onClick={() => { setIdentifyCam(false); setIdentifyOpen(true); }}>
                 <span>画像から機体を判別して追加(AI)</span><i>◎</i>
               </button>
               <button className="opt" disabled={imgBusy} onClick={precacheImages}>
@@ -6578,7 +6579,7 @@ export default function App() {
 
       {fixOpen && <KitFixModal allKits={allKits} onClose={() => setFixOpen(false)} />}
       {quizOpen && <QuizModal allKits={allKits} getRec={getRec} images={images} extras={extras} albumMeta={albumMeta} builderName={settings.builderName} onClose={() => setQuizOpen(false)} />}
-      {identifyOpen && <KitIdentifyModal allKits={allKits} geminiKey={settings.geminiKey} openaiKey={settings.openaiKey} onAttach={attachPhoto} onClose={() => setIdentifyOpen(false)} />}
+      {identifyOpen && <KitIdentifyModal allKits={allKits} geminiKey={settings.geminiKey} openaiKey={settings.openaiKey} cameraMode={identifyCam} onAttach={attachPhoto} onClose={() => setIdentifyOpen(false)} />}
 
       {/* ── 詳細 / 編輯彈窗 ── */}
       {planConfirm && (
@@ -8766,9 +8767,9 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .hf-gateline{position:absolute;left:6%;right:30%;bottom:-9px;height:7px;background:repeating-linear-gradient(90deg,var(--gold) 0 2px,transparent 2px 9px);opacity:.42}
 /* ── 提案V2 二欄タイトル(左:CLASSIFIED＋ガンプラ / 右:大図鑑) ── */
 .nf-left{flex:none;display:flex;flex-direction:column}
-.nf-gunpla{font-family:var(--serif);font-weight:800;font-size:40px;line-height:1;letter-spacing:-1px;color:var(--ink-strong);margin:9px 0 0;white-space:nowrap;text-shadow:0 1px 1px rgba(0,0,0,.35);transform:translateX(-2px)}
+.nf-gunpla{font-family:var(--serif);font-weight:800;font-size:44px;line-height:1;letter-spacing:-1px;color:var(--ink-strong);margin:9px 0 0;white-space:nowrap;text-shadow:0 1px 1px rgba(0,0,0,.35);transform:translateX(-2px)}
 .nf-right{position:relative;transform:translateX(-14px)}
-.nf-big{font-family:var(--serif);font-weight:800;font-size:50px;line-height:1;letter-spacing:.04em;white-space:nowrap;background:linear-gradient(180deg,#f7e6b2,#d4ab5e);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
+.nf-big{font-family:var(--serif);font-weight:800;font-size:56px;line-height:1;letter-spacing:.04em;white-space:nowrap;background:linear-gradient(180deg,#f7e6b2,#d4ab5e);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
 /* 大図鑑まわりの湯口/ランナー */
 .nf-run-top{position:absolute;left:-55px;right:10px;top:-9px;height:5px;background:repeating-linear-gradient(90deg,var(--gold) 0 2px,transparent 2px 9px);opacity:.4}
 .nf-run-bot{position:absolute;left:-130px;right:10px;bottom:-9px;height:5px;background:repeating-linear-gradient(90deg,var(--gold) 0 2px,transparent 2px 9px);opacity:.4;transform:translateX(-6px)}
@@ -8782,6 +8783,13 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .hf-stats b.kin{color:var(--kin)}
 .hf-stats span{font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;color:var(--ink-dim);margin-top:6px;text-transform:uppercase}
 .hf-div{flex:none;width:1px;background:var(--line);align-self:stretch}
+.hf-seal{flex:none;align-self:center;position:relative;width:44px;height:44px;margin-right:13px;
+  display:flex;align-items:center;justify-content:center;border:1.7px solid #c8503a;border-radius:3px;
+  background:rgba(200,80,58,.1);color:#d65a44;font-family:var(--serif);font-weight:800;font-size:25px;
+  line-height:1;cursor:pointer;transform:rotate(-3deg);box-shadow:0 0 0 1px rgba(200,80,58,.12);
+  transition:transform .14s ease,background .14s ease}
+.hf-seal::after{content:"";position:absolute;inset:3px;border:1px solid rgba(200,80,58,.4);border-radius:2px;pointer-events:none}
+.hf-seal:active{transform:rotate(-3deg) scale(.92);background:rgba(200,80,58,.22)}
 .hf-prog{position:relative;height:3px;margin:0 -18px;border-radius:0 0 7px 7px;overflow:hidden;background:rgba(217,179,106,.1)}
 .hf-prog i{display:block;height:100%;background:linear-gradient(90deg,#9c7838,var(--gold));transition:width .5s}
 .hf-prog i.kin{background:linear-gradient(90deg,#b88f3e,var(--kin))}
