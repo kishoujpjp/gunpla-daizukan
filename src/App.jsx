@@ -1554,35 +1554,73 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
   const camRef = useRef(null);
   const albRef = useRef(null);
 
-  // ── ドラッグ並べ替え(把手から即ドラッグ。把手はtouch-action:none) ──
-  const [dragId, setDragId] = useState(null);
+  // ── ドラッグ並べ替え:浮遊ゴースト追従(指に吸着) + FLIP リフロー ──
+  const [drag, setDrag] = useState(null);   // {ref, src, w, h}
+  const dragId = drag && drag.ref;
+  const ghostRef = useRef(null);
+  const grab = useRef({ dx: 0, dy: 0 });
+  const tileEls = useRef({});               // ref -> element
+  const prevRects = useRef(null);
+
+  const moveGhost = (x, y) => {
+    const g = ghostRef.current; if (!g) return;
+    g.style.transform = "translate3d(" + (x - grab.current.dx) + "px," + (y - grab.current.dy) + "px,0) scale(1.045)";
+  };
+  const captureRects = () => {
+    const m = {};
+    Object.keys(tileEls.current).forEach((r) => { const el = tileEls.current[r]; if (el) m[r] = el.getBoundingClientRect(); });
+    prevRects.current = m;
+  };
+  // 順序が変わったら、前位置→新位置を反転して滑らかに送る(FLIP)
+  useLayoutEffect(() => {
+    const prev = prevRects.current; if (!prev) return; prevRects.current = null;
+    Object.keys(tileEls.current).forEach((r) => {
+      const el = tileEls.current[r], p = prev[r]; if (!el || !p) return;
+      const now = el.getBoundingClientRect();
+      const dx = p.left - now.left, dy = p.top - now.top;
+      if (!dx && !dy) return;
+      el.style.transition = "none";
+      el.style.transform = "translate(" + dx + "px," + dy + "px)";
+      el.getBoundingClientRect(); // reflow
+      requestAnimationFrame(() => { el.style.transition = "transform .24s cubic-bezier(.34,1.4,.5,1)"; el.style.transform = ""; });
+    });
+  }, [order]);
+
   const onHandleDown = (ref) => (e) => {
     if (e.button != null && e.button !== 0) return;
     e.stopPropagation(); e.preventDefault();
-    dragRef.current = ref; setDragId(ref);
+    const el = tileEls.current[ref];
+    const r = el ? el.getBoundingClientRect() : null;
+    grab.current = r ? { dx: e.clientX - r.left, dy: e.clientY - r.top } : { dx: 24, dy: 24 };
+    dragRef.current = ref;
+    setDrag({ ref, src: refSrc(ref, kitId, images, extras), w: r ? r.width : 120, h: r ? r.height : 120 });
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch (x) {}
-    if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(12);
+    requestAnimationFrame(() => moveGhost(e.clientX, e.clientY));
+    hapticStrong();
   };
   const onGridMove = (e) => {
     if (!dragRef.current) return;
     e.preventDefault();
+    moveGhost(e.clientX, e.clientY);
     const el = document.elementFromPoint(e.clientX, e.clientY);
     const tile = el && el.closest && el.closest("[data-ref]");
     if (!tile) return;
     const over = tile.getAttribute("data-ref");
     if (over && over !== "add" && over !== dragRef.current) {
+      captureRects();
       setOrder((cur) => { const from = cur.indexOf(dragRef.current), to = cur.indexOf(over); if (from < 0 || to < 0) return cur; const next = cur.slice(); next.splice(to, 0, next.splice(from, 1)[0]); return next; });
     }
   };
   const onGridUp = () => {
     if (!dragRef.current) return;
-    dragRef.current = null; setDragId(null); onReorder(orderRef.current);
+    dragRef.current = null; setDrag(null); onReorder(orderRef.current);
   };
 
   const thumbR = pickRef("thumb", kitId, images, extras, albumMeta);
-  const acqR = pickRef("acquire", kitId, images, extras, albumMeta);
   const selMeta = sel ? imgMetaFrom(albumMeta, kitId, sel) : null;
   const selIdx = sel ? order.indexOf(sel) : -1;
+  const selSrc = sel ? refSrc(sel, kitId, images, extras) : null;
+  const selFr = sel ? framingStyle((albumMeta[kitId] && albumMeta[kitId].framing && albumMeta[kitId].framing[sel]) || null) : null;
 
   const metaLine = (ref) => {
     const m = imgMetaFrom(albumMeta, kitId, ref);
@@ -1603,7 +1641,7 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
     setBusy(false); setAddOpen(false);
   };
   const addUrl = () => { const u = urlVal.trim(); if (!u) return; onAddImage(u, { src: "photo" }); setUrlVal(""); setAddOpen(false); };
-  const openAI = () => { if (!aiActiveKey(ai)) { alert(aiProviderLabel(ai && ai.model) + " のAPIキーを設定タブで入力してください"); return; } const s = refSrc(sel, kitId, images, extras); setAiSrc(s); setAiOpen(true); setSel(null); setLocEditing(false); };
+  const openAI = () => { if (!aiActiveKey(ai)) { alert(aiProviderLabel(ai && ai.model) + " のAPIキーを設定タブで入力してください"); return; } setAiSrc(selSrc); setAiOpen(true); setSel(null); setLocEditing(false); };
   const closeSheet = () => { setSel(null); setLocEditing(false); };
 
   return (
@@ -1611,10 +1649,16 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
     <div className="ie-bg" onClick={onClose}>
       <div className="ie-panel" onClick={(e) => e.stopPropagation()}>
         <div className="ie-head">
-          <div className="ie-t">画像編集 ✎<small>{[kit.code || kit.name, kit.grade].filter(Boolean).join(" · ")}</small></div>
-          <button className="ie-x" onClick={onClose}>×</button>
+          <div className="ie-headline" />
+          <div className="ie-headrow">
+            <div className="ie-headl">
+              <div className="ie-eyebrow">ATELIER</div>
+              <div className="ie-title">工房<small>{[kit.code || kit.name, kit.grade].filter(Boolean).join(" · ")}</small></div>
+            </div>
+            <button className="ie-x" onClick={onClose}>×</button>
+          </div>
         </div>
-        <div className="ie-bar"><span>{order.length} 枚</span><span className="ie-hint"><span className="g">⠿</span> をドラッグで並べ替え</span></div>
+        <div className="ie-bar"><span className="ie-cnt">{order.length}<i>枚</i></span><span className="ie-hint"><span className="g">⠿</span> ドラッグで並べ替え · 先頭が封面</span></div>
         <div className="ie-scroll" onPointerMove={onGridMove} onPointerUp={onGridUp} onPointerCancel={onGridUp} onPointerLeave={onGridUp}>
           <div className="ie-grid">
             {order.map((ref) => {
@@ -1622,10 +1666,10 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
               const ml = metaLine(ref);
               const fr = framingStyle((albumMeta[kitId] && albumMeta[kitId].framing && albumMeta[kitId].framing[ref]) || null);
               return (
-                <div key={ref} data-ref={ref} className={"ie-tile" + (dragId === ref ? " drag" : "")} onClick={() => { if (!dragId) setSel(ref); }}>
+                <div key={ref} ref={(el) => { if (el) tileEls.current[ref] = el; else delete tileEls.current[ref]; }} data-ref={ref} className={"ie-tile" + (dragId === ref ? " drag" : "")} onClick={() => { if (!dragId) setSel(ref); }}>
                   {src ? <img src={src} alt="" className="ie-img" style={fr} draggable={false} /> : <div className="ie-img blank" />}
                   <button type="button" className="ie-drag" onPointerDown={onHandleDown(ref)} onClick={(e) => e.stopPropagation()}>⠿</button>
-                  <div className="ie-badges">{ref === thumbR ? <span className="ie-bdg mei">銘</span> : null}{ref === acqR ? <span className="ie-bdg acq">入</span> : null}</div>
+                  {ref === thumbR ? <span className="ie-cover">封面</span> : null}
                   <div className="ie-tfoot"><span className={ml.cls}>{ml.text}</span>{ml.date ? <span className="ie-dt"> · {ml.date}</span> : null}</div>
                 </div>
               );
@@ -1651,33 +1695,31 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
           </div>
         ) : null}
 
-        {/* 操作シート */}
+        {/* 操作シート(上部に大プレビュー / 下部に動作) */}
         {sel ? (
           <div className="ie-dim" onClick={closeSheet}>
-            <div className="ie-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="ie-sheet sel" onClick={(e) => e.stopPropagation()}>
               <div className="ie-grip" />
-              <div className="ie-sh-top">
-                <div className="ie-sh-thumb">{refSrc(sel, kitId, images, extras) ? <img src={refSrc(sel, kitId, images, extras)} alt="" /> : null}</div>
-                <div className="ie-sh-ttl">この画像<small>{selIdx >= 0 ? selIdx + 1 : "—"} / {order.length} 枚目</small></div>
+              <div className="ie-pv">
+                {selSrc ? <img src={selSrc} alt="" style={selFr} /> : <div className="ie-pv-blank" />}
+                <span className="ie-pv-idx">{selIdx >= 0 ? selIdx + 1 : "—"}<i> / {order.length}</i></span>
+                {sel === thumbR ? <span className="ie-pv-cover">封面</span> : null}
               </div>
               <dl className="ie-sh-meta">
                 <dt>由来</dt><dd>{selMeta && selMeta.src === "ai" ? <span className="ai">✦ AI生成</span> : <span className="pho">◉ 写真</span>}</dd>
                 {selMeta && selMeta.src === "ai"
                   ? <><dt>モデル</dt><dd>{(AI_MODEL_OPTS.find((x) => x.value === selMeta.model) || {}).label || (selMeta && selMeta.model) || "—"}</dd></>
                   : <><dt>撮影者</dt><dd>{(selMeta && selMeta.by) || builderName || "—"}</dd></>}
-                <dt>追加日時</dt><dd>{fmtDT(selMeta && selMeta.at)}</dd>
+                <dt>追加</dt><dd>{fmtDT(selMeta && selMeta.at)}</dd>
                 <dt>場所</dt><dd>{locEditing
-                  ? <span className="ie-locedit"><input autoFocus value={locText} placeholder="例:自宅 / イベント名" onChange={(e) => setLocText(e.target.value)} /><button onClick={() => { onSetLoc(sel, locText); setLocEditing(false); }}>保存</button></span>
+                  ? <span className="ie-locedit"><input autoFocus value={locText} placeholder="例:自宅 / イベント名" onChange={(e) => setLocText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { onSetLoc(sel, locText); setLocEditing(false); } }} /><button onClick={() => { onSetLoc(sel, locText); setLocEditing(false); }}>保存</button></span>
                   : (selMeta && selMeta.loc ? <span>{selMeta.loc} <button className="ie-locbtn" onClick={() => { setLocText(selMeta.loc || ""); setLocEditing(true); }}>編集</button></span> : <span className="ie-dim2">未設定 <button className="ie-locbtn" onClick={() => { setLocText(""); setLocEditing(true); }}>＋ 入力</button></span>)}</dd>
               </dl>
-              <div className="ie-acts">
-                <button className="ie-act" onClick={() => { onSetRole(sel, "thumb"); closeSheet(); }}><span className="ic g">銘</span>銘牌に設定</button>
-                <button className="ie-act" onClick={() => { onSetRole(sel, "acquire"); closeSheet(); }}><span className="ic t">入</span>入手に設定</button>
-                <button className="ie-act" onClick={() => { const r = sel; closeSheet(); onFrame(r); }}><span className="ic">⛶</span>構図</button>
-                <button className="ie-act" onClick={openAI}><span className="ic g">✨</span>AI変換</button>
-                <button className="ie-act" onClick={() => { setLocText((selMeta && selMeta.loc) || ""); setLocEditing(true); }}><span className="ic">📍</span>場所</button>
-                <button className="ie-act warn" onClick={() => { if (window.confirm("この画像を削除しますか?")) { onRemoveImage(sel); closeSheet(); } }}><span className="ic">🗑</span>削除</button>
+              <div className="ie-acts2">
+                <button className="ie-act2" onClick={() => { const r = sel; closeSheet(); onFrame(r); }}><span className="ic">⛶</span><span>構図を整える</span></button>
+                <button className="ie-act2 g" onClick={openAI}><span className="ic">✨</span><span>AIで変換</span></button>
               </div>
+              <button className="ie-del" onClick={() => { if (window.confirm("この画像を削除しますか?")) { onRemoveImage(sel); closeSheet(); } }}><span className="ic">🗑</span>この画像を削除</button>
             </div>
           </div>
         ) : null}
@@ -1685,6 +1727,11 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
         <input ref={camRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={onFile} />
         <input ref={albRef} type="file" accept="image/*" style={{ display: "none" }} onChange={onFile} />
       </div>
+      {drag ? (
+        <div className="ie-ghost" ref={ghostRef} style={{ width: drag.w, height: drag.h }}>
+          {drag.src ? <img src={drag.src} alt="" /> : <div className="ie-img blank" />}
+        </div>
+      ) : null}
     </div>
 
       {aiOpen && aiSrc ? (
@@ -1740,7 +1787,7 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
       <div className="f-sec">画像<span>IMAGES</span></div>
       {albumMode ? (
         <button type="button" className="ie-open-btn" onClick={() => { if (onEditImages) onEditImages(); }}>
-          ✎ 画像を編集{album && album.length ? `（${album.length}枚）` : ""}
+          ✎ 工房{album && album.length ? `（${album.length}枚）` : ""}
         </button>
       ) : (
       <div className="form-img-row">
@@ -4235,7 +4282,7 @@ export default function App() {
                       </div>}
                   {acquireSrc(detailKit.id) ? <span className="dc-seal">鑑定済</span> : null}
                   {acquireSrc(detailKit.id) && (
-                    <button className="dc-frame-btn" onClick={(e) => { e.stopPropagation(); setImgEdit(detailKit.id); }}>✎ 編集</button>
+                    <button className="dc-frame-btn" onClick={(e) => { e.stopPropagation(); setImgEdit(detailKit.id); }}>✎ 工房</button>
                   )}
                 </div>
                 <div className="dc-spec" onClick={closeDetail}>
@@ -5043,59 +5090,84 @@ input,textarea{font-family:var(--sans)}
 .ie-open-btn:active{background:rgba(217,179,106,.13)}
 .ie-bg{position:fixed;inset:0;background:rgba(5,7,12,.92);z-index:70;display:flex;align-items:stretch;justify-content:center}
 .ie-panel{position:relative;width:100%;max-width:520px;height:100%;background:var(--bg);border-left:1px solid var(--line);border-right:1px solid var(--line);overflow:hidden;display:flex;flex-direction:column}
-.ie-head{flex:none;padding:calc(14px + env(safe-area-inset-top)) 16px 12px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;background:var(--bg)}
-.ie-t{flex:1;font-family:var(--serif);font-weight:700;font-size:16px;letter-spacing:.06em}
-.ie-t small{display:block;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;color:var(--ink-mid);letter-spacing:.1em;margin-top:3px}
-.ie-x{flex:none;color:var(--ink-mid);font-size:22px;width:34px;height:34px;line-height:1}
-.ie-bar{flex:none;display:flex;justify-content:space-between;align-items:center;padding:9px 16px;font-size:11px;color:var(--ink-mid);border-bottom:1px solid var(--line);background:var(--panel)}
+/* ── 工房 ATELIER ── */
+.ie-head{flex:none;position:relative;padding:calc(16px + env(safe-area-inset-top)) 18px 13px;background:linear-gradient(180deg,var(--bg2),var(--bg));border-bottom:1px solid var(--line)}
+.ie-headline{position:absolute;top:0;left:18px;right:18px;height:2px;background:linear-gradient(90deg,var(--shu) 0 52px,var(--line) 52px)}
+.ie-headrow{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.ie-eyebrow{font-size:9px;letter-spacing:.32em;color:var(--ink-mid);margin-bottom:5px}
+.ie-title{font-family:var(--serif);font-weight:800;font-size:23px;letter-spacing:.08em;color:var(--ink-strong);line-height:1}
+.ie-title small{display:block;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;color:var(--ink-mid);letter-spacing:.08em;margin-top:6px;font-weight:400}
+.ie-x{flex:none;color:var(--ink-mid);font-size:24px;width:36px;height:36px;line-height:1;border-radius:9px}
+.ie-x:active{background:rgba(255,255,255,.05);transform:scale(.92)}
+.ie-bar{flex:none;display:flex;justify-content:space-between;align-items:center;padding:8px 18px;font-size:11px;color:var(--ink-mid);border-bottom:1px solid var(--line-soft);background:var(--panel)}
+.ie-cnt{font-family:var(--serif);font-size:15px;color:var(--ink-strong);font-weight:700}
+.ie-cnt i{font-size:10px;color:var(--ink-mid);margin-left:2px;font-style:normal;font-weight:400}
+.ie-hint{letter-spacing:.03em}
 .ie-bar .g{color:var(--gold)}
-.ie-scroll{flex:1;min-height:0;overflow-y:auto;padding:14px 14px 24px;touch-action:pan-y}
-.ie-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
-.ie-tile{position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--line);aspect-ratio:1/1.04;background:#10141a;padding:0;cursor:pointer;user-select:none;-webkit-user-select:none}
-.ie-tile.drag{border-color:var(--gold);box-shadow:0 0 0 2px rgba(217,179,106,.4);opacity:.92;z-index:3}
+.ie-scroll{flex:1;min-height:0;overflow-y:auto;padding:14px 14px 28px;touch-action:pan-y}
+.ie-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ie-tile{position:relative;border-radius:13px;overflow:hidden;border:1px solid var(--line);aspect-ratio:1/1.04;background:linear-gradient(150deg,var(--panel2),#10141a);padding:0;cursor:pointer;user-select:none;-webkit-user-select:none;transition:transform .14s ease,border-color .16s ease,box-shadow .16s ease}
+.ie-tile:not(.drag):active{transform:scale(.975);filter:brightness(.96)}
+.ie-tile.drag{border-color:var(--gold);background:rgba(217,179,106,.05)}
+.ie-tile.drag .ie-img,.ie-tile.drag .ie-tfoot,.ie-tile.drag .ie-cover,.ie-tile.drag .ie-drag{opacity:0}
+.ie-tile.drag::after{content:"";position:absolute;inset:6px;border:1.5px dashed rgba(217,179,106,.55);border-radius:9px;pointer-events:none}
 .ie-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;-webkit-user-drag:none}
 .ie-img.blank{background:linear-gradient(140deg,#20262f,#14181f)}
-.ie-drag{position:absolute;top:7px;left:7px;width:30px;height:30px;border-radius:7px;background:rgba(8,10,14,.72);display:flex;align-items:center;justify-content:center;color:var(--ink);font-size:14px;z-index:4;pointer-events:auto;touch-action:none;cursor:grab;border:1px solid rgba(255,255,255,.12)}
-.ie-drag:active{cursor:grabbing;background:rgba(217,179,106,.25);border-color:var(--gold)}
-.ie-badges{position:absolute;top:7px;right:7px;display:flex;gap:4px;z-index:3;pointer-events:none}
-.ie-bdg{font-size:10px;font-family:var(--serif);padding:2px 6px;border-radius:6px;background:rgba(8,10,14,.66);line-height:1.4}
-.ie-bdg.mei{color:var(--gold);border:1px solid rgba(217,179,106,.6)}
-.ie-bdg.acq{color:var(--teal);border:1px solid rgba(111,211,199,.6)}
-.ie-tfoot{position:absolute;left:0;right:0;bottom:0;padding:14px 8px 6px;background:linear-gradient(transparent,rgba(7,9,13,.92));z-index:2;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9px;letter-spacing:.02em;color:rgba(233,227,214,.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.ie-drag{position:absolute;top:8px;left:8px;width:30px;height:30px;border-radius:8px;background:rgba(8,10,14,.62);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;color:var(--ink);font-size:14px;z-index:4;pointer-events:auto;touch-action:none;cursor:grab;border:1px solid rgba(255,255,255,.14)}
+.ie-drag:active{cursor:grabbing;background:rgba(217,179,106,.3);border-color:var(--gold);color:var(--ink-strong)}
+.ie-cover{position:absolute;top:8px;right:8px;z-index:3;font-family:var(--serif);font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.08em;padding:3px 7px;border-radius:7px;background:rgba(8,10,14,.62);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);border:1px solid rgba(217,179,106,.55);pointer-events:none}
+.ie-tfoot{position:absolute;left:0;right:0;bottom:0;padding:16px 9px 7px;background:linear-gradient(transparent,rgba(7,9,13,.94));z-index:2;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9px;letter-spacing:.02em;color:rgba(233,227,214,.72);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
 .ie-tfoot .ai{color:var(--gold)} .ie-tfoot .pho{color:var(--teal)} .ie-dt{color:var(--ink-dim)}
-.ie-tile.add{border:1px dashed var(--line);background:var(--panel);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--ink-mid)}
+.ie-tile.add{border:1px dashed var(--line);background:var(--panel);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--ink-mid);transition:border-color .16s,background .16s,transform .12s}
+.ie-tile.add:active{background:var(--panel2);border-color:var(--gold);transform:scale(.975)}
 .ie-plus{font-size:30px;color:var(--gold);font-weight:300} .ie-addl{font-size:12px} .ie-addo{font-size:9px;color:var(--ink-dim);text-align:center}
-.ie-dim{position:absolute;inset:0;background:rgba(6,8,12,.55);z-index:8;display:flex;align-items:flex-end}
-.ie-sheet{width:100%;background:var(--panel2);border-top:1px solid var(--gold);border-radius:18px 18px 0 0;padding:8px 16px 22px;box-shadow:0 -14px 40px rgba(0,0,0,.5)}
-.ie-grip{width:38px;height:4px;border-radius:2px;background:var(--line-soft);margin:4px auto 12px}
+/* 浮遊ゴースト(指に吸着) */
+.ie-ghost{position:fixed;top:0;left:0;z-index:90;pointer-events:none;border-radius:13px;overflow:hidden;will-change:transform;transform:translate3d(-9999px,-9999px,0);box-shadow:0 22px 48px rgba(0,0,0,.6);outline:2px solid var(--gold);outline-offset:-1px}
+.ie-ghost img{width:100%;height:100%;object-fit:cover;display:block}
+.ie-ghost .ie-img.blank{position:static;width:100%;height:100%}
+/* シート共通 */
+.ie-dim{position:absolute;inset:0;background:rgba(6,8,12,.62);z-index:8;display:flex;align-items:flex-end;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);animation:ie-fade .18s ease}
+@keyframes ie-fade{from{opacity:0}to{opacity:1}}
+.ie-sheet{width:100%;background:linear-gradient(180deg,var(--panel2),var(--panel));border-top:1px solid var(--gold);border-radius:20px 20px 0 0;padding:8px 18px calc(22px + env(safe-area-inset-bottom));box-shadow:0 -16px 44px rgba(0,0,0,.55);animation:ie-rise .26s cubic-bezier(.2,.9,.3,1)}
+@keyframes ie-rise{from{transform:translateY(16px);opacity:.5}to{transform:translateY(0);opacity:1}}
+.ie-grip{width:40px;height:4px;border-radius:2px;background:var(--line-soft);margin:4px auto 14px}
 .ie-sh-h{font-family:var(--serif);font-weight:600;font-size:14px;margin-bottom:12px;text-align:center}
 .ie-addbtns{display:flex;gap:10px;margin-bottom:12px}
-.ie-abtn{flex:1;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:14px 0;color:var(--ink-strong);font-size:13px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer}
-.ie-abtn .ic{font-size:20px}
+.ie-abtn{flex:1;border:1px solid var(--line);background:var(--panel);border-radius:11px;padding:15px 0;color:var(--ink-strong);font-size:13px;display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;transition:transform .12s,border-color .14s,background .14s}
+.ie-abtn:active{transform:scale(.96);border-color:var(--gold);background:var(--panel2)}
+.ie-abtn .ic{font-size:21px}
 .ie-urlrow{display:flex;gap:8px}
-.ie-urlrow input{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:11px 12px;color:var(--ink-strong);font-size:13px}
-.ie-urlrow input:focus{outline:none;border-color:var(--gold)}
-.ie-urlrow button{flex:none;border:1px solid var(--gold);color:var(--gold);background:transparent;border-radius:8px;padding:0 16px;font-size:13px;cursor:pointer}
-.ie-sh-top{display:flex;gap:12px;align-items:center;margin-bottom:13px}
-.ie-sh-thumb{width:60px;height:60px;border-radius:9px;flex:none;background:#10141a;border:1px solid var(--line);overflow:hidden;display:flex;align-items:center;justify-content:center}
-.ie-sh-thumb img{width:100%;height:100%;object-fit:cover}
-.ie-sh-ttl{font-family:var(--serif);font-weight:600;font-size:14px}
-.ie-sh-ttl small{display:block;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;color:var(--ink-mid);margin-top:3px;letter-spacing:.04em}
-.ie-sh-meta{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;padding:12px 2px;margin:0 0 6px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:12px}
-.ie-sh-meta dt{color:var(--ink-mid);font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9.5px;letter-spacing:.06em;align-self:center;text-transform:uppercase}
+.ie-urlrow input{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:12px;color:var(--ink-strong);font-size:13px}
+.ie-urlrow input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(217,179,106,.14)}
+.ie-urlrow button{flex:none;border:1px solid var(--gold);color:var(--gold);background:rgba(217,179,106,.06);border-radius:9px;padding:0 18px;font-size:13px;cursor:pointer}
+.ie-urlrow button:active{background:rgba(217,179,106,.14)}
+/* 大プレビュー */
+.ie-pv{position:relative;width:100%;height:min(46vh,330px);border-radius:14px;overflow:hidden;background:#0c1016;border:1px solid var(--line);margin-bottom:14px;display:flex;align-items:center;justify-content:center}
+.ie-pv img{width:100%;height:100%;object-fit:cover}
+.ie-pv-blank{width:100%;height:100%;background:linear-gradient(140deg,#20262f,#14181f)}
+.ie-pv-idx{position:absolute;left:11px;bottom:11px;font-family:var(--serif);font-weight:700;font-size:16px;color:var(--ink-strong);padding:4px 11px;border-radius:9px;background:rgba(8,10,14,.6);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.12)}
+.ie-pv-idx i{font-size:11px;color:var(--ink-mid);font-weight:400;font-style:normal}
+.ie-pv-cover{position:absolute;right:11px;top:11px;font-family:var(--serif);font-size:11px;font-weight:700;color:var(--gold);letter-spacing:.1em;padding:4px 9px;border-radius:8px;background:rgba(8,10,14,.6);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border:1px solid rgba(217,179,106,.6)}
+.ie-sh-meta{display:grid;grid-template-columns:auto 1fr;gap:9px 14px;padding:13px 4px;margin:0 0 14px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:12.5px}
+.ie-sh-meta dt{color:var(--ink-mid);font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9.5px;letter-spacing:.08em;align-self:center;text-transform:uppercase}
 .ie-sh-meta dd{margin:0;color:var(--ink-strong)}
 .ie-sh-meta dd .pho{color:var(--teal)} .ie-sh-meta dd .ai{color:var(--gold)}
 .ie-dim2{color:var(--ink-dim)}
 .ie-locbtn{color:var(--teal);font-size:11px;margin-left:6px;background:none;border:none;cursor:pointer;font-family:inherit}
 .ie-locedit{display:inline-flex;gap:6px;align-items:center}
-.ie-locedit input{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:5px 8px;color:var(--ink-strong);font-size:12px;width:130px}
+.ie-locedit input{background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:6px 9px;color:var(--ink-strong);font-size:12px;width:140px}
 .ie-locedit input:focus{outline:none;border-color:var(--gold)}
 .ie-locedit button{color:var(--gold);background:none;border:none;font-size:12px;cursor:pointer;font-family:inherit}
-.ie-acts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;margin-top:8px}
-.ie-act{display:flex;flex-direction:column;align-items:center;gap:5px;padding:13px 2px;font-size:11px;color:var(--ink-strong);background:none;border:none;cursor:pointer;font-family:inherit}
-.ie-act .ic{font-size:19px;line-height:1}
-.ie-act .ic.g{color:var(--gold)} .ie-act .ic.t{color:var(--teal)}
-.ie-act.warn{color:var(--shu)}
+/* 動作:主要2ボタン + 削除 */
+.ie-acts2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.ie-act2{display:flex;align-items:center;justify-content:center;gap:8px;padding:15px 8px;font-size:13.5px;font-weight:600;color:var(--ink-strong);background:var(--panel);border:1px solid var(--line);border-radius:12px;cursor:pointer;font-family:inherit;transition:transform .12s,border-color .14s,background .14s}
+.ie-act2:active{transform:scale(.96)}
+.ie-act2 .ic{font-size:18px;line-height:1}
+.ie-act2.g{border-color:rgba(217,179,106,.55);background:linear-gradient(160deg,rgba(217,179,106,.14),var(--panel));color:var(--gold)}
+.ie-act2.g:active{background:linear-gradient(160deg,rgba(217,179,106,.22),var(--panel))}
+.ie-del{width:100%;display:flex;align-items:center;justify-content:center;gap:7px;padding:12px;font-size:12.5px;color:var(--shu);background:none;border:1px solid transparent;border-radius:11px;cursor:pointer;font-family:inherit;transition:background .14s}
+.ie-del .ic{font-size:15px}
+.ie-del:active{background:rgba(232,85,61,.1)}
 .form-album-strip{display:flex;gap:8px;flex-wrap:wrap}
 .fa-thumb{position:relative;width:72px;height:72px;border-radius:8px;overflow:hidden;
   border:1px solid var(--line);background:var(--panel);padding:0}
