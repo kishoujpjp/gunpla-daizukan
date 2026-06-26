@@ -4317,8 +4317,191 @@ function NoteField({ note, onCommit }) {
   );
 }
 
+function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onAddImage, onRemoveImage, onSetRole, onFrame, onReorder, onSetLoc, onClose }) {
+  const kitId = kit.id;
+  const baseRefs = albumRefs(kitId, images, extras, albumMeta);
+  const baseKey = baseRefs.join("|");
+  const [order, setOrder] = useState(baseRefs);
+  const orderRef = useRef(order);
+  const dragRef = useRef(null);
+  useEffect(() => { orderRef.current = order; }, [order]);
+  // 追加/削除でrefs集合が変わったら、現順序を保ちつつ同期
+  useEffect(() => {
+    if (dragRef.current) return;
+    setOrder((cur) => {
+      if (cur.join("|") === baseKey) return cur;
+      const present = new Set(baseRefs);
+      const merged = cur.filter((r) => present.has(r));
+      baseRefs.forEach((r) => { if (merged.indexOf(r) < 0) merged.push(r); });
+      return merged;
+    });
+    // eslint-disable-next-line
+  }, [baseKey]);
+
+  const [sel, setSel] = useState(null);     // 操作シート対象 ref
+  const [addOpen, setAddOpen] = useState(false);
+  const [urlVal, setUrlVal] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiSrc, setAiSrc] = useState(null);
+  const [locEditing, setLocEditing] = useState(false);
+  const [locText, setLocText] = useState("");
+  const camRef = useRef(null);
+  const albRef = useRef(null);
+
+  // ── 長押しドラッグ並べ替え ──
+  const [dragId, setDragId] = useState(null);
+  const lpRef = useRef(null);
+  const downPt = useRef(null);
+  const movedFar = useRef(false);
+  const clearLP = () => { if (lpRef.current) { clearTimeout(lpRef.current); lpRef.current = null; } };
+  const onTileDown = (ref) => (e) => {
+    if (e.button != null && e.button !== 0) return;
+    downPt.current = { x: e.clientX, y: e.clientY, ref };
+    movedFar.current = false; clearLP();
+    lpRef.current = setTimeout(() => { dragRef.current = ref; setDragId(ref); if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(14); }, 340);
+  };
+  const onGridMove = (e) => {
+    if (!downPt.current) return;
+    if (!dragRef.current) {
+      if (Math.abs(e.clientX - downPt.current.x) > 8 || Math.abs(e.clientY - downPt.current.y) > 8) { movedFar.current = true; clearLP(); }
+      return;
+    }
+    e.preventDefault();
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const tile = el && el.closest && el.closest("[data-ref]");
+    if (!tile) return;
+    const over = tile.getAttribute("data-ref");
+    if (over && over !== "add" && over !== dragRef.current) {
+      setOrder((cur) => { const from = cur.indexOf(dragRef.current), to = cur.indexOf(over); if (from < 0 || to < 0) return cur; const next = cur.slice(); next.splice(to, 0, next.splice(from, 1)[0]); return next; });
+    }
+  };
+  const onGridUp = () => {
+    clearLP();
+    const wasDragging = !!dragRef.current;
+    const tapRef = downPt.current && downPt.current.ref;
+    dragRef.current = null; downPt.current = null;
+    if (wasDragging) { setDragId(null); onReorder(orderRef.current); return; }
+    if (!movedFar.current && tapRef) setSel(tapRef);
+  };
+
+  const thumbR = pickRef("thumb", kitId, images, extras, albumMeta);
+  const acqR = pickRef("acquire", kitId, images, extras, albumMeta);
+  const selMeta = sel ? imgMetaFrom(albumMeta, kitId, sel) : null;
+  const selIdx = sel ? order.indexOf(sel) : -1;
+
+  const metaLine = (ref) => {
+    const m = imgMetaFrom(albumMeta, kitId, ref);
+    const d = m && m.at ? new Date(m.at) : null;
+    const ds = d ? (("0" + (d.getMonth() + 1)).slice(-2) + "/" + ("0" + d.getDate()).slice(-2)) : "";
+    if (m && m.src === "ai") { const o = AI_MODEL_OPTS.find((x) => x.value === m.model); return { cls: "ai", text: "✦ " + ((o && o.label) || m.model || "AI"), date: ds }; }
+    const by = (m && m.by) || builderName || "";
+    return { cls: "pho", text: "◉ " + (by ? "photoed by " + by : "写真"), date: ds };
+  };
+  const fmtDT = (at) => { if (!at) return "—"; const d = new Date(at); const p = (n) => ("0" + n).slice(-2); return d.getFullYear() + "/" + p(d.getMonth() + 1) + "/" + p(d.getDate()) + " " + p(d.getHours()) + ":" + p(d.getMinutes()); };
+
+  const onFile = async (e) => {
+    const f = e.target.files && e.target.files[0]; if (e.target) e.target.value = "";
+    if (!f) return;
+    setBusy(true);
+    try { const url = await fileToCompressedDataURL(f, 900, 0.82); onAddImage(url, { src: "photo" }); }
+    catch (err) { alert("画像の読み込みに失敗しました"); }
+    setBusy(false); setAddOpen(false);
+  };
+  const addUrl = () => { const u = urlVal.trim(); if (!u) return; onAddImage(u, { src: "photo" }); setUrlVal(""); setAddOpen(false); };
+  const openAI = () => { if (!aiActiveKey(ai)) { alert(aiProviderLabel(ai && ai.model) + " のAPIキーを設定タブで入力してください"); return; } setAiSrc(refSrc(sel, kitId, images, extras)); setAiOpen(true); };
+  const closeSheet = () => { setSel(null); setLocEditing(false); };
+
+  return (
+    <div className="ie-bg" onClick={onClose}>
+      <div className="ie-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="ie-head">
+          <div className="ie-t">画像編集 ✎<small>{[kit.code || kit.name, kit.grade].filter(Boolean).join(" · ")}</small></div>
+          <button className="ie-x" onClick={onClose}>×</button>
+        </div>
+        <div className="ie-bar"><span>{order.length} 枚</span><span className="ie-hint"><span className="g">⠿</span> 長押しで並べ替え</span></div>
+        <div className="ie-scroll" onPointerMove={onGridMove} onPointerUp={onGridUp} onPointerCancel={onGridUp} onPointerLeave={onGridUp}>
+          <div className="ie-grid">
+            {order.map((ref) => {
+              const src = refSrc(ref, kitId, images, extras);
+              const ml = metaLine(ref);
+              const fr = framingStyle((albumMeta[kitId] && albumMeta[kitId].framing && albumMeta[kitId].framing[ref]) || null);
+              return (
+                <div key={ref} data-ref={ref} className={"ie-tile" + (dragId === ref ? " drag" : "")} onPointerDown={onTileDown(ref)}>
+                  {src ? <img src={src} alt="" className="ie-img" style={fr} draggable={false} /> : <div className="ie-img blank" />}
+                  <div className="ie-drag">⠿</div>
+                  <div className="ie-badges">{ref === thumbR ? <span className="ie-bdg mei">銘</span> : null}{ref === acqR ? <span className="ie-bdg acq">入</span> : null}</div>
+                  <div className="ie-tfoot"><span className={ml.cls}>{ml.text}</span>{ml.date ? <span className="ie-dt"> · {ml.date}</span> : null}</div>
+                </div>
+              );
+            })}
+            <button data-ref="add" className="ie-tile add" onClick={() => setAddOpen(true)} disabled={busy}>
+              <span className="ie-plus">{busy ? "…" : "＋"}</span><span className="ie-addl">画像を追加</span><span className="ie-addo">カメラ / アルバム / URL</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 追加メニュー */}
+        {addOpen ? (
+          <div className="ie-dim" onClick={() => setAddOpen(false)}>
+            <div className="ie-sheet" onClick={(e) => e.stopPropagation()}>
+              <div className="ie-grip" />
+              <div className="ie-sh-h">画像を追加</div>
+              <div className="ie-addbtns">
+                <button className="ie-abtn" onClick={() => camRef.current && camRef.current.click()}><span className="ic">📷</span>カメラ</button>
+                <button className="ie-abtn" onClick={() => albRef.current && albRef.current.click()}><span className="ic">🖼</span>アルバム</button>
+              </div>
+              <div className="ie-urlrow"><input value={urlVal} placeholder="画像URL" onChange={(e) => setUrlVal(e.target.value)} /><button onClick={addUrl}>追加</button></div>
+            </div>
+          </div>
+        ) : null}
+
+        {/* 操作シート */}
+        {sel ? (
+          <div className="ie-dim" onClick={closeSheet}>
+            <div className="ie-sheet" onClick={(e) => e.stopPropagation()}>
+              <div className="ie-grip" />
+              <div className="ie-sh-top">
+                <div className="ie-sh-thumb">{refSrc(sel, kitId, images, extras) ? <img src={refSrc(sel, kitId, images, extras)} alt="" /> : null}</div>
+                <div className="ie-sh-ttl">この画像<small>{selIdx >= 0 ? selIdx + 1 : "—"} / {order.length} 枚目</small></div>
+              </div>
+              <dl className="ie-sh-meta">
+                <dt>由来</dt><dd>{selMeta && selMeta.src === "ai" ? <span className="ai">✦ AI生成</span> : <span className="pho">◉ 写真</span>}</dd>
+                {selMeta && selMeta.src === "ai"
+                  ? <><dt>モデル</dt><dd>{(AI_MODEL_OPTS.find((x) => x.value === selMeta.model) || {}).label || (selMeta && selMeta.model) || "—"}</dd></>
+                  : <><dt>撮影者</dt><dd>{(selMeta && selMeta.by) || builderName || "—"}</dd></>}
+                <dt>追加日時</dt><dd>{fmtDT(selMeta && selMeta.at)}</dd>
+                <dt>場所</dt><dd>{locEditing
+                  ? <span className="ie-locedit"><input autoFocus value={locText} placeholder="例:自宅 / イベント名" onChange={(e) => setLocText(e.target.value)} /><button onClick={() => { onSetLoc(sel, locText); setLocEditing(false); }}>保存</button></span>
+                  : (selMeta && selMeta.loc ? <span>{selMeta.loc} <button className="ie-locbtn" onClick={() => { setLocText(selMeta.loc || ""); setLocEditing(true); }}>編集</button></span> : <span className="ie-dim2">未設定 <button className="ie-locbtn" onClick={() => { setLocText(""); setLocEditing(true); }}>＋ 入力</button></span>)}</dd>
+              </dl>
+              <div className="ie-acts">
+                <button className="ie-act" onClick={() => { onSetRole(sel, "thumb"); closeSheet(); }}><span className="ic g">銘</span>銘牌に設定</button>
+                <button className="ie-act" onClick={() => { onSetRole(sel, "acquire"); closeSheet(); }}><span className="ic t">入</span>入手に設定</button>
+                <button className="ie-act" onClick={() => { const r = sel; closeSheet(); onFrame(r); }}><span className="ic">⛶</span>構図</button>
+                <button className="ie-act" onClick={openAI}><span className="ic g">✨</span>AI変換</button>
+                <button className="ie-act" onClick={() => { setLocText((selMeta && selMeta.loc) || ""); setLocEditing(true); }}><span className="ic">📍</span>場所</button>
+                <button className="ie-act warn" onClick={() => { if (window.confirm("この画像を削除しますか?")) { onRemoveImage(sel); closeSheet(); } }}><span className="ic">🗑</span>削除</button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        <input ref={camRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={onFile} />
+        <input ref={albRef} type="file" accept="image/*" style={{ display: "none" }} onChange={onFile} />
+      </div>
+
+      {aiOpen && aiSrc ? (
+        <AIRestyleModal src={aiSrc} geminiKey={ai && ai.geminiKey} openaiKey={ai && ai.openaiKey} model={(ai && ai.model) || "gemini-2.5-flash-image"} prompts={ai && ai.prompts}
+          onAdopt={(out, meta) => { onAddImage(out, meta); setAiOpen(false); closeSheet(); }}
+          onClose={() => setAiOpen(false)} />
+      ) : null}
+    </div>
+  );
+}
+
 function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, seriesOptions = [], ai, recInitial = null, onSaveRec,
-  album, onAddImage, onRemoveImage, onSetRole, onFrame, thumbRef, acqRef, maxImgs = 6 }) {
+  album, onAddImage, onRemoveImage, onSetRole, onFrame, onEditImages, thumbRef, acqRef, maxImgs = 6 }) {
   const albumMode = typeof onAddImage === "function";
   const [f, setF] = useState({
     name: initial.name || "", code: initial.code || "", ym: initial.ym || "",
@@ -4360,45 +4543,9 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
     <div className="form">
       <div className="f-sec">画像<span>IMAGES</span></div>
       {albumMode ? (
-        <div className="form-album">
-          <div className="form-album-strip">
-            {(album || []).map((a) => (
-              <button type="button" key={a.ref} className={"fa-thumb" + (sel === a.ref ? " sel" : "")}
-                onClick={() => setSel(sel === a.ref ? null : a.ref)}>
-                <img src={a.src} alt="" className="fa-thumb-img" style={a.frame} />
-                {a.ref === thumbRef && <i className="fa-badge t">★</i>}
-                {a.ref === acqRef && <i className="fa-badge a">◎</i>}
-              </button>
-            ))}
-            {!atCap && (
-              <button type="button" className="fa-add" onClick={() => fileRef.current && fileRef.current.click()} disabled={busy}>
-                {busy ? "…" : "＋"}
-              </button>
-            )}
-          </div>
-          {sel && (album || []).some((a) => a.ref === sel) && (
-            <div className="fa-actions">
-              <button type="button" className="mini-btn" onClick={() => onSetRole(sel, "thumb")}>★ 一覧サムネに</button>
-              <button type="button" className="mini-btn" onClick={() => onSetRole(sel, "acquire")}>◎ 入手画像に</button>
-              {onFrame && <button type="button" className="mini-btn" onClick={() => onFrame(sel)}>⛶ 構図を調整</button>}
-              {!atCap && <button type="button" className="mini-btn" onClick={() => setCropSrc((album.find((a) => a.ref === sel) || {}).src)}>✂ 切り抜き(新規)</button>}
-              {!atCap && <button type="button" className="mini-btn ai" onClick={() => {
-                if (!aiActiveKey(ai)) { alert(aiProviderLabel(ai && ai.model) + " のAPIキーを設定タブで入力してください"); return; }
-                setAiSrc((album.find((a) => a.ref === sel) || {}).src); setAiOpen(true);
-              }}>✨ AI変換(新規)</button>}
-              <button type="button" className="mini-btn ghost" onClick={() => {
-                if (window.confirm("この画像を削除しますか?")) { onRemoveImage(sel); setSel(null); }
-              }}>この画像を削除</button>
-            </div>
-          )}
-          <div className="fa-add-row">
-            <input placeholder="画像URLを追加" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} disabled={atCap} />
-            <button type="button" className="mini-btn" disabled={atCap}
-              onClick={() => { if (urlInput.trim()) { applyNewImage(urlInput.trim()); setUrlInput(""); } }}>追加</button>
-          </div>
-          <div className="fa-count">{(album || []).length} / {maxImgs} 枚{atCap ? "(上限)" : ""}</div>
-          <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={pickFile} />
-        </div>
+        <button type="button" className="ie-open-btn" onClick={() => { if (onEditImages) onEditImages(); }}>
+          ✎ 画像を編集{album && album.length ? `（${album.length}枚）` : ""}
+        </button>
       ) : (
       <div className="form-img-row">
         <div className="form-img-box">
@@ -4603,6 +4750,7 @@ export default function App() {
   const [viewer, setViewer] = useState(null); // 画像鑑賞: {kitId, idx} | null
   const [viewerDel, setViewerDel] = useState(false); // 鑑賞内の削除確認
   const [frameEdit, setFrameEdit] = useState(null); // 構図調整: {kitId, ref} | null
+  const [imgEdit, setImgEdit] = useState(null); // 画像編集ウィンドウ対象 kitId | null
   const [planConfirm, setPlanConfirm] = useState(null); // 予定取消確認 kit
   const [ownConfirm, setOwnConfirm] = useState(null); // 入手取消確認 kit
   const [loaded, setLoaded] = useState(false);
@@ -5134,13 +5282,9 @@ export default function App() {
       return { ...prev, [kitId]: { ...m, imeta } };
     });
   }, [settings.builderName]);
-  // 新規画像を追加(extras へ)。上限チェック。成功で true。meta で由来を記録。
+  // 新規画像を追加(extras へ)。meta で由来を記録。枚数上限なし。
   const addAlbumImage = useCallback((kitId, src, meta) => {
     if (!src) return false;
-    if (albumRefs(kitId, images, extras, albumMeta).length >= MAX_IMGS_PER_KIT) {
-      alert(`画像は1機体あたり最大 ${MAX_IMGS_PER_KIT} 枚までです。`);
-      return false;
-    }
     const xid = newXid(kitId);
     setExtras((prev) => { const next = { ...prev, [xid]: src }; persistXtraShard(next, xid); return next; });
     setAlbumMeta((prev) => {
@@ -5184,6 +5328,20 @@ export default function App() {
       return { ...prev, [kitId]: { ...m, framing: framingMap } };
     });
   }, []);
+
+  // 画像の並び順を保存(ドラッグ並べ替え)。
+  const setAlbumOrder = useCallback((kitId, order) => {
+    setAlbumMeta((prev) => { const m = prev[kitId] || {}; return { ...prev, [kitId]: { ...m, order: (order || []).slice() } }; });
+  }, []);
+  // 画像メタの場所(任意・手動)を更新。他のメタは保持。
+  const setImgLoc = useCallback((kitId, ref, loc) => {
+    setAlbumMeta((prev) => {
+      const m = prev[kitId] || {}; const imeta = { ...(m.imeta || {}) };
+      const cur = imeta[ref] || { src: "photo", model: "", at: Date.now(), by: settings.builderName || "" };
+      imeta[ref] = { ...cur, loc: loc || "" };
+      return { ...prev, [kitId]: { ...m, imeta } };
+    });
+  }, [settings.builderName]);
 
   // 表示用: ref の framing を取得
   const framingOf = useCallback((kitId, ref) => {
@@ -6063,7 +6221,7 @@ export default function App() {
   );
 
   return (
-    <div className={"app " + (settings.theme === "light" ? "light" : "") + (detailKit || adding || promptEdit || profileOpen || setupOpen || titleDetail || searchOpen || filterOpen || fixOpen || quizOpen || identifyOpen ? " lock" : "")}>
+    <div className={"app " + (settings.theme === "light" ? "light" : "") + (detailKit || adding || promptEdit || profileOpen || setupOpen || titleDetail || searchOpen || filterOpen || fixOpen || quizOpen || identifyOpen || imgEdit ? " lock" : "")}>
       <style>{CSS}</style>
 
       {storageErr && (
@@ -6816,6 +6974,22 @@ export default function App() {
         );
       })()}
 
+      {imgEdit && (() => {
+        const ek = allKits.find((k) => k.id === imgEdit);
+        if (!ek) return null;
+        return (
+          <ImageEditorModal kit={ek} images={images} extras={extras} albumMeta={albumMeta} builderName={settings.builderName}
+            ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, model: settings.geminiModel, prompts: settings.aiPrompts }}
+            onAddImage={(src, meta) => addAlbumImage(imgEdit, src, meta)}
+            onRemoveImage={(ref) => removeAlbumImage(imgEdit, ref)}
+            onSetRole={(ref, role) => setAlbumRole(imgEdit, ref, role)}
+            onFrame={(ref) => setFrameEdit({ kitId: imgEdit, ref })}
+            onReorder={(order) => setAlbumOrder(imgEdit, order)}
+            onSetLoc={(ref, loc) => setImgLoc(imgEdit, ref, loc)}
+            onClose={() => setImgEdit(null)} />
+        );
+      })()}
+
       {frameEdit && (() => {
         const src = refSrc(frameEdit.ref, frameEdit.kitId, images, extras);
         if (!src) { setTimeout(() => setFrameEdit(null), 0); return null; }
@@ -6860,10 +7034,7 @@ export default function App() {
                       </div>}
                   {acquireSrc(detailKit.id) ? <span className="dc-seal">鑑定済</span> : null}
                   {acquireSrc(detailKit.id) && (
-                    <button className="dc-frame-btn" onClick={(e) => { e.stopPropagation();
-                      const r = pickRef("acquire", detailKit.id, images, extras, albumMeta);
-                      if (r) setFrameEdit({ kitId: detailKit.id, ref: r });
-                    }}>⛶ 構図</button>
+                    <button className="dc-frame-btn" onClick={(e) => { e.stopPropagation(); setImgEdit(detailKit.id); }}>✎ 編集</button>
                   )}
                 </div>
                 <div className="dc-spec" onClick={closeDetail}>
@@ -6899,6 +7070,7 @@ export default function App() {
                   initial={detailKit}
                   currentImg={images[detailKit.id]}
                   album={kitAlbum(detailKit.id)}
+                  onEditImages={() => setImgEdit(detailKit.id)}
                   onAddImage={(src, meta) => addAlbumImage(detailKit.id, src, meta)}
                   onRemoveImage={(ref) => removeAlbumImage(detailKit.id, ref)}
                   onSetRole={(ref, role) => setAlbumRole(detailKit.id, ref, role)}
@@ -7666,6 +7838,62 @@ input,textarea{font-family:var(--sans)}
 .form{display:flex;flex-direction:column;gap:12px}
 .form-img-row{display:flex;gap:14px;align-items:flex-start}
 .form-album{display:flex;flex-direction:column;gap:9px}
+.ie-open-btn{width:100%;border:1px solid var(--gold);color:var(--gold);background:rgba(217,179,106,.06);border-radius:9px;padding:13px 0;font-size:13px;letter-spacing:.04em;cursor:pointer;font-family:inherit}
+.ie-open-btn:active{background:rgba(217,179,106,.13)}
+.ie-bg{position:fixed;inset:0;background:rgba(5,7,12,.86);z-index:70;display:flex;align-items:flex-end;justify-content:center}
+.ie-panel{position:relative;width:100%;max-width:520px;height:92vh;background:var(--ink);border:1px solid var(--line);border-radius:18px 18px 0 0;overflow:hidden;display:flex;flex-direction:column}
+.ie-head{flex:none;padding:15px 16px 12px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.ie-t{flex:1;font-family:var(--serif);font-weight:700;font-size:16px;letter-spacing:.06em}
+.ie-t small{display:block;font-family:var(--mono);font-size:10px;color:var(--ink-mid);letter-spacing:.1em;margin-top:3px}
+.ie-x{flex:none;color:var(--ink-mid);font-size:22px;width:34px;height:34px;line-height:1}
+.ie-bar{flex:none;display:flex;justify-content:space-between;align-items:center;padding:9px 16px;font-size:11px;color:var(--ink-mid);border-bottom:1px solid var(--line);background:var(--panel)}
+.ie-bar .g{color:var(--gold)}
+.ie-scroll{flex:1;min-height:0;overflow-y:auto;padding:14px 14px 24px;touch-action:pan-y}
+.ie-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.ie-tile{position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--line);aspect-ratio:1/1.04;background:#10141a;padding:0;cursor:pointer;user-select:none;-webkit-user-select:none}
+.ie-tile.drag{border-color:var(--gold);box-shadow:0 0 0 2px rgba(217,179,106,.4);opacity:.92;z-index:3}
+.ie-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;-webkit-user-drag:none}
+.ie-img.blank{background:linear-gradient(140deg,#20262f,#14181f)}
+.ie-drag{position:absolute;top:7px;left:7px;width:24px;height:24px;border-radius:7px;background:rgba(8,10,14,.6);display:flex;align-items:center;justify-content:center;color:var(--ink-strong);font-size:13px;z-index:3;pointer-events:none}
+.ie-badges{position:absolute;top:7px;right:7px;display:flex;gap:4px;z-index:3;pointer-events:none}
+.ie-bdg{font-size:10px;font-family:var(--serif);padding:2px 6px;border-radius:6px;background:rgba(8,10,14,.66);line-height:1.4}
+.ie-bdg.mei{color:var(--gold);border:1px solid rgba(217,179,106,.6)}
+.ie-bdg.acq{color:var(--teal);border:1px solid rgba(111,211,199,.6)}
+.ie-tfoot{position:absolute;left:0;right:0;bottom:0;padding:14px 8px 6px;background:linear-gradient(transparent,rgba(7,9,13,.92));z-index:2;font-family:var(--mono);font-size:9px;letter-spacing:.02em;color:rgba(233,227,214,.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.ie-tfoot .ai{color:var(--gold)} .ie-tfoot .pho{color:var(--teal)} .ie-dt{color:var(--ink-dim)}
+.ie-tile.add{border:1px dashed var(--line);background:var(--panel);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--ink-mid)}
+.ie-plus{font-size:30px;color:var(--gold);font-weight:300} .ie-addl{font-size:12px} .ie-addo{font-size:9px;color:var(--ink-dim);text-align:center}
+.ie-dim{position:absolute;inset:0;background:rgba(6,8,12,.55);z-index:8;display:flex;align-items:flex-end}
+.ie-sheet{width:100%;background:var(--panel2);border-top:1px solid var(--gold);border-radius:18px 18px 0 0;padding:8px 16px 22px;box-shadow:0 -14px 40px rgba(0,0,0,.5)}
+.ie-grip{width:38px;height:4px;border-radius:2px;background:var(--hair);margin:4px auto 12px}
+.ie-sh-h{font-family:var(--serif);font-weight:600;font-size:14px;margin-bottom:12px;text-align:center}
+.ie-addbtns{display:flex;gap:10px;margin-bottom:12px}
+.ie-abtn{flex:1;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:14px 0;color:var(--ink-strong);font-size:13px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer}
+.ie-abtn .ic{font-size:20px}
+.ie-urlrow{display:flex;gap:8px}
+.ie-urlrow input{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:11px 12px;color:var(--ink-strong);font-size:13px}
+.ie-urlrow input:focus{outline:none;border-color:var(--gold)}
+.ie-urlrow button{flex:none;border:1px solid var(--gold);color:var(--gold);background:transparent;border-radius:8px;padding:0 16px;font-size:13px;cursor:pointer}
+.ie-sh-top{display:flex;gap:12px;align-items:center;margin-bottom:13px}
+.ie-sh-thumb{width:60px;height:60px;border-radius:9px;flex:none;background:#10141a;border:1px solid var(--line);overflow:hidden;display:flex;align-items:center;justify-content:center}
+.ie-sh-thumb img{width:100%;height:100%;object-fit:cover}
+.ie-sh-ttl{font-family:var(--serif);font-weight:600;font-size:14px}
+.ie-sh-ttl small{display:block;font-family:var(--mono);font-size:10px;color:var(--ink-mid);margin-top:3px;letter-spacing:.04em}
+.ie-sh-meta{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;padding:12px 2px;margin:0 0 6px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:12px}
+.ie-sh-meta dt{color:var(--ink-mid);font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;align-self:center;text-transform:uppercase}
+.ie-sh-meta dd{margin:0;color:var(--ink-strong)}
+.ie-sh-meta dd .pho{color:var(--teal)} .ie-sh-meta dd .ai{color:var(--gold)}
+.ie-dim2{color:var(--ink-dim)}
+.ie-locbtn{color:var(--teal);font-size:11px;margin-left:6px;background:none;border:none;cursor:pointer;font-family:inherit}
+.ie-locedit{display:inline-flex;gap:6px;align-items:center}
+.ie-locedit input{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:5px 8px;color:var(--ink-strong);font-size:12px;width:130px}
+.ie-locedit input:focus{outline:none;border-color:var(--gold)}
+.ie-locedit button{color:var(--gold);background:none;border:none;font-size:12px;cursor:pointer;font-family:inherit}
+.ie-acts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;margin-top:8px}
+.ie-act{display:flex;flex-direction:column;align-items:center;gap:5px;padding:13px 2px;font-size:11px;color:var(--ink-strong);background:none;border:none;cursor:pointer;font-family:inherit}
+.ie-act .ic{font-size:19px;line-height:1}
+.ie-act .ic.g{color:var(--gold)} .ie-act .ic.t{color:var(--teal)}
+.ie-act.warn{color:var(--shu)}
 .form-album-strip{display:flex;gap:8px;flex-wrap:wrap}
 .fa-thumb{position:relative;width:72px;height:72px;border-radius:8px;overflow:hidden;
   border:1px solid var(--line);background:var(--panel);padding:0}
