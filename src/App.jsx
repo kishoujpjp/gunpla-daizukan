@@ -4409,10 +4409,11 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
     setBusy(false); setAddOpen(false);
   };
   const addUrl = () => { const u = urlVal.trim(); if (!u) return; onAddImage(u, { src: "photo" }); setUrlVal(""); setAddOpen(false); };
-  const openAI = () => { if (!aiActiveKey(ai)) { alert(aiProviderLabel(ai && ai.model) + " のAPIキーを設定タブで入力してください"); return; } setAiSrc(refSrc(sel, kitId, images, extras)); setAiOpen(true); };
+  const openAI = () => { if (!aiActiveKey(ai)) { alert(aiProviderLabel(ai && ai.model) + " のAPIキーを設定タブで入力してください"); return; } const s = refSrc(sel, kitId, images, extras); setAiSrc(s); setAiOpen(true); setSel(null); setLocEditing(false); };
   const closeSheet = () => { setSel(null); setLocEditing(false); };
 
   return (
+    <>
     <div className="ie-bg" onClick={onClose}>
       <div className="ie-panel" onClick={(e) => e.stopPropagation()}>
         <div className="ie-head">
@@ -4490,13 +4491,14 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
         <input ref={camRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={onFile} />
         <input ref={albRef} type="file" accept="image/*" style={{ display: "none" }} onChange={onFile} />
       </div>
+    </div>
 
       {aiOpen && aiSrc ? (
         <AIRestyleModal src={aiSrc} geminiKey={ai && ai.geminiKey} openaiKey={ai && ai.openaiKey} model={(ai && ai.model) || "gemini-2.5-flash-image"} prompts={ai && ai.prompts}
           onAdopt={(out, meta) => { onAddImage(out, meta); setAiOpen(false); closeSheet(); }}
           onClose={() => setAiOpen(false)} />
       ) : null}
-    </div>
+    </>
   );
 }
 
@@ -7840,8 +7842,8 @@ input,textarea{font-family:var(--sans)}
 .form-album{display:flex;flex-direction:column;gap:9px}
 .ie-open-btn{width:100%;border:1px solid var(--gold);color:var(--gold);background:rgba(217,179,106,.06);border-radius:9px;padding:13px 0;font-size:13px;letter-spacing:.04em;cursor:pointer;font-family:inherit}
 .ie-open-btn:active{background:rgba(217,179,106,.13)}
-.ie-bg{position:fixed;inset:0;background:rgba(5,7,12,.86);z-index:70;display:flex;align-items:flex-end;justify-content:center}
-.ie-panel{position:relative;width:100%;max-width:520px;height:92vh;background:var(--ink);border:1px solid var(--line);border-radius:18px 18px 0 0;overflow:hidden;display:flex;flex-direction:column}
+.ie-bg{position:fixed;inset:0;background:rgba(5,7,12,.92);z-index:70;display:flex;align-items:stretch;justify-content:center}
+.ie-panel{position:relative;width:100%;max-width:520px;height:100%;background:var(--ink);border-left:1px solid var(--line);border-right:1px solid var(--line);overflow:hidden;display:flex;flex-direction:column}
 .ie-head{flex:none;padding:15px 16px 12px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
 .ie-t{flex:1;font-family:var(--serif);font-weight:700;font-size:16px;letter-spacing:.06em}
 .ie-t small{display:block;font-family:var(--mono);font-size:10px;color:var(--ink-mid);letter-spacing:.1em;margin-top:3px}
