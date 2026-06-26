@@ -3013,7 +3013,38 @@ const AI_STYLES = [
     prompt: "Completely repaint this image as a 17th-century Dutch Golden Age oil painting in the style of Rembrandt van Rijn. Re-render everything with dramatic Rembrandt chiaroscuro: a single warm light emerging from deep enveloping shadow, a rich earthy palette of browns, ochres, golds and deep blacks, luminous glazed highlights, expressive visible impasto brushwork, and the cracked varnished texture of an old-master canvas. The subject should emerge from a dark, atmospheric background as in a Rembrandt portrait. Nothing may remain photographic. CONSTRAINTS: do NOT change the composition, pose, camera angle or framing — only the medium, palette and lighting become Rembrandt's. Output only the image." },
   { id: "shiningfinger", label: "シャイニングフィンガー風",
     prompt: "Redraw this mobile suit as a dynamic finishing-move action scene in the hand-drawn cel-animation art style of mid-1990s Japanese super-robot anime (in the visual spirit of Mobile Fighter G Gundam). Re-pose the machine performing the legendary 'Shining Finger' attack: a powerful forward lunge with the right arm thrust out and the open right hand blazing with a brilliant glowing energy aura, radiating intense heat-haze, light streaks and sparks; add explosive energy bursts, speed lines and dramatic rim lighting in the background. Use bold hand-inked outlines, flat two-tone cel shading with hard highlights, and the vivid saturated palette and analog texture of 90s mecha TV anime. You MAY change the pose, camera angle and background to depict this action dramatically, but keep it recognizably the same machine. Output only the image." },
+  { id: "lineart", label: "設定線稿風",
+    prompt: "Redraw this mobile suit as a clean monochrome mechanical line-art setting sheet (設定画・線画) in the manner of official anime mechanical design references: precise black ink contour lines on a plain white background, thin even technical line weight, crisp panel-line detail, no color and no painterly shading (only minimal hatching where strictly needed). It must read like a blueprint / model-sheet reference drawing.",
+    fields: [{ key: "view", label: "ビュー", type: "select", options: [
+      { value: "front", label: "全身・直立(正面)" },
+      { value: "parts", label: "部位特寫(頭・手・関節)" },
+      { value: "inner", label: "内部構造(内構カットモデル)" },
+      { value: "weapon", label: "武器・装備紹介" },
+    ] }],
+    extra: (o) => (({
+      front: "Show the full body of the machine in a neutral upright standing pose, front view, centered as the main reference figure.",
+      parts: "Compose it as a detail-study sheet: enlarged close-ups of key parts (head/face, hands, shoulders, joints, backpack) arranged as separate labelled panels.",
+      inner: "Show a cutaway internal-structure view exposing the inner frame, skeleton, mechanisms and components as a technical cross-section line drawing.",
+      weapon: "Lay out the machine's weapons and equipment (rifle, shield, beam saber, etc.) as separate isolated item studies, each drawn as a clean line-art illustration.",
+    })[o.view || "front"]) + " Output only the image." },
+  { id: "manga", label: "漫畫風",
+    prompt: "Redraw this image as a dramatic black-and-white Japanese manga panel: pure monochrome (no color), bold confident ink linework, high-contrast screentone (網点) shading, expressive manga hatching, dynamic speed lines and a strong sense of motion and drama.",
+    fields: [
+      { key: "artist", label: "漫畫家の作風(任意)", type: "text", placeholder: "例: 大友克洋 / 鳥山明" },
+      { key: "line", label: "セリフ(任意)", type: "text", placeholder: "コマ内のセリフ" },
+    ],
+    extra: (o) => {
+      let s = "";
+      if (o.artist && o.artist.trim()) s += " Emulate the distinctive drawing style of manga artist " + o.artist.trim() + ".";
+      if (o.line && o.line.trim()) s += " Add a manga speech balloon containing this dialogue, hand-lettered naturally: 「" + o.line.trim() + "」.";
+      return s + " Output only the image.";
+    } },
 ];
+function initStyleOpts(s) {
+  const o = {};
+  (s.fields || []).forEach((f) => { o[f.key] = f.type === "select" ? ((f.options[0] && f.options[0].value) || "") : ""; });
+  return o;
+}
 
 /* AI画像モデル定義(画像生成/編集系)。providerは model 名から判定 */
 /* 機体情報の修正提案。検索→選択→編集→差分を送信(アプリのデータは変更しない)。
@@ -4000,6 +4031,8 @@ function AIRestyleModal({ src, geminiKey, openaiKey, model, prompts, onAdopt, on
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [chosenModel, setChosenModel] = useState(model);
+  const [styleOpts, setStyleOpts] = useState(() => initStyleOpts(AI_STYLES[0]));
+  const curStyle = AI_STYLES.find((s) => s.id === style) || AI_STYLES[0];
 
   const generate = async () => {
     setBusy(true); setError("");
@@ -4007,7 +4040,9 @@ function AIRestyleModal({ src, geminiKey, openaiKey, model, prompts, onAdopt, on
       const apiKey = isOpenAImodel(chosenModel) ? openaiKey : geminiKey;
       const b64 = src.split(",")[1];
       const mime = (src.match(/^data:([^;]+);/) || [])[1] || "image/jpeg";
-      const prompt = (prompts && prompts[style]) || AI_STYLES.find((s) => s.id === style).prompt;
+      const styleDef = AI_STYLES.find((s) => s.id === style) || AI_STYLES[0];
+      let prompt = (prompts && prompts[style]) || styleDef.prompt;
+      if (styleDef.extra) prompt = prompt + " " + styleDef.extra(styleOpts);
       if (isOpenAImodel(chosenModel)) {
         /* OpenAI 画像編集: /v1/images/edits(multipart, b64_json を返す) */
         const blob = await (await fetch(src)).blob();
@@ -4073,9 +4108,23 @@ function AIRestyleModal({ src, geminiKey, openaiKey, model, prompts, onAdopt, on
         <div className="ai-styles">
           {AI_STYLES.map((s) => (
             <button key={s.id} className={`opt ${style === s.id ? "on" : ""}`}
-              onClick={() => { setStyle(s.id); setResult(null); }}>{s.label}</button>
+              onClick={() => { setStyle(s.id); setResult(null); setStyleOpts(initStyleOpts(s)); }}>{s.label}</button>
           ))}
         </div>
+        {curStyle.fields ? (
+          <div className="ai-fields">
+            {curStyle.fields.map((f) => f.type === "select" ? (
+              <ModelPicker key={f.key} label={f.label} value={styleOpts[f.key] || ((f.options[0] && f.options[0].value) || "")}
+                options={f.options} onChange={(v) => { setStyleOpts((o) => ({ ...o, [f.key]: v })); setResult(null); }} />
+            ) : (
+              <div key={f.key} className="ai-field">
+                <div className="ai-field-lab">{f.label}</div>
+                <input className="ai-field-in" value={styleOpts[f.key] || ""} placeholder={f.placeholder || ""}
+                  onChange={(e) => setStyleOpts((o) => ({ ...o, [f.key]: e.target.value }))} />
+              </div>
+            ))}
+          </div>
+        ) : null}
         <div className="ai-preview">
           {busy ? (
             <div className="ai-progress">
@@ -8091,7 +8140,11 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .legend.horizontal{flex-direction:row;gap:16px;margin-top:8px;min-width:0;flex-wrap:wrap}
 
 /* 6. AI 變換 */
-.ai-styles{display:flex;gap:7px;margin-bottom:10px}
+.ai-styles{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px}
+.ai-fields{margin:0 0 12px;display:flex;flex-direction:column;gap:11px}
+.ai-field-lab{font-size:11.5px;color:var(--ink-mid);margin-bottom:6px}
+.ai-field-in{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink-strong);font-size:14px;box-sizing:border-box}
+.ai-field-in:focus{outline:none;border-color:var(--gold)}
 .ai-styles .opt{padding:10px 4px;font-size:11px;justify-content:center;text-align:center}
 .ai-preview{background:#000;border-radius:8px;min-height:200px;display:flex;
   align-items:center;justify-content:center;overflow:hidden}
