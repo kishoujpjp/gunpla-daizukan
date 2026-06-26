@@ -3021,19 +3021,7 @@ const AI_STYLES = [
   { id: "shiningfinger", label: "シャイニングフィンガー風",
     prompt: "Redraw this mobile suit as a dynamic finishing-move action scene in the hand-drawn cel-animation art style of mid-1990s Japanese super-robot anime (in the visual spirit of Mobile Fighter G Gundam). Re-pose the machine performing the legendary 'Shining Finger' attack: a powerful forward lunge with the right arm thrust out and the open right hand blazing with a brilliant glowing energy aura, radiating intense heat-haze, light streaks and sparks; add explosive energy bursts, speed lines and dramatic rim lighting in the background. Use bold hand-inked outlines, flat two-tone cel shading with hard highlights, and the vivid saturated palette and analog texture of 90s mecha TV anime. You MAY change the pose, camera angle and background to depict this action dramatically, but keep it recognizably the same machine. Output only the image." },
   { id: "lineart", label: "設定線稿風",
-    prompt: "Redraw this mobile suit as a clean monochrome mechanical line-art setting sheet (設定画・線画) in the manner of official anime mechanical design references: precise black ink contour lines on a plain white background, thin even technical line weight, crisp panel-line detail, no color and no painterly shading (only minimal hatching where strictly needed). It must read like a blueprint / model-sheet reference drawing.",
-    fields: [{ key: "view", label: "ビュー", type: "select", options: [
-      { value: "front", label: "全身・直立(正面)" },
-      { value: "parts", label: "部位特寫(頭・手・関節)" },
-      { value: "inner", label: "内部構造(内構カットモデル)" },
-      { value: "weapon", label: "武器・装備紹介" },
-    ] }],
-    extra: (o) => (({
-      front: "Show the full body of the machine in a neutral upright standing pose, front view, centered as the main reference figure.",
-      parts: "Compose it as a detail-study sheet: enlarged close-ups of key parts (head/face, hands, shoulders, joints, backpack) arranged as separate labelled panels.",
-      inner: "Show a cutaway internal-structure view exposing the inner frame, skeleton, mechanisms and components as a technical cross-section line drawing.",
-      weapon: "Lay out the machine's weapons and equipment (rifle, shield, beam saber, etc.) as separate isolated item studies, each drawn as a clean line-art illustration.",
-    })[o.view || "front"]) + " Output only the image." },
+    prompt: "Redraw this mobile suit as a SINGLE comprehensive monochrome mechanical setting sheet (設定画・線画) in the style of official anime mechanical design references. In ONE image, lay out together: a full-body upright front-view figure as the main reference in the center or left; surrounding labelled detail panels with enlarged close-ups of key parts (head/face, hands, joints, backpack); a small internal-structure cutaway exposing the inner frame; and the machine's weapons and equipment drawn as separate item studies. Use clean precise black ink contour lines on a plain white background, thin even technical line weight, crisp panel-line detail, no color and no painterly shading (only minimal hatching where strictly needed). It must read like a professional blueprint / model-sheet packed with multiple views. Output only the image." },
   { id: "manga", label: "漫畫風",
     prompt: "Redraw this image as a dramatic black-and-white Japanese manga panel: pure monochrome (no color), bold confident ink linework, high-contrast screentone (網点) shading, expressive manga hatching, dynamic speed lines and a strong sense of motion and drama.",
     fields: [
@@ -4347,24 +4335,17 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
   const camRef = useRef(null);
   const albRef = useRef(null);
 
-  // ── 長押しドラッグ並べ替え ──
+  // ── ドラッグ並べ替え(把手から即ドラッグ。把手はtouch-action:none) ──
   const [dragId, setDragId] = useState(null);
-  const lpRef = useRef(null);
-  const downPt = useRef(null);
-  const movedFar = useRef(false);
-  const clearLP = () => { if (lpRef.current) { clearTimeout(lpRef.current); lpRef.current = null; } };
-  const onTileDown = (ref) => (e) => {
+  const onHandleDown = (ref) => (e) => {
     if (e.button != null && e.button !== 0) return;
-    downPt.current = { x: e.clientX, y: e.clientY, ref };
-    movedFar.current = false; clearLP();
-    lpRef.current = setTimeout(() => { dragRef.current = ref; setDragId(ref); if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(14); }, 340);
+    e.stopPropagation(); e.preventDefault();
+    dragRef.current = ref; setDragId(ref);
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (x) {}
+    if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(12);
   };
   const onGridMove = (e) => {
-    if (!downPt.current) return;
-    if (!dragRef.current) {
-      if (Math.abs(e.clientX - downPt.current.x) > 8 || Math.abs(e.clientY - downPt.current.y) > 8) { movedFar.current = true; clearLP(); }
-      return;
-    }
+    if (!dragRef.current) return;
     e.preventDefault();
     const el = document.elementFromPoint(e.clientX, e.clientY);
     const tile = el && el.closest && el.closest("[data-ref]");
@@ -4375,12 +4356,8 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
     }
   };
   const onGridUp = () => {
-    clearLP();
-    const wasDragging = !!dragRef.current;
-    const tapRef = downPt.current && downPt.current.ref;
-    dragRef.current = null; downPt.current = null;
-    if (wasDragging) { setDragId(null); onReorder(orderRef.current); return; }
-    if (!movedFar.current && tapRef) setSel(tapRef);
+    if (!dragRef.current) return;
+    dragRef.current = null; setDragId(null); onReorder(orderRef.current);
   };
 
   const thumbR = pickRef("thumb", kitId, images, extras, albumMeta);
@@ -4418,7 +4395,7 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
           <div className="ie-t">画像編集 ✎<small>{[kit.code || kit.name, kit.grade].filter(Boolean).join(" · ")}</small></div>
           <button className="ie-x" onClick={onClose}>×</button>
         </div>
-        <div className="ie-bar"><span>{order.length} 枚</span><span className="ie-hint"><span className="g">⠿</span> 長押しで並べ替え</span></div>
+        <div className="ie-bar"><span>{order.length} 枚</span><span className="ie-hint"><span className="g">⠿</span> をドラッグで並べ替え</span></div>
         <div className="ie-scroll" onPointerMove={onGridMove} onPointerUp={onGridUp} onPointerCancel={onGridUp} onPointerLeave={onGridUp}>
           <div className="ie-grid">
             {order.map((ref) => {
@@ -4426,9 +4403,9 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
               const ml = metaLine(ref);
               const fr = framingStyle((albumMeta[kitId] && albumMeta[kitId].framing && albumMeta[kitId].framing[ref]) || null);
               return (
-                <div key={ref} data-ref={ref} className={"ie-tile" + (dragId === ref ? " drag" : "")} onPointerDown={onTileDown(ref)}>
+                <div key={ref} data-ref={ref} className={"ie-tile" + (dragId === ref ? " drag" : "")} onClick={() => { if (!dragId) setSel(ref); }}>
                   {src ? <img src={src} alt="" className="ie-img" style={fr} draggable={false} /> : <div className="ie-img blank" />}
-                  <div className="ie-drag">⠿</div>
+                  <button type="button" className="ie-drag" onPointerDown={onHandleDown(ref)} onClick={(e) => e.stopPropagation()}>⠿</button>
                   <div className="ie-badges">{ref === thumbR ? <span className="ie-bdg mei">銘</span> : null}{ref === acqR ? <span className="ie-bdg acq">入</span> : null}</div>
                   <div className="ie-tfoot"><span className={ml.cls}>{ml.text}</span>{ml.date ? <span className="ie-dt"> · {ml.date}</span> : null}</div>
                 </div>
@@ -7847,10 +7824,10 @@ input,textarea{font-family:var(--sans)}
 .ie-open-btn{width:100%;border:1px solid var(--gold);color:var(--gold);background:rgba(217,179,106,.06);border-radius:9px;padding:13px 0;font-size:13px;letter-spacing:.04em;cursor:pointer;font-family:inherit}
 .ie-open-btn:active{background:rgba(217,179,106,.13)}
 .ie-bg{position:fixed;inset:0;background:rgba(5,7,12,.92);z-index:70;display:flex;align-items:stretch;justify-content:center}
-.ie-panel{position:relative;width:100%;max-width:520px;height:100%;background:var(--ink);border-left:1px solid var(--line);border-right:1px solid var(--line);overflow:hidden;display:flex;flex-direction:column}
-.ie-head{flex:none;padding:15px 16px 12px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.ie-panel{position:relative;width:100%;max-width:520px;height:100%;background:var(--bg);border-left:1px solid var(--line);border-right:1px solid var(--line);overflow:hidden;display:flex;flex-direction:column}
+.ie-head{flex:none;padding:calc(14px + env(safe-area-inset-top)) 16px 12px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;background:var(--bg)}
 .ie-t{flex:1;font-family:var(--serif);font-weight:700;font-size:16px;letter-spacing:.06em}
-.ie-t small{display:block;font-family:var(--mono);font-size:10px;color:var(--ink-mid);letter-spacing:.1em;margin-top:3px}
+.ie-t small{display:block;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;color:var(--ink-mid);letter-spacing:.1em;margin-top:3px}
 .ie-x{flex:none;color:var(--ink-mid);font-size:22px;width:34px;height:34px;line-height:1}
 .ie-bar{flex:none;display:flex;justify-content:space-between;align-items:center;padding:9px 16px;font-size:11px;color:var(--ink-mid);border-bottom:1px solid var(--line);background:var(--panel)}
 .ie-bar .g{color:var(--gold)}
@@ -7860,18 +7837,19 @@ input,textarea{font-family:var(--sans)}
 .ie-tile.drag{border-color:var(--gold);box-shadow:0 0 0 2px rgba(217,179,106,.4);opacity:.92;z-index:3}
 .ie-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;-webkit-user-drag:none}
 .ie-img.blank{background:linear-gradient(140deg,#20262f,#14181f)}
-.ie-drag{position:absolute;top:7px;left:7px;width:24px;height:24px;border-radius:7px;background:rgba(8,10,14,.6);display:flex;align-items:center;justify-content:center;color:var(--ink-strong);font-size:13px;z-index:3;pointer-events:none}
+.ie-drag{position:absolute;top:7px;left:7px;width:30px;height:30px;border-radius:7px;background:rgba(8,10,14,.72);display:flex;align-items:center;justify-content:center;color:var(--ink);font-size:14px;z-index:4;pointer-events:auto;touch-action:none;cursor:grab;border:1px solid rgba(255,255,255,.12)}
+.ie-drag:active{cursor:grabbing;background:rgba(217,179,106,.25);border-color:var(--gold)}
 .ie-badges{position:absolute;top:7px;right:7px;display:flex;gap:4px;z-index:3;pointer-events:none}
 .ie-bdg{font-size:10px;font-family:var(--serif);padding:2px 6px;border-radius:6px;background:rgba(8,10,14,.66);line-height:1.4}
 .ie-bdg.mei{color:var(--gold);border:1px solid rgba(217,179,106,.6)}
 .ie-bdg.acq{color:var(--teal);border:1px solid rgba(111,211,199,.6)}
-.ie-tfoot{position:absolute;left:0;right:0;bottom:0;padding:14px 8px 6px;background:linear-gradient(transparent,rgba(7,9,13,.92));z-index:2;font-family:var(--mono);font-size:9px;letter-spacing:.02em;color:rgba(233,227,214,.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.ie-tfoot{position:absolute;left:0;right:0;bottom:0;padding:14px 8px 6px;background:linear-gradient(transparent,rgba(7,9,13,.92));z-index:2;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9px;letter-spacing:.02em;color:rgba(233,227,214,.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
 .ie-tfoot .ai{color:var(--gold)} .ie-tfoot .pho{color:var(--teal)} .ie-dt{color:var(--ink-dim)}
 .ie-tile.add{border:1px dashed var(--line);background:var(--panel);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--ink-mid)}
 .ie-plus{font-size:30px;color:var(--gold);font-weight:300} .ie-addl{font-size:12px} .ie-addo{font-size:9px;color:var(--ink-dim);text-align:center}
 .ie-dim{position:absolute;inset:0;background:rgba(6,8,12,.55);z-index:8;display:flex;align-items:flex-end}
 .ie-sheet{width:100%;background:var(--panel2);border-top:1px solid var(--gold);border-radius:18px 18px 0 0;padding:8px 16px 22px;box-shadow:0 -14px 40px rgba(0,0,0,.5)}
-.ie-grip{width:38px;height:4px;border-radius:2px;background:var(--hair);margin:4px auto 12px}
+.ie-grip{width:38px;height:4px;border-radius:2px;background:var(--line-soft);margin:4px auto 12px}
 .ie-sh-h{font-family:var(--serif);font-weight:600;font-size:14px;margin-bottom:12px;text-align:center}
 .ie-addbtns{display:flex;gap:10px;margin-bottom:12px}
 .ie-abtn{flex:1;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:14px 0;color:var(--ink-strong);font-size:13px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer}
@@ -7884,9 +7862,9 @@ input,textarea{font-family:var(--sans)}
 .ie-sh-thumb{width:60px;height:60px;border-radius:9px;flex:none;background:#10141a;border:1px solid var(--line);overflow:hidden;display:flex;align-items:center;justify-content:center}
 .ie-sh-thumb img{width:100%;height:100%;object-fit:cover}
 .ie-sh-ttl{font-family:var(--serif);font-weight:600;font-size:14px}
-.ie-sh-ttl small{display:block;font-family:var(--mono);font-size:10px;color:var(--ink-mid);margin-top:3px;letter-spacing:.04em}
+.ie-sh-ttl small{display:block;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;color:var(--ink-mid);margin-top:3px;letter-spacing:.04em}
 .ie-sh-meta{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;padding:12px 2px;margin:0 0 6px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:12px}
-.ie-sh-meta dt{color:var(--ink-mid);font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;align-self:center;text-transform:uppercase}
+.ie-sh-meta dt{color:var(--ink-mid);font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9.5px;letter-spacing:.06em;align-self:center;text-transform:uppercase}
 .ie-sh-meta dd{margin:0;color:var(--ink-strong)}
 .ie-sh-meta dd .pho{color:var(--teal)} .ie-sh-meta dd .ai{color:var(--gold)}
 .ie-dim2{color:var(--ink-dim)}
