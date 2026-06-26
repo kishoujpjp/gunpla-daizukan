@@ -3696,6 +3696,14 @@ const IDENT_PROMPT = `あなたはガンダムシリーズのプラモデル(ガ
 function _identStripJson(t) { return t ? String(t).replace(/```json/gi, "").replace(/```/g, "").trim() : ""; }
 const IDF_BIG5 = ["UC", "SEED", "W", "G", "BF"];
 const IDF_UNI_LABEL = { UC: "宇宙世紀(U.C.)", SEED: "コズミック・イラ(SEED系)", W: "アフターコロニー(Wガンダム系)", G: "フューチャーセンチュリー(Gガンダム系)", BF: "ビルドファイターズ系" };
+const IDF_MODELS = [
+  { id: "gemini-3.5-flash", label: "Gemini 3.5 Flash", note: "高精度・高速 推奨", p: "gemini" },
+  { id: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro", note: "最高精度・低速", p: "gemini" },
+  { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro", note: "高精度", p: "gemini" },
+  { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash", note: "標準・速い", p: "gemini" },
+  { id: "gpt-4o", label: "GPT-4o", note: "高精度", p: "openai" },
+  { id: "gpt-4o-mini", label: "GPT-4o mini", note: "標準・速い", p: "openai" },
+];
 
 function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach, onClose }) {
   const [phase, setPhase] = useState("pick"); // pick | loading | result | error
@@ -3704,34 +3712,37 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach,
   const [matches, setMatches] = useState([]);
   const [q, setQ] = useState("");
   const [err, setErr] = useState("");
-  const [hq, setHq] = useState(true);
+  const [model, setModel] = useState("");
   const [selUni, setSelUni] = useState("");
   const [selGrade, setSelGrade] = useState("");
   const [hint, setHint] = useState("");
   const fileRef = useRef(null);
   const manualRef = useRef(null);
   const hasKey = !!(geminiKey || openaiKey);
+  const models = useMemo(() => IDF_MODELS.filter((m) => (m.p === "gemini" ? geminiKey : openaiKey)), [geminiKey, openaiKey]);
+  useEffect(() => { if (!model && models.length) setModel(models[0].id); }, [models, model]);
+  const modelLabel = (IDF_MODELS.find((x) => x.id === model) || {}).label || model;
 
   const callAI = async (b64, mime, dataUrl, prompt) => {
-    if (geminiKey) {
-      const model = hq ? "gemini-2.5-pro" : "gemini-2.5-flash";
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(geminiKey)}`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: [{ parts: [{ inline_data: { mime_type: mime, data: b64 } }, { text: prompt }] }], generationConfig: { responseMimeType: "application/json", temperature: 0.2 } }),
+    const m = IDF_MODELS.find((x) => x.id === model) || models[0] || { id: "gemini-2.5-flash", p: "gemini" };
+    if (m.p === "openai") {
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + openaiKey },
+        body: JSON.stringify({ model: m.id, temperature: 0.2, response_format: { type: "json_object" },
+          messages: [{ role: "user", content: [{ type: "text", text: prompt }, { type: "image_url", image_url: { url: dataUrl } }] }] }),
       });
       const data = await res.json();
-      if (data.error) throw new Error(data.error.message || "Gemini error");
-      const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
-      return parts.map((p) => p.text || "").join("");
+      if (data.error) throw new Error(data.error.message || "OpenAI error");
+      return (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || "";
     }
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + openaiKey },
-      body: JSON.stringify({ model: hq ? "gpt-4o" : "gpt-4o-mini", temperature: 0.2, response_format: { type: "json_object" },
-        messages: [{ role: "user", content: [{ type: "text", text: prompt }, { type: "image_url", image_url: { url: dataUrl } }] }] }),
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m.id}:generateContent?key=${encodeURIComponent(geminiKey)}`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contents: [{ parts: [{ inline_data: { mime_type: mime, data: b64 } }, { text: prompt }] }], generationConfig: { responseMimeType: "application/json", temperature: 0.2 } }),
     });
     const data = await res.json();
-    if (data.error) throw new Error(data.error.message || "OpenAI error");
-    return (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || "";
+    if (data.error) throw new Error(data.error.message || "Gemini error");
+    const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
+    return parts.map((p) => p.text || "").join("");
   };
 
   const normCode = (s) => normJa(s || "").replace(/[\s\-_./()]/g, "");
@@ -3823,11 +3834,11 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach,
         {phase === "pick" && hasKey && (
           <div className="idf-pick">
             <p className="idf-lead">写真を選ぶと、AIが機体(MS)を推定し、図鑑の候補を提示します。グレードは写真で判別できないため、候補からあなたが選びます。</p>
-            <p className="idf-tip">ヒント: 箱・パッケージ・説明書が写るように撮ると、印刷された名称・型番をAIが読み取り、精度が大きく上がります。</p>
-            <div className="idf-hq">
-              <span>精度</span>
-              <button className={"idf-hqbtn" + (!hq ? " on" : "")} onClick={() => setHq(false)}>標準・速い</button>
-              <button className={"idf-hqbtn" + (hq ? " on" : "")} onClick={() => setHq(true)}>高精度(推奨)</button>
+            <div className="idf-field idf-modelfield">
+              <span>辨識モデル（精度テスト用）</span>
+              <select value={model} onChange={(e) => setModel(e.target.value)}>
+                {models.map((m) => <option key={m.id} value={m.id}>{m.label} — {m.note}</option>)}
+              </select>
             </div>
             <div className="idf-hints">
               <div className="idf-field">
@@ -3865,6 +3876,7 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach,
         {phase === "result" && (
           <div className="idf-result">
             {storeImg && <div className="idf-preview"><img src={storeImg} alt="" /></div>}
+            <div className="idf-modelnote">判別モデル: {modelLabel}</div>
             {cands.length > 0 ? (
               <div className="idf-ai">
                 <div className="idf-sub">AIの推定（タップで検索）</div>
@@ -8370,6 +8382,8 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .idf-preview{width:140px;height:140px;margin:6px auto 12px;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:#0c0c0c}
 .idf-preview img{width:100%;height:100%;object-fit:cover;display:block}
 .idf-ailine{font-size:12.5px;color:var(--ink-strong);line-height:1.6;margin:0 2px 12px;text-align:center}
+.idf-modelfield{margin-bottom:18px}
+.idf-modelnote{text-align:center;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;color:var(--ink-mid);margin:0 0 12px}
 .idf-ai{margin:2px 2px 14px}
 .idf-chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
 .idf-chip{padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);
@@ -8380,11 +8394,6 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .idf-cands{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
 .idf-conf{font-style:normal;color:var(--gold);font-size:12px;margin-left:4px}
 .idf-manual{margin-top:14px;border-top:1px solid var(--line);padding-top:8px}
-.idf-tip{font-size:12px;color:var(--gold);line-height:1.7;margin:0 2px 16px;padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:rgba(217,179,106,.06)}
-.idf-hq{display:flex;align-items:center;gap:8px;margin-bottom:16px}
-.idf-hq>span{font-size:12px;color:var(--ink-mid);margin-right:2px}
-.idf-hqbtn{flex:1;padding:10px 0;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink-mid);font-size:13px;cursor:pointer;transition:all .15s}
-.idf-hqbtn.on{border-color:var(--gold);color:var(--gold);background:rgba(217,179,106,.1)}
 .idf-hints{margin-bottom:18px;display:flex;flex-direction:column;gap:12px}
 .idf-field{display:flex;flex-direction:column;gap:5px}
 .idf-field>span{font-size:11.5px;color:var(--ink-mid);letter-spacing:.02em}
