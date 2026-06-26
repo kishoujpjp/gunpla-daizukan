@@ -3683,13 +3683,16 @@ function QuizModal({ allKits, getRec, images, extras, albumMeta, builderName, on
 
 /* ───────── AI機体判別(Phase A):画像→候補→確認して図鑑に追加 ───────── */
 const IDENT_PROMPT = `あなたはガンダムシリーズのプラモデル(ガンプラ)に精通した機体識別の専門家です。
-最優先のルール: まず画像内の印刷文字(箱・パッケージ・説明書の表紙・品番ラベル・型式番号・作品ロゴ)を探し、読み取れた文字をそのまま根拠にすること。文字が読み取れる場合は、外見からの推測よりも読み取った文字を優先する。
-文字が一切読み取れない場合のみ、外見(シルエット・配色・特徴部位)から機体を推定する。
-各候補について可能な限り「型式番号(例: RX-78-2, ZGMF-X10A, GN-001)」「正式名称(日本語)」「登場作品」を答えること。型式番号が最重要の手がかり。
-グレード(HG/MG/RG/PG等)やスケールは画像からは判別できないため答えないこと。
+画像に写る機体(モビルスーツ)が何かを推定してください。
+手順: 箱・説明書・品番ラベルなどの印刷文字が読めれば、それを最優先の根拠にする。読めない場合は外見(シルエット・配色・特徴部位)から推定する。
+回答方針(重要):
+- 各候補は「正式名称(日本語)」と「登場作品」を必ず答える。
+- 「型式番号」は確信があるときだけ書く。不確実なら空文字にすること(推測で型番をでっち上げない)。
+- 確信が低くても、形状・配色から近いと思う機体を遠慮なく複数挙げること。1台に絞らなくてよい。「分からないので答えない」より「自信はないが近そうな候補を複数挙げる」方が望ましい。
+- グレード(HG/MG/RG/PG等)やスケールは画像から判別できないため答えないこと。
 確信度の高い順に最大5件。出力は次のJSONのみ。前後の文やマークダウンは一切付けないこと:
-{"candidates":[{"code":"型式番号","name":"正式名称(日本語)","series":"作品名","confidence":0,"reason":"読み取った文字 または 外見の根拠"}]}
-特定できない場合は candidates を空配列にする。`;
+{"candidates":[{"name":"正式名称(日本語)","series":"作品名","code":"型式番号(確信があれば。なければ空文字)","confidence":0,"reason":"根拠"}]}
+全く見当がつかない場合のみ candidates を空配列にする。`;
 function _identStripJson(t) { return t ? String(t).replace(/```json/gi, "").replace(/```/g, "").trim() : ""; }
 const IDF_BIG5 = ["UC", "SEED", "W", "G", "BF"];
 const IDF_UNI_LABEL = { UC: "宇宙世紀(U.C.)", SEED: "コズミック・イラ(SEED系)", W: "アフターコロニー(Wガンダム系)", G: "フューチャーセンチュリー(Gガンダム系)", BF: "ビルドファイターズ系" };
@@ -3747,7 +3750,7 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach,
       else {
         const ct = (cName.match(/[\u3040-\u30ff\u4e00-\u9fffa-z0-9]+/g) || []);
         const shared = ct.filter((t) => t.length >= 2 && kName.includes(t)).length;
-        if (shared) sc += Math.min(30, shared * 14);
+        if (shared) sc += Math.min(40, shared * 18);
       }
     }
     const cSer = normJa(cand.series || ""), kSer = normJa(k.series || "");
@@ -3781,13 +3784,13 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach,
         const conf = Number(cd.confidence) || 0;
         for (const k of allKits) {
           const s = scoreKit(k, cd);
-          if (s < 38) continue;
+          if (s < 32) continue;
           const total = s + conf * 0.3;
           const prev = best.get(k.id);
           if (!prev || total > prev.total) best.set(k.id, { kit: k, conf, reason: cd.reason || "", total });
         }
       }
-      const out = [...best.values()].sort((a, b) => b.total - a.total).slice(0, 24);
+      const out = [...best.values()].sort((a, b) => b.total - a.total).slice(0, 30);
       setMatches(out);
       setPhase("result");
     } catch (e) { setErr((e && e.message) || String(e)); setPhase("error"); }
@@ -3800,7 +3803,7 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach,
   }, [q, allKits]);
   const gradeOpts = useMemo(() => [...new Set((allKits || []).map((k) => k.grade).filter(Boolean))], [allKits]);
   const uniOk = (k) => (selUni ? universeOfKit(k) === selUni : !IDF_BIG5.includes(universeOfKit(k)));
-  const shownMatches = matches.filter((mm) => (!selGrade || mm.kit.grade === selGrade) && uniOk(mm.kit)).slice(0, 12);
+  const shownMatches = matches.filter((mm) => (!selGrade || mm.kit.grade === selGrade) && uniOk(mm.kit)).slice(0, 16);
   const shownSearch = searchResults.filter((k) => (!selGrade || k.grade === selGrade) && uniOk(k));
 
   const attach = (kit) => {
@@ -3834,6 +3837,12 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach,
                     <button key={v} type="button" className={"idf-ubtn" + (selUni === v ? " on" : "")}
                       onClick={() => setSelUni(selUni === v ? "" : v)}>{l}</button>
                   ))}
+                </div>
+              </div>
+              <div className="idf-field">
+                <span>グレードで絞る（任意・1つ。該当しないグレードを除外して候補を縮小）</span>
+                <div className="idf-grades">
+                  {gradeOpts.map((g) => <button key={g} type="button" className={"idf-gbtn" + (selGrade === g ? " on" : "")} onClick={() => setSelGrade(selGrade === g ? "" : g)}>{g}</button>)}
                 </div>
               </div>
               <label className="idf-field">
