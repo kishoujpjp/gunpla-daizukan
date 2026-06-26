@@ -4007,6 +4007,8 @@ const aiActiveKey = (ai) => (ai ? (isOpenAImodel(ai.model) ? ai.openaiKey || "" 
 /* 自前のドロップダウン(ネイティブselectの代替)。開くと下にリストを展開(クリップ回避のためインフロー) */
 function ModelPicker({ value, options, onChange, label }) {
   const [open, setOpen] = useState(false);
+  const listRef = useRef(null);
+  useEffect(() => { if (open && listRef.current && listRef.current.scrollIntoView) listRef.current.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, [open]);
   const cur = options.find((o) => o.value === value) || options[0] || {};
   return (
     <div className={"mpk" + (open ? " open" : "")}>
@@ -4016,7 +4018,7 @@ function ModelPicker({ value, options, onChange, label }) {
         <span className="mpk-caret">{open ? "▴" : "▾"}</span>
       </button>
       {open ? (
-        <div className="mpk-list">
+        <div className="mpk-list" ref={listRef}>
           {options.map((o) => (
             <button key={o.value} type="button" className={"mpk-item" + (o.value === value ? " on" : "")}
               onClick={() => { onChange(o.value); setOpen(false); }}>
@@ -4112,12 +4114,8 @@ function AIRestyleModal({ src, geminiKey, openaiKey, model, prompts, onAdopt, on
       <div className="crop-panel">
         <div className="crop-head">AIスタイル変換<span>{chosenModel}</span></div>
         <div className="ai-modelpick"><ModelPicker value={chosenModel} options={AI_MODEL_OPTS} onChange={(v) => { setChosenModel(v); setResult(null); }} label="変換モデル" /></div>
-        <div className="ai-styles">
-          {AI_STYLES.map((s) => (
-            <button key={s.id} className={`opt ${style === s.id ? "on" : ""}`}
-              onClick={() => { setStyle(s.id); setResult(null); setStyleOpts(initStyleOpts(s)); }}>{s.label}</button>
-          ))}
-        </div>
+        <div className="ai-modelpick"><ModelPicker value={style} label="スタイル" options={AI_STYLES.map((s) => ({ value: s.id, label: s.label }))}
+          onChange={(v) => { setStyle(v); setResult(null); setStyleOpts(initStyleOpts(AI_STYLES.find((s) => s.id === v) || AI_STYLES[0])); }} /></div>
         {curStyle.fields ? (
           <div className="ai-fields">
             {curStyle.fields.map((f) => f.type === "select" ? (
@@ -4494,7 +4492,7 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
     </div>
 
       {aiOpen && aiSrc ? (
-        <AIRestyleModal src={aiSrc} geminiKey={ai && ai.geminiKey} openaiKey={ai && ai.openaiKey} model={(ai && ai.model) || "gemini-2.5-flash-image"} prompts={ai && ai.prompts}
+        <AIRestyleModal src={aiSrc} geminiKey={ai && ai.geminiKey} openaiKey={ai && ai.openaiKey} model={(ai && ai.model) || "gemini-3-pro-image"} prompts={ai && ai.prompts}
           onAdopt={(out, meta) => { onAddImage(out, meta); setAiOpen(false); closeSheet(); }}
           onClose={() => setAiOpen(false)} />
       ) : null}
@@ -4632,7 +4630,7 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
       {cropSrc && <CropModal src={cropSrc} onCancel={() => setCropSrc(null)}
         onDone={(out) => { applyNewImage(out); setCropSrc(null); }} />}
       {aiOpen && (albumMode ? aiSrc : previewImg) && (
-        <AIRestyleModal src={albumMode ? aiSrc : previewImg} geminiKey={ai && ai.geminiKey} openaiKey={ai && ai.openaiKey} model={(ai && ai.model) || "gemini-2.5-flash-image"}
+        <AIRestyleModal src={albumMode ? aiSrc : previewImg} geminiKey={ai && ai.geminiKey} openaiKey={ai && ai.openaiKey} model={(ai && ai.model) || "gemini-3-pro-image"}
           prompts={ai && ai.prompts}
           onAdopt={(out, meta) => { applyNewImage(out, meta); setAiOpen(false); }}
           onClose={() => setAiOpen(false)} />
@@ -4734,7 +4732,13 @@ export default function App() {
   const [images, setImages] = useState({});
   const [extras, setExtras] = useState({});       // 追加画像 {xid: src}
   const [albumMeta, setAlbumMeta] = useState({});  // {kitId:{order,thumb,acquire,framing}}
-  const [settings, setSettings] = useState({ view: "list", compact: false, dimUnowned: true, showCode: true, showSeries: false, showPrice: true, showNo: false, showGrade: true, showYm: true, salonCols: 2, salonFit: "cover", listGrade: true, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "min", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", openaiKey: "", geminiModel: "gemini-2.5-flash-image" });
+  const [settings, setSettings] = useState({ view: "list", compact: false, dimUnowned: true, showCode: true, showSeries: false, showPrice: true, showNo: false, showGrade: true, showYm: true, salonCols: 2, salonFit: "cover", listGrade: true, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "min", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", openaiKey: "", geminiModel: "gemini-3-pro-image" });
+  // 既定画像モデルをNano Banana Proへ一度だけ移行(旧既定flash-imageのみ。明示選択は尊重)
+  useEffect(() => {
+    if (settings.geminiModel === "gemini-2.5-flash-image" && !settings._mdef3) {
+      setSettings((s) => ({ ...s, geminiModel: "gemini-3-pro-image", _mdef3: true }));
+    }
+  }, [settings.geminiModel, settings._mdef3]);
   const [sortKey, setSortKey] = useState("year");
   const [sortDir, setSortDir] = useState("asc");
   const [queries, setQueries] = useState({ z: "", c: "" });
@@ -6771,7 +6775,7 @@ export default function App() {
                   onChange={(e) => setSettings((s) => ({ ...s, openaiKey: e.target.value }))} />
               </label>
               <label className="fld pad"><span>画像生成モデル(選択した提供元のキーを使用)</span>
-                <select value={settings.geminiModel || "gemini-2.5-flash-image"}
+                <select value={settings.geminiModel || "gemini-3-pro-image"}
                   onChange={(e) => setSettings((s) => ({ ...s, geminiModel: e.target.value }))}>
                   {AI_MODELS.map((g) => (
                     <optgroup key={g.group} label={g.group}>
@@ -7987,7 +7991,7 @@ input,textarea{font-family:var(--sans)}
 .crop-bg{position:fixed;inset:0;background:rgba(5,7,12,.85);z-index:80;
   display:flex;align-items:center;justify-content:center;padding:16px}
 .crop-panel{width:100%;max-width:520px;background:var(--bg2);border:1px solid var(--line);
-  border-radius:14px;padding:16px}
+  border-radius:14px;padding:16px;max-height:calc(100dvh - 32px);overflow-y:auto}
 .crop-head{font-family:var(--serif);font-weight:700;font-size:14px;color:var(--ink-strong);
   margin-bottom:10px;display:flex;justify-content:space-between;align-items:baseline;gap:10px}
 .crop-head span{font-size:10px;color:var(--ink-dim);font-family:var(--sans)}
@@ -8415,9 +8419,9 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .ai-field-in{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink-strong);font-size:14px;box-sizing:border-box}
 .ai-field-in:focus{outline:none;border-color:var(--gold)}
 .ai-styles .opt{padding:10px 4px;font-size:11px;justify-content:center;text-align:center}
-.ai-preview{background:#000;border-radius:8px;min-height:200px;display:flex;
+.ai-preview{background:#000;border-radius:8px;min-height:140px;display:flex;
   align-items:center;justify-content:center;overflow:hidden}
-.ai-preview img{max-width:100%;max-height:52vh;display:block}
+.ai-preview img{max-width:100%;max-height:34vh;display:block}
 .ai-progress{display:flex;flex-direction:column;align-items:center;gap:12px;
   color:var(--ink-mid);font-size:12px;padding:46px 16px}
 .ai-bar{width:210px;height:4px;background:var(--line-soft);border-radius:2px;overflow:hidden}
