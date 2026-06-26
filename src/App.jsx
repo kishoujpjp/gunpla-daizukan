@@ -844,7 +844,7 @@ function KitFixModal({ allKits, onClose }) {
       const ov = String(oldVal).trim();
       if (nv !== ov) changes[key] = { old: ov, new: nv };
     });
-    if (Object.keys(changes).length === 0) { alert("変更がありません。修正してから送信してください。"); return; }
+    if (Object.keys(changes).length === 0) { toast("変更がありません。修正してから送信してください", { kind: "warn" }); return; }
     const payload = { type: "kit_correction", id: picked.id, no: picked.no, name: picked.name, changes };
 
     // メール送信(フォールバック)
@@ -872,7 +872,7 @@ function KitFixModal({ allKits, onClose }) {
           body: JSON.stringify(payload),
         });
         if (!res.ok) throw new Error("HTTP " + res.status);
-        alert("修正提案を送信しました。ありがとうございます。");
+        toast("修正提案を送信しました。ありがとうございます", { kind: "ok" });
         onClose();
         return;
       } catch (e) {
@@ -1080,7 +1080,7 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach,
 
   const attach = (kit) => {
     onAttach(kit.id, storeImg);
-    alert("「" + kit.name + "（" + (kit.grade || "") + "）」に画像を追加しました。");
+    toast("「" + kit.name + "（" + (kit.grade || "") + "）」に画像を追加しました", { kind: "ok" });
     onClose();
   };
 
@@ -1409,7 +1409,7 @@ function CropModal({ src, onDone, onCancel }) {
       onDone(c.toDataURL("image/jpeg", 0.75));
     } catch (err) {
       console.error(err);
-      alert("この画像は切り抜きできません(外部URL画像はCORS制限のため不可。アップロード画像をご利用ください)");
+      toast("この画像は切り抜きできません(外部URL画像はCORS制限のため不可)", { kind: "warn", dur: 3200 });
     }
   };
 
@@ -1419,7 +1419,7 @@ function CropModal({ src, onDone, onCancel }) {
         <div className="crop-head">画像の切り抜き<span>枠をドラッグで移動・右下の○で拡縮</span></div>
         <div className="crop-box">
           <img ref={imgRef} src={src} alt="" crossOrigin="anonymous" onLoad={onImgLoad} draggable={false}
-            onError={() => { alert("画像を読み込めませんでした(外部画像はCORS制限の場合があります)"); onCancel(); }} />
+            onError={() => { toast("画像を読み込めませんでした(外部画像はCORS制限の場合があります)", { kind: "err", dur: 3200 }); onCancel(); }} />
           {rect && (
             <div className="crop-rect" style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h }}
               onMouseDown={startDrag("move")} onTouchStart={startDrag("move")}>
@@ -1522,6 +1522,54 @@ function NoteField({ note, onCommit }) {
   );
 }
 
+/* ── アプリ内 通知/確認(native alert/confirm の置き換え。APP風) ── */
+let _toastSeq = 0;
+function toast(msg, opt) {
+  try { window.dispatchEvent(new CustomEvent("app-toast", { detail: { id: ++_toastSeq, msg, kind: (opt && opt.kind) || "ok", dur: (opt && opt.dur) || 2400 } })); }
+  catch (e) {}
+}
+function appConfirm(message, opt) {
+  return new Promise((resolve) => {
+    try { window.dispatchEvent(new CustomEvent("app-confirm", { detail: { message, opt: opt || {}, resolve } })); }
+    catch (e) { resolve(typeof window !== "undefined" && window.confirm ? window.confirm(message) : false); }
+  });
+}
+function AppDialogHost() {
+  const [toasts, setToasts] = useState([]);
+  const [cf, setCf] = useState(null);
+  useEffect(() => {
+    const onT = (e) => { const t = e.detail; setToasts((a) => [...a, t]); setTimeout(() => setToasts((a) => a.filter((x) => x.id !== t.id)), t.dur); };
+    const onC = (e) => setCf(e.detail);
+    window.addEventListener("app-toast", onT);
+    window.addEventListener("app-confirm", onC);
+    return () => { window.removeEventListener("app-toast", onT); window.removeEventListener("app-confirm", onC); };
+  }, []);
+  const done = (v) => { if (cf && cf.resolve) cf.resolve(v); setCf(null); };
+  const ic = { ok: "✓", err: "✕", warn: "!", info: "◈" };
+  return (
+    <>
+      <div className="toast-host">
+        {toasts.map((t) => (
+          <div key={t.id} className={"toast " + t.kind}><span className="ti">{ic[t.kind] || "◈"}</span><span className="tm">{t.msg}</span></div>
+        ))}
+      </div>
+      {cf ? (
+        <div className="cf-bg" onClick={() => done(false)}>
+          <div className="cf-card" onClick={(e) => e.stopPropagation()}>
+            <div className="cf-line" />
+            {cf.opt.title ? <div className="cf-h">{cf.opt.title}</div> : null}
+            <div className="cf-m">{cf.message}</div>
+            <div className="cf-acts">
+              <button className="cf-btn" onClick={() => done(false)}>{cf.opt.cancelText || "キャンセル"}</button>
+              <button className={"cf-btn ok" + (cf.opt.danger ? " danger" : "")} onClick={() => done(true)}>{cf.opt.okText || "OK"}</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
 function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onAddImage, onRemoveImage, onSetRole, onFrame, onReorder, onSetLoc, onClose }) {
   const kitId = kit.id;
   const baseRefs = albumRefs(kitId, images, extras, albumMeta);
@@ -1561,6 +1609,9 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
   const grab = useRef({ dx: 0, dy: 0 });
   const tileEls = useRef({});               // ref -> element
   const prevRects = useRef(null);
+  const cellsRef = useRef([]);              // 固定格位(ドラッグ開始時に確定。動画と無関係)
+  const dragBaseRef = useRef([]);           // ドラッグ開始時の順序
+  const lastIdxRef = useRef(-1);            // 直近の挿入位置
 
   const moveGhost = (x, y) => {
     const g = ghostRef.current; if (!g) return;
@@ -1589,6 +1640,16 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
   const onHandleDown = (ref) => (e) => {
     if (e.button != null && e.button !== 0) return;
     e.stopPropagation(); e.preventDefault();
+    const base = orderRef.current.slice();
+    dragBaseRef.current = base;
+    lastIdxRef.current = base.indexOf(ref);
+    // 開始時点でn個の格位(画面位置)を固定取得。以後この座標だけで挿入位置を決める
+    cellsRef.current = base.map((r) => {
+      const el = tileEls.current[r]; const b = el ? el.getBoundingClientRect() : null;
+      if (!b) return null;
+      const ix = b.width * 0.14, iy = b.height * 0.14; // 内縁にデッドゾーン(遲滯)
+      return { l: b.left + ix, r: b.right - ix, t: b.top + iy, bo: b.bottom - iy };
+    });
     const el = tileEls.current[ref];
     const r = el ? el.getBoundingClientRect() : null;
     grab.current = r ? { dx: e.clientX - r.left, dy: e.clientY - r.top } : { dx: 24, dy: 24 };
@@ -1602,14 +1663,19 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
     if (!dragRef.current) return;
     e.preventDefault();
     moveGhost(e.clientX, e.clientY);
-    const el = document.elementFromPoint(e.clientX, e.clientY);
-    const tile = el && el.closest && el.closest("[data-ref]");
-    if (!tile) return;
-    const over = tile.getAttribute("data-ref");
-    if (over && over !== "add" && over !== dragRef.current) {
-      captureRects();
-      setOrder((cur) => { const from = cur.indexOf(dragRef.current), to = cur.indexOf(over); if (from < 0 || to < 0) return cur; const next = cur.slice(); next.splice(to, 0, next.splice(from, 1)[0]); return next; });
+    const cells = cellsRef.current;
+    // 指が「明確に」入った格位だけを採用。隙間/デッドゾーンでは現状維持→震えない
+    let idx = -1;
+    for (let i = 0; i < cells.length; i++) {
+      const c = cells[i]; if (!c) continue;
+      if (e.clientX >= c.l && e.clientX <= c.r && e.clientY >= c.t && e.clientY <= c.bo) { idx = i; break; }
     }
+    if (idx < 0 || idx === lastIdxRef.current) return;
+    lastIdxRef.current = idx;
+    captureRects();
+    const rest = dragBaseRef.current.filter((r) => r !== dragRef.current);
+    rest.splice(idx, 0, dragRef.current);  // 固定格位idxへ挿入(他は相対順を保って詰まる)
+    setOrder(rest);
   };
   const onGridUp = () => {
     if (!dragRef.current) return;
@@ -1637,11 +1703,11 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
     if (!f) return;
     setBusy(true);
     try { const url = await fileToCompressedDataURL(f, 900, 0.82); onAddImage(url, { src: "photo" }); }
-    catch (err) { alert("画像の読み込みに失敗しました"); }
+    catch (err) { toast("画像の読み込みに失敗しました", { kind: "err" }); }
     setBusy(false); setAddOpen(false);
   };
   const addUrl = () => { const u = urlVal.trim(); if (!u) return; onAddImage(u, { src: "photo" }); setUrlVal(""); setAddOpen(false); };
-  const openAI = () => { if (!aiActiveKey(ai)) { alert(aiProviderLabel(ai && ai.model) + " のAPIキーを設定タブで入力してください"); return; } setAiSrc(selSrc); setAiOpen(true); setSel(null); setLocEditing(false); };
+  const openAI = () => { if (!aiActiveKey(ai)) { toast(aiProviderLabel(ai && ai.model) + " のAPIキーを設定タブで入力してください", { kind: "warn", dur: 3200 }); return; } setAiSrc(selSrc); setAiOpen(true); setSel(null); setLocEditing(false); };
   const closeSheet = () => { setSel(null); setLocEditing(false); };
 
   return (
@@ -1719,7 +1785,7 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
                 <button className="ie-act2" onClick={() => { const r = sel; closeSheet(); onFrame(r); }}><span className="ic">⛶</span><span>構図を整える</span></button>
                 <button className="ie-act2 g" onClick={openAI}><span className="ic">✨</span><span>AIで変換</span></button>
               </div>
-              <button className="ie-del" onClick={() => { if (window.confirm("この画像を削除しますか?")) { onRemoveImage(sel); closeSheet(); } }}><span className="ic">🗑</span>この画像を削除</button>
+              <button className="ie-del" onClick={async () => { if (await appConfirm("この画像を削除します。元に戻せません。", { title: "画像を削除", okText: "削除", danger: true })) { onRemoveImage(sel); closeSheet(); } }}><span className="ic">🗑</span>この画像を削除</button>
             </div>
           </div>
         ) : null}
@@ -1777,7 +1843,7 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
         r.readAsDataURL(file);
       });
       setCropSrc(raw);
-    } catch (err) { console.error(err); alert("画像の読み込みに失敗しました"); }
+    } catch (err) { console.error(err); toast("画像の読み込みに失敗しました", { kind: "err" }); }
     setBusy(false);
     e.target.value = "";
   };
@@ -1805,8 +1871,8 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
             <button className="mini-btn" onClick={() => { if (urlInput.trim()) { setImgVal(urlInput.trim()); setUrlInput(""); } }}>適用</button>
           </div>
           <button className="mini-btn ai" onClick={() => {
-            if (!previewImg) { alert("先に画像を設定してください"); return; }
-            if (!aiActiveKey(ai)) { alert(aiProviderLabel(ai && ai.model) + " のAPIキーを設定タブで入力してください"); return; }
+            if (!previewImg) { toast("先に画像を設定してください", { kind: "warn" }); return; }
+            if (!aiActiveKey(ai)) { toast(aiProviderLabel(ai && ai.model) + " のAPIキーを設定タブで入力してください", { kind: "warn", dur: 3200 }); return; }
             setAiOpen(true);
           }}>✨ AIスタイル変換</button>
           {previewImg && <button className="mini-btn" onClick={() => setCropSrc(previewImg)}>✂ 切り抜き</button>}
@@ -2430,7 +2496,7 @@ export default function App() {
 
   const syncNow = async () => {
     const cfg = supaRef.current;
-    if (!cfg.url || !cfg.key) { alert("Supabase URL と anon キーを入力してください"); return; }
+    if (!cfg.url || !cfg.key) { toast("Supabase URL と anon キーを入力してください", { kind: "warn" }); return; }
     setSyncMsg("同期中…");
     try {
       const nn = await pullCloud(cfg);
@@ -2678,7 +2744,7 @@ export default function App() {
         }
       }
       const total = changed + changedX;
-      alert(total ? `${total} 枚の画像を再圧縮しました` : "再圧縮が必要な画像はありませんでした");
+      toast(total ? `${total} 枚の画像を再圧縮しました` : "再圧縮が必要な画像はありませんでした", { kind: total ? "ok" : "info" });
     } finally { setOptimizing(false); }
   };
 
@@ -2846,7 +2912,7 @@ export default function App() {
     try {
       const raw = JSON.parse(await f.text());
       const verr = validateBackup(raw);
-      if (verr) { alert("読み込みに失敗しました:" + verr); e.target.value = ""; return; }
+      if (verr) { toast("読み込みに失敗しました:" + verr, { kind: "err", dur: 3200 }); e.target.value = ""; return; }
       const d = migrateMeta(raw);
       const now = new Date().toISOString();
       // 復元は全フィールドを now で時戳付けして確実に勝たせる(フィールド級マージ)
@@ -2876,8 +2942,8 @@ export default function App() {
       }
       if (d.albumMeta && isPlainObj(d.albumMeta)) setAlbumMeta(d.albumMeta);
       if (d.serifs && isPlainObj(d.serifs)) setSerifs(d.serifs);
-      alert("バックアップの読み込みが完了しました");
-    } catch (err) { console.error(err); alert("読み込みに失敗しました(ファイル形式を確認してください)"); }
+      toast("バックアップの読み込みが完了しました", { kind: "ok" });
+    } catch (err) { console.error(err); toast("読み込みに失敗しました(ファイル形式を確認してください)", { kind: "err", dur: 3200 }); }
     e.target.value = "";
   };
 
@@ -3478,6 +3544,7 @@ export default function App() {
   return (
     <div className={"app " + (settings.theme === "light" ? "light" : "") + (detailKit || adding || promptEdit || profileOpen || setupOpen || titleDetail || searchOpen || filterOpen || fixOpen || quizOpen || identifyOpen || imgEdit ? " lock" : "")}>
       <style>{CSS}</style>
+      <AppDialogHost />
 
       {storageErr && (
         <div
@@ -4056,8 +4123,8 @@ export default function App() {
               <button className="opt" onClick={syncNow}><span>今すぐ同期</span><i>⇅</i></button>
               <button className="opt" onClick={async () => {
                 const cfg = supaRef.current;
-                if (!cfg.url || !cfg.key) { alert("Supabase URL と anon キーを入力してください"); return; }
-                if (!window.confirm("クラウドのデータでこの端末を上書き復元します。この端末だけの未同期の変更は失われます。よろしいですか?")) return;
+                if (!cfg.url || !cfg.key) { toast("Supabase URL と anon キーを入力してください", { kind: "warn" }); return; }
+                if (!(await appConfirm("クラウドのデータでこの端末を上書き復元します。この端末だけの未同期の変更は失われます。", { title: "クラウドから復元", okText: "上書き復元", danger: true }))) return;
                 setSyncMsg("復元中…");
                 try {
                   const nn = await pullCloud(cfg, true);
@@ -4078,7 +4145,7 @@ export default function App() {
                 <div className="confirm-box">
                   <span>収蔵記録(入手・購入日・完成日)を消去します。編集内容・追加機体・画像は残ります。よろしいですか?</span>
                   <div>
-                    <button className="opt danger solid" onClick={() => { if (window.confirm("収蔵記録(入手・購入日・完成日)を完全に消去します。元に戻せません。よろしいですか?")) setRecords({}); setConfirmReset(false); }}>消去する</button>
+                    <button className="opt danger solid" onClick={async () => { if (await appConfirm("収蔵記録(入手・購入日・完成日)を完全に消去します。元に戻せません。", { title: "収蔵記録を消去", okText: "消去する", danger: true })) setRecords({}); setConfirmReset(false); }}>消去する</button>
                     <button className="opt" onClick={() => setConfirmReset(false)}>やめる</button>
                   </div>
                 </div>
@@ -6528,4 +6595,24 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .hf-part{animation:hfPartIn .36s cubic-bezier(.3,1.3,.5,1) both}
 @keyframes hfPartIn{0%{opacity:0;transform:scale(1.25)}60%{opacity:1}100%{opacity:1;transform:scale(1)}}
 /* OSの減少動態(reduce-motion)では動畫を止めない:アプリ側のトグルで制御(スキャンラインと同方針) */
+
+/* ── アプリ内 通知(toast) ── */
+.toast-host{position:fixed;top:calc(10px + env(safe-area-inset-top));left:0;right:0;z-index:200;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
+.toast{display:flex;align-items:center;gap:9px;max-width:88vw;padding:11px 16px 11px 13px;border-radius:12px;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);box-shadow:0 12px 34px rgba(0,0,0,.5);font-size:13px;color:var(--ink-strong);font-family:var(--sans);animation:toast-in .26s cubic-bezier(.2,.9,.3,1);border-left-width:3px}
+.toast.ok{border-left-color:var(--teal)} .toast.err{border-left-color:var(--shu)} .toast.warn{border-left-color:var(--gold)} .toast.info{border-left-color:var(--blue)}
+.toast .ti{flex:none;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;line-height:1}
+.toast.ok .ti{background:rgba(111,211,199,.16);color:var(--teal)} .toast.err .ti{background:rgba(232,85,61,.16);color:var(--shu)} .toast.warn .ti{background:rgba(217,179,106,.16);color:var(--gold)} .toast.info .ti{background:rgba(111,159,224,.16);color:var(--blue)}
+.toast .tm{line-height:1.45}
+@keyframes toast-in{from{transform:translateY(-12px);opacity:0}to{transform:translateY(0);opacity:1}}
+/* ── アプリ内 確認ダイアログ ── */
+.cf-bg{position:fixed;inset:0;z-index:210;background:rgba(5,7,12,.66);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:24px;animation:ie-fade .16s ease}
+.cf-card{position:relative;width:100%;max-width:340px;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:16px;padding:22px 20px 16px;box-shadow:0 24px 60px rgba(0,0,0,.6);overflow:hidden;animation:ie-rise .24s cubic-bezier(.2,.9,.3,1)}
+.cf-line{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--shu) 0 44px,var(--line) 44px)}
+.cf-h{font-family:var(--serif);font-weight:700;font-size:16px;letter-spacing:.04em;color:var(--ink-strong);margin-bottom:8px}
+.cf-m{font-size:13px;line-height:1.6;color:var(--ink-mid);margin-bottom:18px}
+.cf-acts{display:flex;gap:10px}
+.cf-btn{flex:1;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:transform .12s,background .14s,border-color .14s}
+.cf-btn:active{transform:scale(.96)}
+.cf-btn.ok{border-color:var(--gold);background:linear-gradient(160deg,rgba(217,179,106,.16),var(--panel));color:var(--gold)}
+.cf-btn.ok.danger{border-color:var(--shu-deep);background:linear-gradient(160deg,rgba(232,85,61,.16),var(--panel));color:var(--shu)}
 `;
