@@ -3694,6 +3694,13 @@ const IDENT_PROMPT = `あなたはガンダムシリーズのプラモデル(ガ
 {"candidates":[{"name":"正式名称(日本語)","series":"作品名","code":"型式番号(確信があれば。なければ空文字)","confidence":0,"reason":"根拠"}]}
 全く見当がつかない場合のみ candidates を空配列にする。`;
 function _identStripJson(t) { return t ? String(t).replace(/```json/gi, "").replace(/```/g, "").trim() : ""; }
+function _identParse(raw) {
+  const s = _identStripJson(raw);
+  try { return JSON.parse(s); } catch (e) {}
+  const m = s && s.match(/\{[\s\S]*\}/);
+  if (m) { try { return JSON.parse(m[0]); } catch (e) {} }
+  return null;
+}
 const IDF_BIG5 = ["UC", "SEED", "W", "G", "BF"];
 const IDF_UNI_LABEL = { UC: "宇宙世紀(U.C.)", SEED: "コズミック・イラ(SEED系)", W: "アフターコロニー(Wガンダム系)", G: "フューチャーセンチュリー(Gガンダム系)", BF: "ビルドファイターズ系" };
 const IDF_MODELS = [
@@ -3713,6 +3720,7 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach,
   const [q, setQ] = useState("");
   const [err, setErr] = useState("");
   const [model, setModel] = useState("");
+  const [grounding, setGrounding] = useState(false);
   const [selUni, setSelUni] = useState("");
   const [selGrade, setSelGrade] = useState("");
   const [hint, setHint] = useState("");
@@ -3735,9 +3743,12 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach,
       if (data.error) throw new Error(data.error.message || "OpenAI error");
       return (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || "";
     }
+    const gbody = { contents: [{ parts: [{ inline_data: { mime_type: mime, data: b64 } }, { text: prompt }] }] };
+    if (grounding) { gbody.tools = [{ google_search: {} }]; gbody.generationConfig = { temperature: 0.2 }; }
+    else { gbody.generationConfig = { responseMimeType: "application/json", temperature: 0.2 }; }
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m.id}:generateContent?key=${encodeURIComponent(geminiKey)}`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contents: [{ parts: [{ inline_data: { mime_type: mime, data: b64 } }, { text: prompt }] }], generationConfig: { responseMimeType: "application/json", temperature: 0.2 } }),
+      body: JSON.stringify(gbody),
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error.message || "Gemini error");
@@ -3786,8 +3797,7 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach,
       else prompt += "\nユーザー情報: この機体は U.C.(宇宙世紀)・SEED・Wガンダム・Gガンダム・ビルド系 のいずれにも属さない作品の機体である可能性が高い。";
       if (hint.trim()) prompt += "\nユーザーからのヒント: " + hint.trim();
       const raw = await callAI(b64, mime, aiData, prompt);
-      let parsed = null;
-      try { parsed = JSON.parse(_identStripJson(raw)); } catch (e) { parsed = null; }
+      const parsed = _identParse(raw);
       const list = (parsed && Array.isArray(parsed.candidates)) ? parsed.candidates : [];
       setCands(list);
       const best = new Map(); // kitId -> {kit, conf, reason, total}
@@ -3834,11 +3844,14 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach,
         {phase === "pick" && hasKey && (
           <div className="idf-pick">
             <p className="idf-lead">写真を選ぶと、AIが機体(MS)を推定し、図鑑の候補を提示します。グレードは写真で判別できないため、候補からあなたが選びます。</p>
-            <div className="idf-field idf-modelfield">
-              <span>辨識モデル（精度テスト用）</span>
-              <select value={model} onChange={(e) => setModel(e.target.value)}>
-                {models.map((m) => <option key={m.id} value={m.id}>{m.label} — {m.note}</option>)}
-              </select>
+            <div className="idf-modelfield">
+              <ModelPicker value={model} options={models.map((mm) => ({ value: mm.id, label: mm.label, note: mm.note }))} onChange={setModel} label="辨識モデル（精度テスト用）" />
+            </div>
+            <div className="idf-ground">
+              <label className="idf-switch">
+                <input type="checkbox" checked={grounding && !isOpenAImodel(model)} disabled={isOpenAImodel(model)} onChange={(e) => setGrounding(e.target.checked)} />
+                <span>Google検索でグラウンディング（Gemini限定・精度↑/低速。無料枠超過で課金注意）</span>
+              </label>
             </div>
             <div className="idf-hints">
               <div className="idf-field">
@@ -3947,25 +3960,54 @@ const isOpenAImodel = (m) => /^gpt-image/.test(m || "");
 const aiProviderLabel = (m) => (isOpenAImodel(m) ? "OpenAI" : "Google Gemini");
 /* 選択モデルに対応する端末ローカルのAPIキーを返す */
 const aiActiveKey = (ai) => (ai ? (isOpenAImodel(ai.model) ? ai.openaiKey || "" : ai.geminiKey || "") : "");
+/* 自前のドロップダウン(ネイティブselectの代替)。開くと下にリストを展開(クリップ回避のためインフロー) */
+function ModelPicker({ value, options, onChange, label }) {
+  const [open, setOpen] = useState(false);
+  const cur = options.find((o) => o.value === value) || options[0] || {};
+  return (
+    <div className={"mpk" + (open ? " open" : "")}>
+      {label ? <div className="mpk-label">{label}</div> : null}
+      <button type="button" className="mpk-btn" onClick={() => setOpen((v) => !v)}>
+        <span className="mpk-cur">{cur.label || "—"}{cur.note ? <i> · {cur.note}</i> : null}</span>
+        <span className="mpk-caret">{open ? "▴" : "▾"}</span>
+      </button>
+      {open ? (
+        <div className="mpk-list">
+          {options.map((o) => (
+            <button key={o.value} type="button" className={"mpk-item" + (o.value === value ? " on" : "")}
+              onClick={() => { onChange(o.value); setOpen(false); }}>
+              <span className="mpk-il">{o.label}</span>
+              {o.note ? <span className="mpk-in">{o.note}</span> : null}
+              {o.value === value ? <span className="mpk-ck">✓</span> : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+const AI_MODEL_OPTS = AI_MODELS.flatMap((g) => g.items.map((it) => ({ value: it.id, label: it.label, note: isOpenAImodel(it.id) ? "OpenAI" : "Gemini" })));
 
-function AIRestyleModal({ src, apiKey, model, prompts, onAdopt, onClose }) {
+function AIRestyleModal({ src, geminiKey, openaiKey, model, prompts, onAdopt, onClose }) {
   const [style, setStyle] = useState(AI_STYLES[0].id);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
+  const [chosenModel, setChosenModel] = useState(model);
 
   const generate = async () => {
     setBusy(true); setError("");
     try {
+      const apiKey = isOpenAImodel(chosenModel) ? openaiKey : geminiKey;
       const b64 = src.split(",")[1];
       const mime = (src.match(/^data:([^;]+);/) || [])[1] || "image/jpeg";
       const prompt = (prompts && prompts[style]) || AI_STYLES.find((s) => s.id === style).prompt;
-      if (isOpenAImodel(model)) {
+      if (isOpenAImodel(chosenModel)) {
         /* OpenAI 画像編集: /v1/images/edits(multipart, b64_json を返す) */
         const blob = await (await fetch(src)).blob();
         const ext = ((blob.type.split("/")[1] || "png").replace("jpeg", "jpg"));
         const form = new FormData();
-        form.append("model", model);
+        form.append("model", chosenModel);
         form.append("image", blob, `kit.${ext}`);
         form.append("prompt", prompt);
         form.append("size", "auto");
@@ -3982,7 +4024,7 @@ function AIRestyleModal({ src, apiKey, model, prompts, onAdopt, onClose }) {
       } else {
         /* Google Gemini: generateContent(inline_data で画像返却) */
         const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/${chosenModel}:generateContent?key=${encodeURIComponent(apiKey)}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -4020,7 +4062,8 @@ function AIRestyleModal({ src, apiKey, model, prompts, onAdopt, onClose }) {
   return (
     <div className="crop-bg">
       <div className="crop-panel">
-        <div className="crop-head">AIスタイル変換<span>{model}</span></div>
+        <div className="crop-head">AIスタイル変換<span>{chosenModel}</span></div>
+        <div className="ai-modelpick"><ModelPicker value={chosenModel} options={AI_MODEL_OPTS} onChange={(v) => { setChosenModel(v); setResult(null); }} label="変換モデル" /></div>
         <div className="ai-styles">
           {AI_STYLES.map((s) => (
             <button key={s.id} className={`opt ${style === s.id ? "on" : ""}`}
@@ -4377,7 +4420,7 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
       {cropSrc && <CropModal src={cropSrc} onCancel={() => setCropSrc(null)}
         onDone={(out) => { applyNewImage(out); setCropSrc(null); }} />}
       {aiOpen && (albumMode ? aiSrc : previewImg) && (
-        <AIRestyleModal src={albumMode ? aiSrc : previewImg} apiKey={aiActiveKey(ai)} model={(ai && ai.model) || "gemini-2.5-flash-image"}
+        <AIRestyleModal src={albumMode ? aiSrc : previewImg} geminiKey={ai && ai.geminiKey} openaiKey={ai && ai.openaiKey} model={(ai && ai.model) || "gemini-2.5-flash-image"}
           prompts={ai && ai.prompts}
           onAdopt={(out) => { applyNewImage(out); setAiOpen(false); }}
           onClose={() => setAiOpen(false)} />
@@ -8382,7 +8425,28 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .idf-preview{width:140px;height:140px;margin:6px auto 12px;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:#0c0c0c}
 .idf-preview img{width:100%;height:100%;object-fit:cover;display:block}
 .idf-ailine{font-size:12.5px;color:var(--ink-strong);line-height:1.6;margin:0 2px 12px;text-align:center}
-.idf-modelfield{margin-bottom:18px}
+.idf-modelfield{margin-bottom:14px}
+.mpk{position:relative}
+.mpk-label{font-size:11.5px;color:var(--ink-mid);letter-spacing:.02em;margin-bottom:6px}
+.mpk-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 13px;
+  border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink-strong);font-size:14px;cursor:pointer;transition:border-color .14s}
+.mpk.open .mpk-btn,.mpk-btn:active{border-color:var(--gold)}
+.mpk-cur{display:flex;align-items:baseline;gap:6px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mpk-cur i{font-style:normal;color:var(--ink-mid);font-size:12px}
+.mpk-caret{color:var(--gold);font-size:11px;flex:none}
+.mpk-list{margin-top:6px;background:var(--panel);border:1px solid var(--gold);border-radius:9px;overflow:hidden}
+.mpk-item{width:100%;display:flex;align-items:center;gap:8px;padding:12px 13px;background:transparent;border:none;
+  border-bottom:1px solid var(--line);color:var(--ink-strong);font-size:14px;cursor:pointer;text-align:left;transition:background .12s}
+.mpk-item:last-child{border-bottom:none}
+.mpk-item:active,.mpk-item.on{background:rgba(217,179,106,.1)}
+.mpk-il{flex:1;min-width:0}
+.mpk-in{font-size:11px;color:var(--ink-mid);flex:none}
+.mpk-ck{color:var(--gold);font-size:13px;flex:none}
+.ai-modelpick{margin:0 0 12px}
+.idf-ground{margin-bottom:18px}
+.idf-switch{display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:12.5px;color:var(--ink-strong);line-height:1.5}
+.idf-switch input{margin-top:2px;width:16px;height:16px;accent-color:var(--gold);flex:none}
+.idf-switch input:disabled{opacity:.4;cursor:not-allowed}
 .idf-modelnote{text-align:center;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;color:var(--ink-mid);margin:0 0 12px}
 .idf-ai{margin:2px 2px 14px}
 .idf-chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
