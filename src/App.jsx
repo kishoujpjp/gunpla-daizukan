@@ -3021,18 +3021,18 @@ const AI_STYLES = [
   { id: "shiningfinger", label: "シャイニングフィンガー風",
     prompt: "Redraw this mobile suit as a dynamic finishing-move action scene in the hand-drawn cel-animation art style of mid-1990s Japanese super-robot anime (in the visual spirit of Mobile Fighter G Gundam). Re-pose the machine performing the legendary 'Shining Finger' attack: a powerful forward lunge with the right arm thrust out and the open right hand blazing with a brilliant glowing energy aura, radiating intense heat-haze, light streaks and sparks; add explosive energy bursts, speed lines and dramatic rim lighting in the background. Use bold hand-inked outlines, flat two-tone cel shading with hard highlights, and the vivid saturated palette and analog texture of 90s mecha TV anime. You MAY change the pose, camera angle and background to depict this action dramatically, but keep it recognizably the same machine. Output only the image." },
   { id: "lineart", label: "設定線稿風",
-    prompt: "Redraw this mobile suit as a SINGLE comprehensive monochrome mechanical setting sheet (設定画・線画) in the style of official anime mechanical design references. In ONE image, lay out together: a full-body upright front-view figure as the main reference in the center or left; surrounding labelled detail panels with enlarged close-ups of key parts (head/face, hands, joints, backpack); a small internal-structure cutaway exposing the inner frame; and the machine's weapons and equipment drawn as separate item studies. Use clean precise black ink contour lines on a plain white background, thin even technical line weight, crisp panel-line detail, no color and no painterly shading (only minimal hatching where strictly needed). It must read like a professional blueprint / model-sheet packed with multiple views. Output only the image." },
+    prompt: "Redraw this mobile suit as a SINGLE comprehensive mechanical design sheet (設定ラフ・線画) drawn entirely with REAL graphite PENCIL on off-white sketch paper: visible hand-drawn pencil strokes with varied line pressure, light construction/guide lines, faint smudging and eraser marks, and genuine pencil-on-paper texture — NOT clean digital vector lines. In ONE image, lay out together: a full-body upright front-view figure as the main reference; surrounding rough detail studies of key parts (head/face, hands, joints, backpack); a small internal-structure cutaway; and the machine's weapons/equipment as separate item sketches. Add plenty of HANDWRITTEN annotations and labels drawn in pencil (Japanese and/or English notes naming the parts, arrows pointing to details, small measurements and remarks) as on a real mechanical designer's working sheet. Monochrome graphite only. Output only the image." },
   { id: "manga", label: "漫畫風",
-    prompt: "Redraw this image as a dramatic black-and-white Japanese manga panel: pure monochrome (no color), bold confident ink linework, high-contrast screentone (網点) shading, expressive manga hatching, dynamic speed lines and a strong sense of motion and drama.",
+    prompt: "Redraw this image as a dramatic black-and-white Japanese manga panel: pure monochrome (no color), bold confident ink linework, high-contrast screentone (網点) shading and expressive manga hatching. CRITICAL: faithfully preserve the subject's EXACT pose, proportions, orientation, framing and overall composition from the original photo — do NOT change the pose, action or viewpoint; only the drawing medium becomes manga.",
     fields: [
       { key: "artist", label: "漫畫家の作風(任意)", type: "text", placeholder: "例: 大友克洋 / 鳥山明" },
       { key: "line", label: "セリフ(任意)", type: "text", placeholder: "コマ内のセリフ" },
     ],
     extra: (o) => {
       let s = "";
-      if (o.artist && o.artist.trim()) s += " Emulate the distinctive drawing style of manga artist " + o.artist.trim() + ".";
+      if (o.artist && o.artist.trim()) s += " You MUST strongly and unmistakably emulate the highly distinctive drawing style of manga artist " + o.artist.trim() + " — their characteristic linework, inking, anatomy, screentone usage, eyes and overall art-style signature must be clearly and recognizably reproduced.";
       if (o.line && o.line.trim()) s += " Add a manga speech balloon containing this dialogue, hand-lettered naturally: 「" + o.line.trim() + "」.";
-      return s + " Output only the image.";
+      return s + " Remember: keep the subject's original pose and composition unchanged. Output only the image.";
     } },
 ];
 function initStyleOpts(s) {
@@ -4022,13 +4022,13 @@ function ModelPicker({ value, options, onChange, label }) {
 }
 const AI_MODEL_OPTS = AI_MODELS.flatMap((g) => g.items.map((it) => ({ value: it.id, label: it.label, note: isOpenAImodel(it.id) ? "OpenAI" : "Gemini" })));
 
-function AIRestyleModal({ src, geminiKey, openaiKey, model, prompts, onAdopt, onClose }) {
-  const [style, setStyle] = useState(AI_STYLES[0].id);
+function AIRestyleModal({ src, geminiKey, openaiKey, model, prompts, lastStyle, onModel, onStyle, onAdopt, onClose }) {
+  const [style, setStyle] = useState(lastStyle || AI_STYLES[0].id);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [chosenModel, setChosenModel] = useState(model);
-  const [styleOpts, setStyleOpts] = useState(() => initStyleOpts(AI_STYLES[0]));
+  const [styleOpts, setStyleOpts] = useState(() => initStyleOpts(AI_STYLES.find((s) => s.id === (lastStyle || AI_STYLES[0].id)) || AI_STYLES[0]));
   const curStyle = AI_STYLES.find((s) => s.id === style) || AI_STYLES[0];
 
   const generate = async () => {
@@ -4101,9 +4101,9 @@ function AIRestyleModal({ src, geminiKey, openaiKey, model, prompts, onAdopt, on
     <div className="crop-bg">
       <div className="crop-panel">
         <div className="crop-head">AIスタイル変換<span>{chosenModel}</span></div>
-        <div className="ai-modelpick"><ModelPicker value={chosenModel} options={AI_MODEL_OPTS} onChange={(v) => { setChosenModel(v); setResult(null); }} label="変換モデル" /></div>
+        <div className="ai-modelpick"><ModelPicker value={chosenModel} options={AI_MODEL_OPTS} onChange={(v) => { setChosenModel(v); setResult(null); if (onModel) onModel(v); }} label="変換モデル" /></div>
         <div className="ai-modelpick"><ModelPicker value={style} label="スタイル" options={AI_STYLES.map((s) => ({ value: s.id, label: s.label }))}
-          onChange={(v) => { setStyle(v); setResult(null); setStyleOpts(initStyleOpts(AI_STYLES.find((s) => s.id === v) || AI_STYLES[0])); }} /></div>
+          onChange={(v) => { setStyle(v); setResult(null); setStyleOpts(initStyleOpts(AI_STYLES.find((s) => s.id === v) || AI_STYLES[0])); if (onStyle) onStyle(v); }} /></div>
         {curStyle.fields ? (
           <div className="ai-fields">
             {curStyle.fields.map((f) => f.type === "select" ? (
@@ -4469,7 +4469,7 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
     </div>
 
       {aiOpen && aiSrc ? (
-        <AIRestyleModal src={aiSrc} geminiKey={ai && ai.geminiKey} openaiKey={ai && ai.openaiKey} model={(ai && ai.model) || "gemini-3-pro-image"} prompts={ai && ai.prompts}
+        <AIRestyleModal src={aiSrc} geminiKey={ai && ai.geminiKey} openaiKey={ai && ai.openaiKey} model={(ai && ai.model) || "gemini-3-pro-image"} prompts={ai && ai.prompts} lastStyle={ai && ai.style} onModel={ai && ai.onModel} onStyle={ai && ai.onStyle}
           onAdopt={(out, meta) => { onAddImage(out, meta); setAiOpen(false); closeSheet(); }}
           onClose={() => setAiOpen(false)} />
       ) : null}
@@ -4608,7 +4608,7 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
         onDone={(out) => { applyNewImage(out); setCropSrc(null); }} />}
       {aiOpen && (albumMode ? aiSrc : previewImg) && (
         <AIRestyleModal src={albumMode ? aiSrc : previewImg} geminiKey={ai && ai.geminiKey} openaiKey={ai && ai.openaiKey} model={(ai && ai.model) || "gemini-3-pro-image"}
-          prompts={ai && ai.prompts}
+          prompts={ai && ai.prompts} lastStyle={ai && ai.style} onModel={ai && ai.onModel} onStyle={ai && ai.onStyle}
           onAdopt={(out, meta) => { applyNewImage(out, meta); setAiOpen(false); }}
           onClose={() => setAiOpen(false)} />
       )}
@@ -4709,7 +4709,7 @@ export default function App() {
   const [images, setImages] = useState({});
   const [extras, setExtras] = useState({});       // 追加画像 {xid: src}
   const [albumMeta, setAlbumMeta] = useState({});  // {kitId:{order,thumb,acquire,framing}}
-  const [settings, setSettings] = useState({ view: "list", compact: false, dimUnowned: true, showCode: true, showSeries: false, showPrice: true, showNo: false, showGrade: true, showYm: true, salonCols: 2, salonFit: "cover", listGrade: true, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "min", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", openaiKey: "", geminiModel: "gemini-3-pro-image" });
+  const [settings, setSettings] = useState({ view: "list", compact: false, dimUnowned: true, showCode: true, showSeries: false, showPrice: true, showNo: false, showGrade: true, showYm: true, salonCols: 2, salonFit: "cover", listGrade: true, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "min", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", openaiKey: "", geminiModel: "gemini-3-pro-image", aiStyle: "boxart" });
   // 既定画像モデルをNano Banana Proへ一度だけ移行(旧既定flash-imageのみ。明示選択は尊重)
   useEffect(() => {
     if (settings.geminiModel === "gemini-2.5-flash-image" && !settings._mdef3) {
@@ -5312,9 +5312,13 @@ export default function App() {
     });
   }, []);
 
-  // 画像の並び順を保存(ドラッグ並べ替え)。
+  // 画像の並び順を保存。先頭画像を自動的にサムネ(銘牌)兼入手表示に設定。
   const setAlbumOrder = useCallback((kitId, order) => {
-    setAlbumMeta((prev) => { const m = prev[kitId] || {}; return { ...prev, [kitId]: { ...m, order: (order || []).slice() } }; });
+    setAlbumMeta((prev) => {
+      const m = prev[kitId] || {};
+      const first = (order && order[0]) || m.thumb;
+      return { ...prev, [kitId]: { ...m, order: (order || []).slice(), thumb: first, acquire: first } };
+    });
   }, []);
   // 画像メタの場所(任意・手動)を更新。他のメタは保持。
   const setImgLoc = useCallback((kitId, ref, loc) => {
@@ -5336,7 +5340,9 @@ export default function App() {
   const acqFrameStyle = useCallback((id) => framingStyle(framingOf(id, pickRef("acquire", id, images, extras, albumMeta))), [framingOf, images, extras, albumMeta]);
 
   // 鑑賞モードを開く(入手指定の画像から)
+  const viewerGuard = useRef(0);
   const openViewer = useCallback((kitId) => {
+    if (Date.now() - viewerGuard.current < 400) return; // 閉じた直後のゴーストクリック対策
     const refs = albumRefs(kitId, images, extras, albumMeta).filter((ref) => refSrc(ref, kitId, images, extras));
     if (!refs.length) return;
     const acqRef = pickRef("acquire", kitId, images, extras, albumMeta);
@@ -6913,7 +6919,7 @@ export default function App() {
         if (!flat.length) { setTimeout(() => { setViewer(null); setViewerDel(false); }, 0); return null; }
         const slide = flat[gi];
         const curKitId = slide.kitId, curRef = slide.ref;
-        const close = () => { setViewer(null); setViewerDel(false); setSerifEdit(null); setDetail(curKitId); setEditing(false); };
+        const close = () => { viewerGuard.current = Date.now(); setViewer(null); setViewerDel(false); setSerifEdit(null); setDetail(curKitId); setEditing(false); };
         const curAlbum = kitAlbum(curKitId);
         const aIdx = Math.max(0, curAlbum.findIndex((a) => a.ref === curRef));
         const thumbRef = pickRef("thumb", curKitId, images, extras, albumMeta);
@@ -6930,13 +6936,6 @@ export default function App() {
               resolveSrc={(sl) => (sl.ref ? refSrc(sl.ref, sl.kitId, images, extras) : null)}
               serifOf={(sl) => (sl.ref ? (serifs[sl.ref] || "") : "")}
               onSerif={(sl) => { if (sl.ref) setSerifEdit({ ref: sl.ref, text: serifs[sl.ref] || "" }); }}
-              watermarkOf={(sl) => {
-                if (!sl || !sl.ref) return "";
-                const meta = imgMetaFrom(albumMeta, sl.kitId, sl.ref);
-                if (meta && meta.src === "ai") { const o = AI_MODEL_OPTS.find((x) => x.value === meta.model); return (o && o.label) || meta.model || "AI"; }
-                const by = (meta && meta.by) || settings.builderName || "";
-                return by ? "photoed by " + by : "";
-              }}
               onIndex={(i) => { setViewerDel(false); setSerifEdit(null); setViewer({ kitId: flat[i].kitId, ref: flat[i].ref }); }}
               onClose={close} />
 
@@ -6962,7 +6961,7 @@ export default function App() {
         if (!ek) return null;
         return (
           <ImageEditorModal kit={ek} images={images} extras={extras} albumMeta={albumMeta} builderName={settings.builderName}
-            ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, model: settings.geminiModel, prompts: settings.aiPrompts }}
+            ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, model: settings.geminiModel, prompts: settings.aiPrompts, style: settings.aiStyle, onModel: (m) => setSettings((s) => ({ ...s, geminiModel: m })), onStyle: (st) => setSettings((s) => ({ ...s, aiStyle: st })) }}
             onAddImage={(src, meta) => addAlbumImage(imgEdit, src, meta)}
             onRemoveImage={(ref) => removeAlbumImage(imgEdit, ref)}
             onSetRole={(ref, role) => setAlbumRole(imgEdit, ref, role)}
@@ -7049,7 +7048,7 @@ export default function App() {
                 </div>
                 <KitForm
                   seriesOptions={seriesOptions}
-                  ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, model: settings.geminiModel, prompts: settings.aiPrompts }}
+                  ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, model: settings.geminiModel, prompts: settings.aiPrompts, style: settings.aiStyle, onModel: (m) => setSettings((s) => ({ ...s, geminiModel: m })), onStyle: (st) => setSettings((s) => ({ ...s, aiStyle: st })) }}
                   initial={detailKit}
                   currentImg={images[detailKit.id]}
                   album={kitAlbum(detailKit.id)}
@@ -7086,7 +7085,7 @@ export default function App() {
               <span>機体を追加</span>
               <button className="modal-x static" onClick={() => setAdding(false)}>✕</button>
             </div>
-            <KitForm seriesOptions={seriesOptions} ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, model: settings.geminiModel, prompts: settings.aiPrompts }} initial={{}} currentImg={null} isCustom={false}
+            <KitForm seriesOptions={seriesOptions} ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, model: settings.geminiModel, prompts: settings.aiPrompts, style: settings.aiStyle, onModel: (m) => setSettings((s) => ({ ...s, geminiModel: m })), onStyle: (st) => setSettings((s) => ({ ...s, aiStyle: st })) }} initial={{}} currentImg={null} isCustom={false}
               onSave={saveNew} onCancel={() => setAdding(false)} />
           </div>
         </div>
