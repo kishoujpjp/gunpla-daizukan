@@ -51,18 +51,32 @@ const kitsMatching = (sel, pool) => pool.filter((k) => matchOne(sel, k));
 /* AND 組合せ:各 piece に「異なる機体」を割り当てられるか(貪欲・候補少ない順)。
    これにより 1 台が複数 piece を同時に満たす誤判定を防ぐ。
    返値: { ok, satisfied }(satisfied=最低1台命中した piece 数=進捗) */
-function assignDistinct(sels, owned) {
+export function assignDistinct(sels, owned) {
+  // 各 piece(条件)に「異なる機体」を1台ずつ割り当てる最大二分マッチング。
+  // Kuhn の増広路法で厳密に最大化する(貪欲の取りこぼし=偽陰性を排除)。
+  // 返値:
+  //   ok    … 全 piece に相異機体を割り当てられたか
+  //   count … 実際に相異割当できた piece 数(=進捗。重複候補でも水増ししない)
+  //   assign… [pieceIndex] = 割当機体id | null
+  //   ids   … 割り当てに使った機体id配列
   const cand = sels.map((s) => kitsMatching(s, owned).map((k) => k.id));
+  const matchOfKit = new Map(); // kitId -> pieceIndex(現在その機体を使っている piece)
+  const augment = (i, seen) => {
+    for (const id of cand[i]) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const owner = matchOfKit.get(id);
+      if (owner === undefined || augment(owner, seen)) { matchOfKit.set(id, i); return true; }
+    }
+    return false;
+  };
+  // 候補の少ない piece から処理(速度・安定のための順序。厳密性には影響しない)。
   const order = cand.map((_, i) => i).sort((a, b) => cand[a].length - cand[b].length);
-  const used = new Set();
-  let ok = true;
-  for (const i of order) {
-    const pick = cand[i].find((id) => !used.has(id));
-    if (pick === undefined) { ok = false; continue; }
-    used.add(pick);
-  }
-  const satisfied = cand.filter((c) => c.length).length;
-  return { ok, satisfied };
+  for (const i of order) augment(i, new Set());
+  const assign = new Array(sels.length).fill(null);
+  for (const [id, pi] of matchOfKit) assign[pi] = id;
+  const ids = assign.filter((x) => x !== null);
+  return { ok: ids.length === sels.length, count: ids.length, assign, ids };
 }
 
 /* ルール評価 → { unlocked, cur, need } */
@@ -76,13 +90,9 @@ export function evalRule(rule, owned) {
     const simple = rule.all.every((p) => p.match);
     if (simple) {
       const sels = rule.all.map((p) => p.match);
-      const candIds = sels.map((sel) => kitsMatching(sel, owned).map((k) => k.id));
-      const order = candIds.map((_, i) => i).sort((a, b) => candIds[a].length - candIds[b].length);
-      const used = new Set();
-      for (const i of order) { const pick = candIds[i].find((id) => !used.has(id)); if (pick !== undefined) used.add(pick); }
-      const ok = used.size === sels.length;
-      const satisfied = candIds.filter((c) => c.length).length;
-      return { unlocked: ok, cur: ok ? sels.length : satisfied, need: sels.length, ids: [...used] };
+      const a = assignDistinct(sels, owned);
+      // cur は「実際に相異割当できた piece 数」。候補が重複しても水増ししない。
+      return { unlocked: a.ok, cur: a.count, need: sels.length, ids: a.ids };
     }
     const sub = rule.all.map((p) => evalRule(p, owned));
     const ids = [].concat(...sub.map((x) => x.ids || []));
@@ -187,17 +197,15 @@ export function explainAchievement(ach, allKits, getRec) {
     const parts = rule.all || [{ match: rule.match }];
     const sels = parts.filter((p) => p.match).map((p) => p.match);
     const counts = parts.filter((p) => p.count);
-    const candIds = sels.map((sel) => kitsMatching(sel, owned).map((k) => k.id));
-    const order = candIds.map((_, i) => i).sort((a, b) => candIds[a].length - candIds[b].length);
-    const used = new Set(); const assign = new Array(sels.length).fill(null);
-    for (const i of order) { const pick = candIds[i].find((id) => !used.has(id)); if (pick !== undefined) { used.add(pick); assign[i] = pick; } }
+    const a = assignDistinct(sels, owned);
+    const assign = a.assign;
     const pieces = sels.map((sel, i) => ({
       satisfied: assign[i] !== null,
       owned: assign[i] !== null ? named(byId.get(assign[i])) : null,
       candidates: kitsMatching(sel, cand).map(named),
     }));
     const countPieces = counts.map((p) => ({ have: kitsMatching(p.count, owned).map(named), need: p.gte }));
-    satisfyingIds = [...used].concat(...countPieces.map((cp) => cp.have.map((h) => h.id)));
+    satisfyingIds = [...a.ids].concat(...countPieces.map((cp) => cp.have.map((h) => h.id)));
     result = { kind: "combo", pieces, countPieces };
   } else if (rule.count) {
     const have = kitsMatching(rule.count, owned).map(named);
