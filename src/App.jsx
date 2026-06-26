@@ -510,7 +510,7 @@ const xtraKey = (imgId) => "mg_xtra_" + (hashId(imgId) % XTRA_SHARDS);
 /* ── 複数画像(アルバム)モデル ──────────────────────────────
    ・images[kitId]   = 主画像(従来通り。8シャード mg_imgs_*、kitId キー)
    ・extras[xid]     = 追加画像(32シャード mg_xtra_*、xid キー)。xid は "kitId~乱数"。
-   ・albumMeta[kitId]= { order:[ref…], thumb:ref, acquire:ref, framing:{ref:{x,y,scale}} }
+   ・albumMeta[kitId]= { order:[ref…], thumb:ref, acquire:ref, framing:{ref:{x,y,scale}}, imeta:{ref:{src,model,at,by}} }
                        ref は "primary" もしくは xid。META に同梱して同期。
    既存データは無改変(主画像はそのまま)。albumMeta/extras が空なら従来と同一挙動。 */
 function newXid(kitId) { return kitId + "~" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
@@ -549,6 +549,11 @@ function acquireSrcOf(kitId, images, extras, albumMeta) {
 }
 function hasAnyImage(kitId, images, extras) {
   return !!(images && images[kitId]) || kitExtraIds(kitId, extras).length > 0;
+}
+/* 画像メタ(由来/モデル/時刻/撮影者)。ref 単位で albumMeta[kitId].imeta に格納 */
+function imgMetaFrom(albumMeta, kitId, ref) {
+  const m = albumMeta && albumMeta[kitId];
+  return (m && m.imeta && m.imeta[ref]) || null;
 }
 /* ── 構図(framing): サムネ表示時の pan/zoom を記憶。原画像は無加工。
    scale∈[1,3]、x/y はビューポート%(中心0)。満版維持のため ±(scale-1)/2*100 にクランプ。 */
@@ -2558,7 +2563,7 @@ function KitImage({ kit, img, owned, built, size = 84, cls = "", frame }) {
    Pointer Events で実装(iOS Safari 対応)。touch-action:none で既定のスクロールを抑止。 */
 /* ── 画像鑑賞: 指追従の横スワイプでページング(離すと次へ自然遷移)＋ピンチズーム。
    ボタン/X 無し、タップで閉じる。ズーム中(>1倍)は1本指でパン、等倍時のみページング ── */
-function SwipeViewer({ slides, index, onIndex, onClose, resolveSrc, resetKey, serifOf, onSerif }) {
+function SwipeViewer({ slides, index, onIndex, onClose, resolveSrc, resetKey, serifOf, onSerif, watermarkOf }) {
   const n = slides.length;
   const wrapRef = useRef(null);
   const [dragX, setDragX] = useState(0);
@@ -2647,6 +2652,7 @@ function SwipeViewer({ slides, index, onIndex, onClose, resolveSrc, resetKey, se
         const sl = slides[i];
         const isCur = i === index;
         const src = resolveSrc(sl);
+        const wm = watermarkOf ? watermarkOf(sl) : "";
         return (
           <div className="sv-slide" key={sl.kitId + "/" + sl.ref}
             style={{ transform: `translateX(calc(${(i - index) * 100}% + ${dragX}px))`, transition: paging ? "transform .3s cubic-bezier(.25,.8,.3,1)" : "none" }}>
@@ -2670,6 +2676,7 @@ function SwipeViewer({ slides, index, onIndex, onClose, resolveSrc, resetKey, se
                       <span className="dc-unsub">NO VISUAL ON FILE · 機密</span>
                       <span className="dc-unref">REF · {sl.code || (sl.no && sl.no !== "—" ? "No." + sl.no : "—")}</span>
                     </div>}
+                {wm ? <div className="sv-wm">{wm}</div> : null}
               </div>
               {/* 銘牌(様式4:枠なし・最小)— 作品名(小) / 機体名(楷体)。画像直下に追従 */}
               <div className="sv-plate">
@@ -4097,7 +4104,7 @@ function AIRestyleModal({ src, geminiKey, openaiKey, model, prompts, onAdopt, on
       im.onerror = () => res(result);
       im.src = result;
     });
-    onAdopt(out);
+    onAdopt(out, { src: "ai", model: chosenModel });
   };
 
   return (
@@ -4325,12 +4332,13 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
   const [aiOpen, setAiOpen] = useState(false);
   const [aiSrc, setAiSrc] = useState(null);  // AI変換の元画像(アルバム時)
   const [sel, setSel] = useState(null);       // 選択中のアルバム画像 ref
+  const [pendingMeta, setPendingMeta] = useState(null); // 新規primary画像の由来メタ(AI生成時など)
   const fileRef = useRef(null);
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
   const previewImg = imgVal === undefined ? currentImg : imgVal;
   const atCap = albumMode && (album || []).length >= maxImgs;
   // 新画像を反映: アルバム時は追加、新規機体時は単一スロットへ
-  const applyNewImage = (src) => { if (!src) return; if (albumMode) onAddImage(src); else setImgVal(src); };
+  const applyNewImage = (src, meta) => { if (!src) return; if (albumMode) onAddImage(src, meta); else { setImgVal(src); setPendingMeta(meta || null); } };
 
   const pickFile = async (e) => {
     const file = e.target.files && e.target.files[0];
@@ -4468,7 +4476,7 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
 
       <div className="form-actions">
         <button className="btn primary" disabled={!f.name.trim()}
-          onClick={() => { if (onSaveRec) onSaveRec(dates); onSave({ ...f, price: f.price ? Number(f.price) : "" }, imgVal); }}>保存</button>
+          onClick={() => { if (onSaveRec) onSaveRec(dates); onSave({ ...f, price: f.price ? Number(f.price) : "" }, imgVal, pendingMeta); }}>保存</button>
         <button className="btn" onClick={onCancel}>やめる</button>
         {isCustom && onDelete && <button className="btn danger" onClick={onDelete}>この機体を削除</button>}
       </div>
@@ -4477,7 +4485,7 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
       {aiOpen && (albumMode ? aiSrc : previewImg) && (
         <AIRestyleModal src={albumMode ? aiSrc : previewImg} geminiKey={ai && ai.geminiKey} openaiKey={ai && ai.openaiKey} model={(ai && ai.model) || "gemini-2.5-flash-image"}
           prompts={ai && ai.prompts}
-          onAdopt={(out) => { applyNewImage(out); setAiOpen(false); }}
+          onAdopt={(out, meta) => { applyNewImage(out, meta); setAiOpen(false); }}
           onClose={() => setAiOpen(false)} />
       )}
     </div>
@@ -5111,8 +5119,23 @@ export default function App() {
   };
 
   /* ── アルバム(複数画像)操作 ── */
-  // 新規画像を追加(extras へ)。上限チェック。成功で true。
-  const addAlbumImage = useCallback((kitId, src) => {
+  // 画像メタを記録(由来/モデル/時刻/撮影者)。撮影者は未指定なら現在のビルダー名。
+  const recordImgMeta = useCallback((kitId, ref, meta) => {
+    if (!ref) return;
+    setAlbumMeta((prev) => {
+      const m = prev[kitId] || {};
+      const imeta = { ...(m.imeta || {}) };
+      imeta[ref] = {
+        src: (meta && meta.src) || "photo",
+        model: (meta && meta.model) || "",
+        at: (meta && meta.at) || Date.now(),
+        by: (meta && meta.by) || settings.builderName || "",
+      };
+      return { ...prev, [kitId]: { ...m, imeta } };
+    });
+  }, [settings.builderName]);
+  // 新規画像を追加(extras へ)。上限チェック。成功で true。meta で由来を記録。
+  const addAlbumImage = useCallback((kitId, src, meta) => {
     if (!src) return false;
     if (albumRefs(kitId, images, extras, albumMeta).length >= MAX_IMGS_PER_KIT) {
       alert(`画像は1機体あたり最大 ${MAX_IMGS_PER_KIT} 枚までです。`);
@@ -5125,8 +5148,9 @@ export default function App() {
       const base = (m.order && m.order.length) ? m.order.slice() : albumRefs(kitId, images, extras, prev);
       return { ...prev, [kitId]: { ...m, order: base.filter((r) => r !== xid).concat([xid]) } };
     });
+    recordImgMeta(kitId, xid, meta || { src: "photo" });
     return true;
-  }, [images, extras, albumMeta, persistXtraShard]);
+  }, [images, extras, albumMeta, persistXtraShard, recordImgMeta]);
 
   // アルバムから1枚削除(primary か extra)。役割/順序/構図も掃除。
   const removeAlbumImage = useCallback((kitId, ref) => {
@@ -5141,6 +5165,7 @@ export default function App() {
       if (clean.thumb === ref) delete clean.thumb;
       if (clean.acquire === ref) delete clean.acquire;
       if (clean.framing && clean.framing[ref]) { clean.framing = { ...clean.framing }; delete clean.framing[ref]; }
+      if (clean.imeta && clean.imeta[ref]) { clean.imeta = { ...clean.imeta }; delete clean.imeta[ref]; }
       return { ...prev, [kitId]: clean };
     });
   }, [persistShard, persistXtraShard]);
@@ -5321,6 +5346,7 @@ export default function App() {
       const m = {};
       for (const [k, v] of Object.entries(next)) if (hashId(k) % IMG_SHARDS === idx) m[k] = v;
       await saveKey("mg_imgs_" + idx, JSON.stringify(m));
+      recordImgMeta(kitId, "primary", { src: "photo" });
     } else {
       const xid = newXid(kitId);
       const nextX = { ...extras, [xid]: dataURL };
@@ -5329,8 +5355,9 @@ export default function App() {
       const m = {};
       for (const [k, v] of Object.entries(nextX)) if (hashId(k) % XTRA_SHARDS === idx) m[k] = v;
       await saveKey("mg_xtra_" + idx, JSON.stringify(m));
+      recordImgMeta(kitId, xid, { src: "photo" });
     }
-  }, [images, extras, saveKey]);
+  }, [images, extras, saveKey, recordImgMeta]);
 
   /* ── ローカル画像をファイル名(=kit_id)で一括取り込み ──
      例: b001.jpg → 機体 b001 に紐付け。画像は 480px JPEG へ圧縮(同期上限に安全)。
@@ -5341,19 +5368,20 @@ export default function App() {
     setImgBusy(true); setImgMsg(`取り込み中… 0/${files.length}`);
     const valid = new Map(allKits.map((k) => [k.id.toLowerCase(), k.id]));
     const next = { ...images };
-    let ok = 0; const bad = [];
+    let ok = 0; const bad = []; const okIds = [];
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
       const base = (f.name || "").replace(/\.[^.]+$/, "").trim();
       const lead = base.split(/[ _\-(（\[]/)[0]; // 「b001_ガンダム.jpg」等にも対応(先頭トークン)
       const id = valid.get(base.toLowerCase()) || valid.get(lead.toLowerCase());
       if (!id) { bad.push(f.name); continue; }
-      try { next[id] = await fileToCompressedDataURL(f, 480, 0.74); ok++; }
+      try { next[id] = await fileToCompressedDataURL(f, 480, 0.74); ok++; okIds.push(id); }
       catch (e) { bad.push(f.name + "(変換失敗)"); }
       if (i % 4 === 0) setImgMsg(`取り込み中… ${i + 1}/${files.length}`);
     }
     if (ok) {
       setImages(next);
+      okIds.forEach((id) => recordImgMeta(id, "primary", { src: "photo" }));
       for (let i = 0; i < IMG_SHARDS; i++) {
         const m = {};
         for (const [k, v] of Object.entries(next)) if (hashId(k) % IMG_SHARDS === i) m[k] = v;
@@ -5844,7 +5872,7 @@ export default function App() {
   );
 
   /* ── 保存編輯 / 新增 ── */
-  const saveEdit = (kit, values, imgVal) => {
+  const saveEdit = (kit, values, imgVal, imgMeta) => {
     const now = new Date().toISOString();
     const fields = { name: values.name, code: values.code, ym: values.ym, price: values.price, series: values.series, note: values.note, premium: !!values.premium, grade: values.grade || "MG" };
     if (kit.line === "CUSTOM") {
@@ -5853,6 +5881,7 @@ export default function App() {
       setOverrides((o) => ({ ...o, [kit.id]: stampRec(o[kit.id], fields, now) }));
     }
     if (imgVal !== undefined) setImage(kit.id, imgVal);
+    if (imgVal !== undefined && imgVal !== null) recordImgMeta(kit.id, "primary", imgMeta || { src: "photo" });
     setEditing(false);
   };
 
@@ -5865,13 +5894,13 @@ export default function App() {
     }
   };
 
-  const saveNew = (values, imgVal) => {
+  const saveNew = (values, imgVal, imgMeta) => {
     const now = new Date().toISOString();
     const id = "c" + Date.now().toString(36);
     setCustomKits((cs) => [...cs, { id, no: "—", line: "CUSTOM", ...values, t: now }]);
     if (adding === "owned") setRecords((r) => ({ ...r, [id]: stampRecAll({ owned: true, plan: false, purchaseDate: "", buildDate: "" }, now) }));
     if (adding === "plan") setRecords((r) => ({ ...r, [id]: stampRecAll({ owned: false, plan: true, purchaseDate: "", buildDate: "" }, now) }));
-    if (imgVal !== undefined && imgVal !== null) setImage(id, imgVal);
+    if (imgVal !== undefined && imgVal !== null) { setImage(id, imgVal); recordImgMeta(id, "primary", imgMeta || { src: "photo" }); }
     setAdding(false);
     setDetail(id);
   };
@@ -6760,6 +6789,13 @@ export default function App() {
               resolveSrc={(sl) => (sl.ref ? refSrc(sl.ref, sl.kitId, images, extras) : null)}
               serifOf={(sl) => (sl.ref ? (serifs[sl.ref] || "") : "")}
               onSerif={(sl) => { if (sl.ref) setSerifEdit({ ref: sl.ref, text: serifs[sl.ref] || "" }); }}
+              watermarkOf={(sl) => {
+                if (!sl || !sl.ref) return "";
+                const meta = imgMetaFrom(albumMeta, sl.kitId, sl.ref);
+                if (meta && meta.src === "ai") { const o = AI_MODEL_OPTS.find((x) => x.value === meta.model); return (o && o.label) || meta.model || "AI"; }
+                const by = (meta && meta.by) || settings.builderName || "";
+                return by ? "photoed by " + by : "";
+              }}
               onIndex={(i) => { setViewerDel(false); setSerifEdit(null); setViewer({ kitId: flat[i].kitId, ref: flat[i].ref }); }}
               onClose={close} />
 
@@ -6863,7 +6899,7 @@ export default function App() {
                   initial={detailKit}
                   currentImg={images[detailKit.id]}
                   album={kitAlbum(detailKit.id)}
-                  onAddImage={(src) => addAlbumImage(detailKit.id, src)}
+                  onAddImage={(src, meta) => addAlbumImage(detailKit.id, src, meta)}
                   onRemoveImage={(ref) => removeAlbumImage(detailKit.id, ref)}
                   onSetRole={(ref, role) => setAlbumRole(detailKit.id, ref, role)}
                   onFrame={(ref) => setFrameEdit({ kitId: detailKit.id, ref })}
@@ -7382,7 +7418,10 @@ input,textarea{font-family:var(--sans)}
   text-shadow:0 2px 12px rgba(0,0,0,.85),0 0 3px rgba(0,0,0,.7)}
 .vs-hint{font-family:var(--sans);font-size:12px;letter-spacing:.12em;color:rgba(255,255,255,.30)}
 /* 画像エリア(台詞と銘牌のあいだを埋める。両者と重ならない) */
-.sv-imgwrap{flex:0 1 auto;min-height:0;max-height:calc(100% - 150px);width:100%;display:flex;align-items:center;justify-content:center}
+.sv-imgwrap{flex:0 1 auto;min-height:0;max-height:calc(100% - 150px);width:100%;display:flex;align-items:center;justify-content:center;position:relative}
+.sv-wm{position:absolute;right:11px;bottom:9px;z-index:2;font-family:var(--mono);font-size:10px;letter-spacing:.04em;
+  color:rgba(255,255,255,.3);text-shadow:0 1px 2px rgba(0,0,0,.55);pointer-events:none;
+  max-width:72%;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sv-img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;transform-origin:center center;will-change:transform;user-select:none;-webkit-user-drag:none}
 /* 銘牌(様式4:枠なし・最小)— 画像直下に追従。作品名(明朝・小)/機体名(楷体・台詞欄基準) */
 .sv-plate{flex:none;margin-top:12px;text-align:center;max-width:90%;padding:0 8px;pointer-events:none}
