@@ -2395,7 +2395,7 @@ export default function App() {
     };
   }, [loaded, saveKey, flushDirty]);
 
-  useEffect(() => { setLimit(60); }, [query, gf, sortKey, sortDir, settings.view]);
+  useEffect(() => { setLimit(60); }, [gf, sortKey, sortDir, settings.view]);
 
   useEffect(() => {
     supaRef.current = { url: (settings.supaUrl || "").trim().replace(/\/+$/, ""), key: (settings.supaKey || "").trim() };
@@ -3161,14 +3161,8 @@ export default function App() {
         return !isNaN(y) && y >= lo && y <= hi;
       });
     }
-    if (!query.trim()) return pool;
-    const q = normJa(query.trim());
-    const rq = toRomaji(q);
-    return pool.filter((k) => {
-      const idx = searchIndex[k.id] || "";
-      return idx.includes(q) || (rq && rq !== q && idx.includes(rq)) || (k.grade || "MG").toLowerCase() === q;
-    });
-  }, [allKits, query, gf, searchIndex, adv, getRec, tab, zukanMode, thumbSrc]);
+    return pool;
+  }, [allKits, gf, searchIndex, adv, getRec, tab, zukanMode, thumbSrc]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
@@ -3272,6 +3266,60 @@ export default function App() {
   const closeSearch = useCallback(() => { setSearchOpen(false); }, []);
   const openFilter = useCallback(() => { haptic(); setFilterOpen(true); }, []);
   const closeFilter = useCallback(() => { setFilterOpen(false); }, []);
+  /* 長押し判定(タップ=onTap / 長押し=onLong)。アイコンの二役に使う */
+  const lpRef = useRef({ t: null, fired: false });
+  const longPress = (onTap, onLong, ms = 460) => ({
+    onPointerDown: () => { lpRef.current.fired = false; clearTimeout(lpRef.current.t); lpRef.current.t = setTimeout(() => { lpRef.current.fired = true; hapticStrong(); onLong && onLong(); }, ms); },
+    onPointerUp: () => { clearTimeout(lpRef.current.t); },
+    onPointerLeave: () => { clearTimeout(lpRef.current.t); },
+    onPointerCancel: () => { clearTimeout(lpRef.current.t); },
+    onClick: (e) => { if (e) e.stopPropagation(); if (lpRef.current.fired) { lpRef.current.fired = false; return; } onTap && onTap(); },
+  });
+  /* 全条件クリア:絞り込み(adv)+検索語+グレード を一括解除 */
+  const clearAllConds = useCallback(() => {
+    haptic();
+    setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "" });
+    setQueries({ z: "", c: "" });
+    setSettings((s) => ({ ...s, gfZukan: "", gfShuzo: "" }));
+  }, []);
+  /* 検索ヒット(即時表示・ジャンプ専用。リスト表示には反映しない) */
+  const searchHits = useMemo(() => {
+    const term = (tab === "collection" ? queries.c : queries.z).trim();
+    if (!term) return [];
+    const base = tab === "collection"
+      ? allKits.filter((k) => (collMode === "plan" ? getRec(k.id).plan : getRec(k.id).owned))
+      : allKits;
+    const q = normJa(term); const rq = toRomaji(q);
+    return base.filter((k) => { const idx = searchIndex[k.id] || ""; return idx.includes(q) || (rq && rq !== q && idx.includes(rq)); }).slice(0, 14);
+  }, [tab, collMode, queries, allKits, getRec, searchIndex]);
+  const renderSearchModal = ({ value, onChange, placeholder, title }) => (
+    <div className="modal-bg search-modal-bg" onClick={closeSearch}>
+      <div className="modal search-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="sm-head">
+          <span className="sm-title">{title} <span className="sm-eyebrow">SEARCH</span></span>
+          <button className="modal-x static" onClick={closeSearch}>✕</button>
+        </div>
+        <div className="toolbar">
+          <input className="search" placeholder={placeholder} value={value} autoFocus
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); closeSearch(); } }} />
+          <button className="search-go" aria-label="確認" onClick={closeSearch}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4 4L19 6.5" /></svg>
+          </button>
+        </div>
+        {value.trim() ? (
+          <div className="sm-hits">
+            {searchHits.length ? searchHits.map((k) => (
+              <button key={k.id} className="sm-hit" onClick={() => { closeSearch(); setDetail(k.id); }}>
+                <span className="sm-hit-name"><KitName name={k.name} /></span>
+                <span className="sm-hit-sub">{[k.code, k.grade, k.series].filter(Boolean).join(" · ")}</span>
+              </button>
+            )) : <div className="sm-empty">該当する機体がありません</div>}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
   /* ── 簿冊表頭(博物誌/繪測巻/蔵品帳/発注簿):仿叙勲録の表頭。タップで検索窓 ── */
   /* 表頭標題:表裏切換アニメ(A翻面/B捲軸/C滑移)。alt=配對名(暗示)。 */
   const LedgerTitle = ({ scheme, title, alt, akey, dir }) => {
@@ -3284,7 +3332,7 @@ export default function App() {
     );
   };
 
-  const LedgerHead = ({ eyebrow, title, alt, countNode, active, variant, onSwitch, scheme = "slide", akey, dir = 1 }) => (
+  const LedgerHead = ({ eyebrow, title, alt, countNode, active, variant, onSwitch, scheme = "slide", akey, dir = 1, searchActive, onClearSearch }) => (
     <div key={variant} className={"sb-band sb-v-" + variant}>
       <div className={"sb-head" + (active ? " on" : "")}>
         <button type="button" className="sb-switch" onClick={() => { hapticStrong(); onSwitch && onSwitch(); }}
@@ -3296,14 +3344,14 @@ export default function App() {
         </button>
         <span className="sb-head-r">
           <span className="sb-count">{countNode}</span>
-          <button type="button" className={"sb-icon" + (advActive ? " on" : "")} aria-label="絞り込みを開く"
-            onClick={(e) => { e.stopPropagation(); openFilter(); }}>
+          <button type="button" className={"sb-icon" + (advActive ? " on" : "")} aria-label="絞り込み(長押しで解除)"
+            {...longPress(openFilter, () => { setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "" }); toast("絞り込みを解除しました", { kind: "ok" }); })}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 5h18M6 12h12M10 19h4" />
             </svg>
           </button>
-          <button type="button" className="sb-icon sb-find" aria-label="検索を開く"
-            onClick={(e) => { e.stopPropagation(); openSearch(); }}>
+          <button type="button" className={"sb-icon sb-find" + (searchActive ? " on" : "")} aria-label="検索(長押しで解除)"
+            {...longPress(openSearch, () => { onClearSearch && onClearSearch(); toast("検索を解除しました", { kind: "ok" }); })}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <circle cx="10.5" cy="10.5" r="6.5" /><line x1="15.4" y1="15.4" x2="21" y2="21" />
             </svg>
@@ -3363,7 +3411,7 @@ export default function App() {
         </div>
       </div>
       <div className="adv-foot">
-        {advActive ? <button className="adv-clear" onClick={() => setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "" })}>条件をクリア</button> : <span className="adv-hint">作品・区分・状態・年代で絞り込み</span>}
+        {(advActive || query || gf) ? <button className="adv-clear" onClick={clearAllConds}>全条件をクリア</button> : <span className="adv-hint">作品・区分・状態・年代で絞り込み</span>}
         <button className="adv-close" onClick={closeFilter}>閉じる</button>
       </div>
     </div>
@@ -3670,29 +3718,22 @@ export default function App() {
                 : <><span>博</span><em>物</em><span>誌</span></>,
               alt: salonView ? "博物誌" : "絵測巻",
               onSwitch: () => setZukanMode((m) => (m === "salon" ? "all" : "salon")),
-              scheme: "flip",
+              scheme: "slide",
               akey: salonView ? "salon" : "registry",
               dir: salonView ? 1 : -1,
+              searchActive: !!queries.z,
+              onClearSearch: () => setQueries((s) => ({ ...s, z: "" })),
               active: !!queries.z || advActive,
               countNode: salonView
                 ? <><b>{sorted.length}</b> 点</>
                 : <><b>{sorted.length}</b> / {allKits.length} 収録</>,
             })}
-            {searchOpen && (
-              <div className="modal-bg search-modal-bg" onClick={closeSearch}>
-                <div className="modal search-modal" onClick={(e) => e.stopPropagation()}>
-                  <div className="sm-head">
-                    <span className="sm-title">{salonView ? <>絵<em>測</em>巻</> : <>博<em>物</em>誌</>} <span className="sm-eyebrow">SEARCH</span></span>
-                    <button className="modal-x static" onClick={closeSearch}>✕</button>
-                  </div>
-                  <div className="toolbar">
-                    <input className="search" placeholder="検索(名称・型式・原作)" value={queries.z} autoFocus
-                      onChange={(e) => setQueries((s) => ({ ...s, z: e.target.value }))} />
-                    <button className="search-x" onClick={() => setQueries((s) => ({ ...s, z: "" }))}>✕</button>
-                  </div>
-                </div>
-              </div>
-            )}
+            {searchOpen && renderSearchModal({
+              value: queries.z,
+              onChange: (v) => setQueries((s) => ({ ...s, z: v })),
+              placeholder: "機体名・型式・原作で検索",
+              title: salonView ? <>絵<em>測</em>巻</> : <>博<em>物</em>誌</>,
+            })}
             {filterOpen && (
               <div className="modal-bg search-modal-bg" onClick={closeFilter}>
                 <div className="modal search-modal" onClick={(e) => e.stopPropagation()}>
@@ -3703,6 +3744,8 @@ export default function App() {
                   <AdvPanel />
                   <div className="drawer-sub">
                     <GfRow skey="gfZukan" />
+                  </div>
+                  <div className="drawer-tools">
                     <SortBar />
                     {salonView ? <SalonControls /> : <ViewToggle />}
                     {!salonView && <button className="add-btn" onClick={() => { closeFilter(); setAdding("zukan"); }}>＋ 追加</button>}
@@ -3710,7 +3753,7 @@ export default function App() {
                 </div>
               </div>
             )}
-            {(advActive || query || gf) && <div className="section-note"><button className="cond-clear" onClick={() => { haptic(); setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "" }); setQueries((s) => ({ ...s, z: "" })); setSettings((s) => ({ ...s, gfZukan: "" })); }}>条件をクリア</button></div>}
+            {(advActive || query || gf) && <div className="section-note"><button className="cond-clear" onClick={clearAllConds}>全条件をクリア</button></div>}
             {grouped
               ? grouped.map(([year, kits]) => (
                   <section key={year} className="year-sec">
@@ -3750,29 +3793,22 @@ export default function App() {
                 title: isPlan ? <>発<em>注</em>簿</> : <>蔵<em>品</em>帳</>,
                 alt: isPlan ? "蔵品帳" : "発注簿",
                 onSwitch: () => setCollMode((m) => (m === "plan" ? "owned" : "plan")),
-                scheme: "roll",
+                scheme: "slide",
                 akey: isPlan ? "requisition" : "holdings",
                 dir: isPlan ? 1 : -1,
+                searchActive: !!queries.c,
+                onClearSearch: () => setQueries((s) => ({ ...s, c: "" })),
                 active: !!queries.c || advActive,
                 countNode: isPlan
                   ? <><b>{listKits.length}</b> / {planAll} 発注</>
                   : <><b>{listKits.length}</b> / {ownedAll} 収蔵</>,
               })}
-              {searchOpen && (
-                <div className="modal-bg search-modal-bg" onClick={closeSearch}>
-                  <div className="modal search-modal" onClick={(e) => e.stopPropagation()}>
-                    <div className="sm-head">
-                      <span className="sm-title">{isPlan ? <>発<em>注</em>簿</> : <>蔵<em>品</em>帳</>} <span className="sm-eyebrow">SEARCH</span></span>
-                      <button className="modal-x static" onClick={closeSearch}>✕</button>
-                    </div>
-                    <div className="toolbar">
-                      <input className="search" placeholder={isPlan ? "予定内を検索" : "収蔵内を検索(名称・型式・原作)"} value={queries.c} autoFocus
-                        onChange={(e) => setQueries((s) => ({ ...s, c: e.target.value }))} />
-                      <button className="search-x" onClick={() => setQueries((s) => ({ ...s, c: "" }))}>✕</button>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {searchOpen && renderSearchModal({
+                value: queries.c,
+                onChange: (v) => setQueries((s) => ({ ...s, c: v })),
+                placeholder: isPlan ? "予定内を検索" : "収蔵内を機体名・型式で検索",
+                title: isPlan ? <>発<em>注</em>簿</> : <>蔵<em>品</em>帳</>,
+              })}
               {filterOpen && (
                 <div className="modal-bg search-modal-bg" onClick={closeFilter}>
                   <div className="modal search-modal" onClick={(e) => e.stopPropagation()}>
@@ -3783,6 +3819,8 @@ export default function App() {
                     <AdvPanel />
                     <div className="drawer-sub">
                       <GfRow skey="gfShuzo" />
+                    </div>
+                    <div className="drawer-tools">
                       <SortBar />
                       <ViewToggle />
                       <button className="add-btn" onClick={() => { closeFilter(); setAdding(isPlan ? "plan" : "owned"); }}>＋ 追加</button>
@@ -3790,7 +3828,7 @@ export default function App() {
                   </div>
                 </div>
               )}
-              {(advActive || query || gf) && <div className="section-note"><button className="cond-clear" onClick={() => { haptic(); setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "" }); setQueries((s) => ({ ...s, c: "" })); setSettings((s) => ({ ...s, gfShuzo: "" })); }}>条件をクリア</button></div>}
+              {(advActive || query || gf) && <div className="section-note"><button className="cond-clear" onClick={clearAllConds}>全条件をクリア</button></div>}
               {listKits.length === 0
                 ? <p className="ana-note">検索条件に一致する{isPlan ? "予定" : "収蔵"}がありません。</p>
                 : Grid({ kits: listVisible })}
@@ -3890,8 +3928,8 @@ export default function App() {
                       </button>
                       <span className="av-head-r">
                         <span className="av-count"><b>{got}</b> / {pool.length} 叙勲{newN > 0 ? ` · NEW ${newN}` : ""}</span>
-                        <button type="button" className={"sb-icon" + (segOpen ? " on" : "")} aria-label="世界観で絞り込む"
-                          onClick={(e) => { e.stopPropagation(); haptic(); setSegOpen((o) => !o); }}>
+                        <button type="button" className={"sb-icon" + (segOpen || titleUniverse !== "all" ? " on" : "")} aria-label="世界観で絞り込み(長押しで解除)"
+                          {...longPress(() => { haptic(); setSegOpen((o) => !o); }, () => { setTitleUniverse("all"); setSegOpen(false); toast("世界観の絞り込みを解除しました", { kind: "ok" }); })}>
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M3 5h18M6 12h12M10 19h4" />
                           </svg>
@@ -5831,10 +5869,13 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 /* 1. 検索ドロワー */
 .search-drawer{overflow:hidden;max-height:0;opacity:0;transition:max-height .3s ease,opacity .25s ease}
 .search-drawer.open{max-height:520px;opacity:1}
-.drawer-sub{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 2px 4px}
-.drawer-sub .sort-bar{margin-left:auto}
-.drawer-sub .view-toggle{flex:none}
-.drawer-sub .add-btn{flex:none}
+.drawer-sub{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 2px 2px}
+.drawer-tools{display:flex;gap:8px;align-items:center;padding:6px 2px 4px}
+.drawer-tools .sort-bar{flex:1;min-width:0}
+.drawer-tools .sort-bar select{flex:1;min-width:0;width:100%}
+.drawer-tools .view-toggle{flex:none}
+.drawer-tools .add-btn{flex:none;padding:0 14px}
+.drawer-tools .salon-ctrl{flex:none}
 .gf-row{display:flex;gap:6px;flex-wrap:wrap}
 .gf-btn{padding:4px 12px;font-size:11.5px;font-weight:700;letter-spacing:.05em;
   border:1px solid var(--line);border-radius:999px;color:var(--ink-mid);background:var(--panel)}
@@ -6322,7 +6363,17 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .qr-rank.top{color:var(--gold)}
 .qr-new{font-family:var(--serif);font-size:16px;color:var(--gold);letter-spacing:.12em;margin-bottom:10px;animation:qrNew 1.6s ease-in-out infinite}
 @keyframes qrNew{0%,100%{opacity:1}50%{opacity:.45}}
-.search-modal-bg{z-index:60}
+.search-modal-bg{z-index:60;align-items:flex-start;justify-content:center;padding:12vh 14px 0}
+.search-modal-bg .modal{margin:0;max-height:74vh}
+.search-go{flex:none;width:46px;display:flex;align-items:center;justify-content:center;border:1px solid var(--gold);border-radius:8px;background:rgba(217,179,106,.08);color:var(--gold);cursor:pointer;transition:transform .12s,background .15s}
+.search-go:active{transform:scale(.92);background:rgba(217,179,106,.2)}
+.search-go svg{width:18px;height:18px;display:block}
+.sm-hits{margin-top:10px;max-height:46vh;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:6px}
+.sm-hit{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:10px 12px;cursor:pointer;transition:border-color .14s,background .14s,transform .1s}
+.sm-hit:active{transform:scale(.99);border-color:var(--gold);background:var(--panel2)}
+.sm-hit-name{font-family:var(--serif);font-size:14px;color:var(--ink-strong);line-height:1.3}
+.sm-hit-sub{font-size:11px;color:var(--ink-mid);letter-spacing:.02em;font-family:ui-monospace,"SF Mono",Menlo,monospace}
+.sm-empty{padding:18px 4px;text-align:center;font-size:12.5px;color:var(--ink-mid)}
 .sm-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px}
 .sm-title{font-family:var(--serif);font-weight:800;font-size:19px;color:var(--ink-strong);letter-spacing:.04em}
 .sm-title em{font-style:normal;color:var(--gold)}
