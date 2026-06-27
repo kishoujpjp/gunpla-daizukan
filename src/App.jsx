@@ -2193,6 +2193,10 @@ export default function App() {
   const supaRef = useRef({ url: "", key: "" });
   const dirtyRef = useRef(new Set()); // 雲端へ未確定の変更キー(オフライン再送用)
   const [limit, setLimit] = useState(60);
+  // 分頁切替時の体感カク付き対策(B-lite): 切替直後は少数だけ即描画 → 次フレームで満載まで補充。
+  // 重い60格一括マウントを2段に割り、最初の paint を軽くして切替を即時に感じさせる。
+  const FIRST_BATCH = 24;
+  const [gridReady, setGridReady] = useState(true);
   const [optimizing, setOptimizing] = useState(false);
   const [manifestUrl, setManifestUrl] = useState("");   // 箱絵 manifest の公開URL
   const [imgBusy, setImgBusy] = useState(false);
@@ -2546,6 +2550,14 @@ export default function App() {
   }, [loaded, saveKey, flushDirty]);
 
   useEffect(() => { setLimit(60); }, [gf, sortKey, sortDir, settings.view]);
+  // 切替直後は gridReady=false(少数描画)。2フレーム後に満載へ。クリーンアップで取り消し。
+  useEffect(() => {
+    setGridReady(false);
+    let r2 = 0;
+    const r1 = requestAnimationFrame(() => { r2 = requestAnimationFrame(() => setGridReady(true)); });
+    return () => { cancelAnimationFrame(r1); if (r2) cancelAnimationFrame(r2); };
+  }, [tab]);
+  const paintLimit = gridReady ? limit : Math.min(limit, FIRST_BATCH);
 
   useEffect(() => {
     supaRef.current = { url: (settings.supaUrl || "").trim().replace(/\/+$/, ""), key: (settings.supaKey || "").trim() };
@@ -3347,7 +3359,7 @@ export default function App() {
     return arr;
   }, [filtered, sortKey, sortDir, getRec]);
 
-  const visible = useMemo(() => sorted.slice(0, limit), [sorted, limit]);
+  const visible = useMemo(() => sorted.slice(0, paintLimit), [sorted, paintLimit]);
 
   /* 画像鑑賞の横断スライド: 繪測(salon)ビュー時のみ現在のビュー順(sorted)で連結。
      他モードでは空配列を返し、ビューア側で単独機体にフォールバックする。 */
@@ -3360,14 +3372,14 @@ export default function App() {
     return list;
   }, [tab, zukanMode, sorted, images, extras, albumMeta]);
   const ownedKits = sorted.filter((k) => getRec(k.id).owned);
-  const ownedVisible = ownedKits.slice(0, limit);
+  const ownedVisible = ownedKits.slice(0, paintLimit);
   const ownedAll = allKits.filter((k) => getRec(k.id).owned).length;
   const builtAll = allKits.filter((k) => getRec(k.id).buildDate).length;
   const planAll = allKits.filter((k) => getRec(k.id).plan).length;
   const collectPct = Math.round((ownedAll / Math.max(1, allKits.length)) * 100);
   const futurePct = Math.round(((ownedAll + planAll) / Math.max(1, allKits.length)) * 100);
   const planKits = sorted.filter((k) => getRec(k.id).plan);
-  const planVisible = planKits.slice(0, limit);
+  const planVisible = planKits.slice(0, paintLimit);
   const seriesList = useMemo(() => {
     const s = new Set();
     for (const k of allKits) if (k.series) s.add(k.series);
