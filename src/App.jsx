@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from "react";
-import { mergeRecMap, mergeArrStamped, stampRec, stampRecAll } from "./merge.js";
+import { mergeRec, mergeRecMap, mergeArrStamped, stampRec, stampRecAll } from "./merge.js";
 import { ACHIEVEMENTS } from "./achievements-rules.js";
 import { evaluateAchievements, explainAchievement } from "./achievements-engine.js";
 import { ALL_BASE } from "./kits-data.js";
@@ -2463,8 +2463,11 @@ export default function App() {
     if (d.sortKey) setSortKey(d.sortKey);
     if (d.sortDir) setSortDir(d.sortDir);
     if (d.achvSeen) setAchvSeen(d.achvSeen);
-    if (d.albumMeta) setAlbumMeta((prev) => ({ ...prev, ...d.albumMeta }));
-    if (d.serifs) setSerifs((prev) => ({ ...prev, ...d.serifs }));
+    // albumMeta は {kitId: record} 構造 → kit ごとにフィールド級 LWW(構図/縮圖/順序/imeta を各々時戳比較)。
+    // 以前の {...prev,...incoming} は kit 単位の丸ごと上書きで、別端末の新しい編集を消し、削除済みの画像を復活させていた。
+    if (d.albumMeta) setAlbumMeta((prev) => mergeRecMap(prev, d.albumMeta));
+    // serifs は {ref: 台詞} のフラット map → 全体を1つの record とみなし、台詞ごとに時戳比較。
+    if (d.serifs) setSerifs((prev) => mergeRec(prev, d.serifs));
   }, []);
 
   const pullCloud = useCallback(async (cfg, force) => {
@@ -2599,6 +2602,11 @@ export default function App() {
   };
 
   /* ── アルバム(複数画像)操作 ── */
+  // 1 kit の album record に対し、patch のフィールドだけ now で時戳付け(他フィールドの時戳は温存)。
+  // これにより別端末が別フィールドを編集しても衝突せず、削除(null/空)も新時戳で正しく伝播する。
+  const stampAlbum = useCallback(
+    (prev, kitId, patch) => ({ ...prev, [kitId]: stampRec(prev[kitId] || {}, patch, new Date().toISOString()) }),
+    []);
   // 画像メタを記録(由来/モデル/時刻/撮影者)。撮影者は未指定なら現在のビルダー名。
   const recordImgMeta = useCallback((kitId, ref, meta) => {
     if (!ref) return;
@@ -2611,7 +2619,7 @@ export default function App() {
         at: (meta && meta.at) || Date.now(),
         by: (meta && meta.by) || settings.builderName || "",
       };
-      return { ...prev, [kitId]: { ...m, imeta } };
+      return stampAlbum(prev, kitId, { imeta });
     });
   }, [settings.builderName]);
   // 新規画像を追加(extras へ)。meta で由来を記録。枚数上限なし。
@@ -2622,7 +2630,7 @@ export default function App() {
     setAlbumMeta((prev) => {
       const m = prev[kitId] || {};
       const base = (m.order && m.order.length) ? m.order.slice() : albumRefs(kitId, images, extras, prev);
-      return { ...prev, [kitId]: { ...m, order: base.filter((r) => r !== xid).concat([xid]) } };
+      return stampAlbum(prev, kitId, { order: base.filter((r) => r !== xid).concat([xid]) });
     });
     recordImgMeta(kitId, xid, meta || { src: "photo" });
     return true;
@@ -2637,19 +2645,20 @@ export default function App() {
     }
     setAlbumMeta((prev) => {
       const m = prev[kitId] || {};
-      const clean = { ...m, order: (m.order || []).filter((r) => r !== ref) };
-      if (clean.thumb === ref) delete clean.thumb;
-      if (clean.acquire === ref) delete clean.acquire;
-      if (clean.framing && clean.framing[ref]) { clean.framing = { ...clean.framing }; delete clean.framing[ref]; }
-      if (clean.imeta && clean.imeta[ref]) { clean.imeta = { ...clean.imeta }; delete clean.imeta[ref]; }
-      return { ...prev, [kitId]: clean };
+      const patch = { order: (m.order || []).filter((r) => r !== ref) };
+      // 削除は null を新時戳で書くことで別端末の旧値を確実に上書きする(復活を防ぐ)。
+      if (m.thumb === ref) patch.thumb = null;
+      if (m.acquire === ref) patch.acquire = null;
+      if (m.framing && m.framing[ref]) { const fr = { ...m.framing }; delete fr[ref]; patch.framing = fr; }
+      if (m.imeta && m.imeta[ref]) { const im = { ...m.imeta }; delete im[ref]; patch.imeta = im; }
+      return stampAlbum(prev, kitId, patch);
     });
   }, [persistShard, persistXtraShard]);
 
   // 役割割り当て: role='thumb'|'acquire'
   const setAlbumRole = useCallback((kitId, ref, role) => {
-    setAlbumMeta((prev) => { const m = prev[kitId] || {}; return { ...prev, [kitId]: { ...m, [role]: ref } }; });
-  }, []);
+    setAlbumMeta((prev) => stampAlbum(prev, kitId, { [role]: ref }));
+  }, [stampAlbum]);
 
   // 構図(framing)を保存。null で既定に戻す。
   const setFraming = useCallback((kitId, ref, framing) => {
@@ -2657,25 +2666,25 @@ export default function App() {
       const m = prev[kitId] || {};
       const framingMap = { ...(m.framing || {}) };
       if (framing) framingMap[ref] = framing; else delete framingMap[ref];
-      return { ...prev, [kitId]: { ...m, framing: framingMap } };
+      return stampAlbum(prev, kitId, { framing: framingMap });
     });
-  }, []);
+  }, [stampAlbum]);
 
   // 画像の並び順を保存。先頭画像を自動的にサムネ(銘牌)兼入手表示に設定。
   const setAlbumOrder = useCallback((kitId, order) => {
     setAlbumMeta((prev) => {
       const m = prev[kitId] || {};
       const first = (order && order[0]) || m.thumb;
-      return { ...prev, [kitId]: { ...m, order: (order || []).slice(), thumb: first, acquire: first } };
+      return stampAlbum(prev, kitId, { order: (order || []).slice(), thumb: first, acquire: first });
     });
-  }, []);
+  }, [stampAlbum]);
   // 画像メタの場所(任意・手動)を更新。他のメタは保持。
   const setImgLoc = useCallback((kitId, ref, loc) => {
     setAlbumMeta((prev) => {
       const m = prev[kitId] || {}; const imeta = { ...(m.imeta || {}) };
       const cur = imeta[ref] || { src: "photo", model: "", at: Date.now(), by: settings.builderName || "" };
       imeta[ref] = { ...cur, loc: loc || "" };
-      return { ...prev, [kitId]: { ...m, imeta } };
+      return stampAlbum(prev, kitId, { imeta });
     });
   }, [settings.builderName]);
 
@@ -4353,7 +4362,8 @@ export default function App() {
         const curSerif = curRef ? (serifs[curRef] || "") : "";
         const saveSerif = () => {
           const t = serifEdit.text || ""; // トリムせず空白・記号もそのまま保存
-          setSerifs((m) => { const nm = { ...m }; if (t.length) nm[serifEdit.ref] = t; else delete nm[serifEdit.ref]; return nm; });
+          // 台詞ごとに時戳付け。削除は空文字を新時戳で書き、別端末へ「クリア」を伝播させる(読取側は serifs[ref]||"" なので無害)。
+          setSerifs((m) => stampRec(m, { [serifEdit.ref]: t.length ? t : "" }, new Date().toISOString()));
           setSerifEdit(null);
         };
         return (
