@@ -844,7 +844,7 @@ function KitFixModal({ allKits, onClose }) {
       const ov = String(oldVal).trim();
       if (nv !== ov) changes[key] = { old: ov, new: nv };
     });
-    if (Object.keys(changes).length === 0) { toast("変更がありません。修正してから送信してください", { kind: "warn" }); return; }
+    if (Object.keys(changes).length === 0) { notify("変更がありません。修正してから送信してください", { kind: "warn" }); return; }
     const payload = { type: "kit_correction", id: picked.id, no: picked.no, name: picked.name, changes };
 
     // メール送信(フォールバック)
@@ -872,7 +872,7 @@ function KitFixModal({ allKits, onClose }) {
           body: JSON.stringify(payload),
         });
         if (!res.ok) throw new Error("HTTP " + res.status);
-        toast("修正提案を送信しました。ありがとうございます", { kind: "ok" });
+        notify("修正提案を送信しました。ありがとうございます", { kind: "ok" });
         onClose();
         return;
       } catch (e) {
@@ -1080,7 +1080,7 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach,
 
   const attach = (kit) => {
     onAttach(kit.id, storeImg);
-    toast("「" + kit.name + "（" + (kit.grade || "") + "）」に画像を追加しました", { kind: "ok" });
+    notify("「" + kit.name + "（" + (kit.grade || "") + "）」に画像を追加しました", { kind: "ok" });
     onClose();
   };
 
@@ -1409,7 +1409,7 @@ function CropModal({ src, onDone, onCancel }) {
       onDone(c.toDataURL("image/jpeg", 0.75));
     } catch (err) {
       console.error(err);
-      toast("この画像は切り抜きできません(外部URL画像はCORS制限のため不可)", { kind: "warn", dur: 3200 });
+      notify("この画像は切り抜きできません(外部URL画像はCORS制限のため不可)", { kind: "warn", dur: 3200 });
     }
   };
 
@@ -1419,7 +1419,7 @@ function CropModal({ src, onDone, onCancel }) {
         <div className="crop-head">画像の切り抜き<span>枠をドラッグで移動・右下の○で拡縮</span></div>
         <div className="crop-box">
           <img ref={imgRef} src={src} alt="" crossOrigin="anonymous" onLoad={onImgLoad} draggable={false}
-            onError={() => { toast("画像を読み込めませんでした(外部画像はCORS制限の場合があります)", { kind: "err", dur: 3200 }); onCancel(); }} />
+            onError={() => { notify("画像を読み込めませんでした(外部画像はCORS制限の場合があります)", { kind: "err", dur: 3200 }); onCancel(); }} />
           {rect && (
             <div className="crop-rect" style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h }}
               onMouseDown={startDrag("move")} onTouchStart={startDrag("move")}>
@@ -1524,7 +1524,7 @@ function NoteField({ note, onCommit }) {
 
 /* ── アプリ内 通知/確認(native alert/confirm の置き換え。APP風) ── */
 let _toastSeq = 0;
-function toast(msg, opt) {
+function notify(msg, opt) {
   try { window.dispatchEvent(new CustomEvent("app-toast", { detail: { id: ++_toastSeq, msg, kind: (opt && opt.kind) || "ok", dur: (opt && opt.dur) || 2400 } })); }
   catch (e) {}
 }
@@ -1703,11 +1703,11 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
     if (!f) return;
     setBusy(true);
     try { const url = await fileToCompressedDataURL(f, 900, 0.82); onAddImage(url, { src: "photo" }); }
-    catch (err) { toast("画像の読み込みに失敗しました", { kind: "err" }); }
+    catch (err) { notify("画像の読み込みに失敗しました", { kind: "err" }); }
     setBusy(false); setAddOpen(false);
   };
   const addUrl = () => { const u = urlVal.trim(); if (!u) return; onAddImage(u, { src: "photo" }); setUrlVal(""); setAddOpen(false); };
-  const openAI = () => { if (!aiActiveKey(ai)) { toast(aiProviderLabel(ai && ai.model) + " のAPIキーを設定タブで入力してください", { kind: "warn", dur: 3200 }); return; } setAiSrc(selSrc); setAiOpen(true); setSel(null); setLocEditing(false); };
+  const openAI = () => { if (!aiActiveKey(ai)) { notify(aiProviderLabel(ai && ai.model) + " のAPIキーを設定タブで入力してください", { kind: "warn", dur: 3200 }); return; } setAiSrc(selSrc); setAiOpen(true); setSel(null); setLocEditing(false); };
   const closeSheet = () => { setSel(null); setLocEditing(false); };
 
   return (
@@ -1843,7 +1843,7 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
         r.readAsDataURL(file);
       });
       setCropSrc(raw);
-    } catch (err) { console.error(err); toast("画像の読み込みに失敗しました", { kind: "err" }); }
+    } catch (err) { console.error(err); notify("画像の読み込みに失敗しました", { kind: "err" }); }
     setBusy(false);
     e.target.value = "";
   };
@@ -1871,8 +1871,8 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
             <button className="mini-btn" onClick={() => { if (urlInput.trim()) { setImgVal(urlInput.trim()); setUrlInput(""); } }}>適用</button>
           </div>
           <button className="mini-btn ai" onClick={() => {
-            if (!previewImg) { toast("先に画像を設定してください", { kind: "warn" }); return; }
-            if (!aiActiveKey(ai)) { toast(aiProviderLabel(ai && ai.model) + " のAPIキーを設定タブで入力してください", { kind: "warn", dur: 3200 }); return; }
+            if (!previewImg) { notify("先に画像を設定してください", { kind: "warn" }); return; }
+            if (!aiActiveKey(ai)) { notify(aiProviderLabel(ai && ai.model) + " のAPIキーを設定タブで入力してください", { kind: "warn", dur: 3200 }); return; }
             setAiOpen(true);
           }}>✨ AIスタイル変換</button>
           {previewImg && <button className="mini-btn" onClick={() => setCropSrc(previewImg)}>✂ 切り抜き</button>}
@@ -2496,7 +2496,7 @@ export default function App() {
 
   const syncNow = async () => {
     const cfg = supaRef.current;
-    if (!cfg.url || !cfg.key) { toast("Supabase URL と anon キーを入力してください", { kind: "warn" }); return; }
+    if (!cfg.url || !cfg.key) { notify("Supabase URL と anon キーを入力してください", { kind: "warn" }); return; }
     setSyncMsg("同期中…");
     try {
       const nn = await pullCloud(cfg);
@@ -2744,7 +2744,7 @@ export default function App() {
         }
       }
       const total = changed + changedX;
-      toast(total ? `${total} 枚の画像を再圧縮しました` : "再圧縮が必要な画像はありませんでした", { kind: total ? "ok" : "info" });
+      notify(total ? `${total} 枚の画像を再圧縮しました` : "再圧縮が必要な画像はありませんでした", { kind: total ? "ok" : "info" });
     } finally { setOptimizing(false); }
   };
 
@@ -2912,7 +2912,7 @@ export default function App() {
     try {
       const raw = JSON.parse(await f.text());
       const verr = validateBackup(raw);
-      if (verr) { toast("読み込みに失敗しました:" + verr, { kind: "err", dur: 3200 }); e.target.value = ""; return; }
+      if (verr) { notify("読み込みに失敗しました:" + verr, { kind: "err", dur: 3200 }); e.target.value = ""; return; }
       const d = migrateMeta(raw);
       const now = new Date().toISOString();
       // 復元は全フィールドを now で時戳付けして確実に勝たせる(フィールド級マージ)
@@ -2942,8 +2942,8 @@ export default function App() {
       }
       if (d.albumMeta && isPlainObj(d.albumMeta)) setAlbumMeta(d.albumMeta);
       if (d.serifs && isPlainObj(d.serifs)) setSerifs(d.serifs);
-      toast("バックアップの読み込みが完了しました", { kind: "ok" });
-    } catch (err) { console.error(err); toast("読み込みに失敗しました(ファイル形式を確認してください)", { kind: "err", dur: 3200 }); }
+      notify("バックアップの読み込みが完了しました", { kind: "ok" });
+    } catch (err) { console.error(err); notify("読み込みに失敗しました(ファイル形式を確認してください)", { kind: "err", dur: 3200 }); }
     e.target.value = "";
   };
 
@@ -3341,13 +3341,13 @@ export default function App() {
         <span className="sb-head-r">
           <span className="sb-count">{countNode}</span>
           <button type="button" className={"sb-icon" + (advActive ? " on" : "")} aria-label="絞り込み(長押しで解除)"
-            {...longPress(openFilter, () => { setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "" }); toast("絞り込みを解除しました", { kind: "ok" }); })}>
+            {...longPress(openFilter, () => { setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "" }); notify("絞り込みを解除しました", { kind: "ok" }); })}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 5h18M6 12h12M10 19h4" />
             </svg>
           </button>
           <button type="button" className={"sb-icon sb-find" + (searchActive ? " on" : "")} aria-label="検索(長押しで解除)"
-            {...longPress(openSearch, () => { onClearSearch && onClearSearch(); toast("検索を解除しました", { kind: "ok" }); })}>
+            {...longPress(openSearch, () => { onClearSearch && onClearSearch(); notify("検索を解除しました", { kind: "ok" }); })}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <circle cx="10.5" cy="10.5" r="6.5" /><line x1="15.4" y1="15.4" x2="21" y2="21" />
             </svg>
@@ -3925,7 +3925,7 @@ export default function App() {
                       <span className="av-head-r">
                         <span className="av-count"><b>{got}</b> / {pool.length} 叙勲{newN > 0 ? ` · NEW ${newN}` : ""}</span>
                         <button type="button" className={"sb-icon" + (segOpen || titleUniverse !== "all" ? " on" : "")} aria-label="世界観で絞り込み(長押しで解除)"
-                          {...longPress(() => { haptic(); setSegOpen((o) => !o); }, () => { setTitleUniverse("all"); setSegOpen(false); toast("世界観の絞り込みを解除しました", { kind: "ok" }); })}>
+                          {...longPress(() => { haptic(); setSegOpen((o) => !o); }, () => { setTitleUniverse("all"); setSegOpen(false); notify("世界観の絞り込みを解除しました", { kind: "ok" }); })}>
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M3 5h18M6 12h12M10 19h4" />
                           </svg>
@@ -4199,7 +4199,7 @@ export default function App() {
               <button className="opt" onClick={syncNow}><span>今すぐ同期</span><i>⇅</i></button>
               <button className="opt" onClick={async () => {
                 const cfg = supaRef.current;
-                if (!cfg.url || !cfg.key) { toast("Supabase URL と anon キーを入力してください", { kind: "warn" }); return; }
+                if (!cfg.url || !cfg.key) { notify("Supabase URL と anon キーを入力してください", { kind: "warn" }); return; }
                 if (!(await appConfirm("クラウドのデータでこの端末を上書き復元します。この端末だけの未同期の変更は失われます。", { title: "クラウドから復元", okText: "上書き復元", danger: true }))) return;
                 setSyncMsg("復元中…");
                 try {
