@@ -3273,17 +3273,36 @@ export default function App() {
   const openFilter = useCallback(() => { haptic(); setFilterOpen(true); }, []);
   const closeFilter = useCallback(() => { setFilterOpen(false); }, []);
   /* ── 簿冊表頭(博物誌/繪測巻/蔵品帳/発注簿):仿叙勲録の表頭。タップで検索窓 ── */
-  const LedgerHead = ({ eyebrow, title, countNode, active, variant }) => (
+  /* 表頭標題:表裏切換アニメ(A翻面/B捲軸/C滑移)。alt=配對名(暗示)。 */
+  const LedgerTitle = ({ scheme, title, alt, akey, dir }) => {
+    const sv = scheme === "flip" ? {} : scheme === "roll" ? { "--fromY": dir >= 0 ? "100%" : "-100%" } : { "--fromX": dir >= 0 ? "14px" : "-14px" };
+    return (
+      <span className={"lt lt-" + scheme}>
+        <span className="lt-win"><span key={akey} className="sb-title lt-cur" style={sv}>{title}</span></span>
+        {alt ? <span className="lt-alt"><span className="lt-x">⇄</span>{alt}</span> : null}
+      </span>
+    );
+  };
+
+  const LedgerHead = ({ eyebrow, title, alt, countNode, active, variant, onSwitch, scheme = "slide", akey, dir = 1 }) => (
     <div key={variant} className={"sb-band sb-v-" + variant}>
-      <div className={"sb-head" + (active ? " on" : "")} onClick={openFilter}
-        role="button" tabIndex={0} aria-label="絞り込みを開く">
-        <span className="sb-head-l">
+      <div className={"sb-head" + (active ? " on" : "")}>
+        <button type="button" className="sb-switch" onClick={() => { hapticStrong(); onSwitch && onSwitch(); }}
+          aria-label={alt ? "「" + alt + "」へ切り替え" : "切り替え"}>
           <span className="sb-eyebrow">{eyebrow}</span>
-          <span className="sb-title">{title}</span>
-        </span>
+          <span className="sb-titlewrap">
+            <LedgerTitle scheme={scheme} title={title} alt={alt} akey={akey} dir={dir} />
+          </span>
+        </button>
         <span className="sb-head-r">
           <span className="sb-count">{countNode}</span>
-          <button type="button" className="sb-find" aria-label="検索を開く"
+          <button type="button" className={"sb-icon" + (advActive ? " on" : "")} aria-label="絞り込みを開く"
+            onClick={(e) => { e.stopPropagation(); openFilter(); }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 5h18M6 12h12M10 19h4" />
+            </svg>
+          </button>
+          <button type="button" className="sb-icon sb-find" aria-label="検索を開く"
             onClick={(e) => { e.stopPropagation(); openSearch(); }}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <circle cx="10.5" cy="10.5" r="6.5" /><line x1="15.4" y1="15.4" x2="21" y2="21" />
@@ -3579,7 +3598,7 @@ export default function App() {
         {(() => {
           const arc = tab === "zukan" ? (zukanMode === "salon" ? { jp: "絵測档案", en: "SALON" } : { jp: "機体档案", en: "REGISTRY" })
             : tab === "collection" ? (collMode === "plan" ? { jp: "発注档案", en: "REQUISITION" } : { jp: "収蔵档案", en: "HOLDINGS" })
-            : tab === "analysis" ? (anaMode === "analysis" ? { jp: "観測档案", en: "OBSERVATION" } : { jp: "叙勲档案", en: "DECORATIONS" })
+            : tab === "analysis" ? (anaMode === "analysis" ? { jp: "観測档案", en: "ANALYSIS" } : { jp: "叙勲档案", en: "DECORATIONS" })
             : { jp: "管理档案", en: "ADMINISTRATION" };
           const isPlan = tab === "collection" && collMode === "plan";
           const isDecor = tab === "analysis" && anaMode === "record";
@@ -3649,6 +3668,11 @@ export default function App() {
               title: salonView
                 ? <>絵<em>測</em>巻</>
                 : <><span>博</span><em>物</em><span>誌</span></>,
+              alt: salonView ? "博物誌" : "絵測巻",
+              onSwitch: () => setZukanMode((m) => (m === "salon" ? "all" : "salon")),
+              scheme: "flip",
+              akey: salonView ? "salon" : "registry",
+              dir: salonView ? 1 : -1,
               active: !!queries.z || advActive,
               countNode: salonView
                 ? <><b>{sorted.length}</b> 点</>
@@ -3724,6 +3748,11 @@ export default function App() {
                 variant: isPlan ? "requisition" : "holdings",
                 eyebrow: isPlan ? "REQUISITION · 予定" : "HOLDINGS · 所持",
                 title: isPlan ? <>発<em>注</em>簿</> : <>蔵<em>品</em>帳</>,
+                alt: isPlan ? "蔵品帳" : "発注簿",
+                onSwitch: () => setCollMode((m) => (m === "plan" ? "owned" : "plan")),
+                scheme: "roll",
+                akey: isPlan ? "requisition" : "holdings",
+                dir: isPlan ? 1 : -1,
                 active: !!queries.c || advActive,
                 countNode: isPlan
                   ? <><b>{listKits.length}</b> / {planAll} 発注</>
@@ -3851,16 +3880,24 @@ export default function App() {
                     <svg className="av-defs" width="0" height="0" aria-hidden="true"><defs>
                       <linearGradient id="avGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#f2dca0" /><stop offset="1" stopColor="#9c7838" /></linearGradient>
                     </defs></svg>
-                    <button className="av-head" onClick={() => { haptic(); setSegOpen((o) => !o); }}>
-                      <span className="av-head-l">
+                    <div className="av-head">
+                      <button type="button" className="sb-switch" onClick={() => { hapticStrong(); setAnaMode("analysis"); }}
+                        aria-label="「解題書」へ切り替え">
                         <span className="av-eyebrow">{(curUni && curUni[0] !== "all" ? (UNI_PREFIX[curUni[0]] || curUni[1]) + " " : "") + "DECORATIONS · 称号"}</span>
-                        <span className="av-title">叙<em>勲</em>録</span>
-                      </span>
+                        <span className="sb-titlewrap">
+                          <LedgerTitle scheme="slide" akey="record" dir={-1} title={<>叙<em>勲</em>録</>} alt="解題書" />
+                        </span>
+                      </button>
                       <span className="av-head-r">
                         <span className="av-count"><b>{got}</b> / {pool.length} 叙勲{newN > 0 ? ` · NEW ${newN}` : ""}</span>
-                        <i className={"av-chev" + (segOpen ? " open" : "")}>⌄</i>
+                        <button type="button" className={"sb-icon" + (segOpen ? " on" : "")} aria-label="世界観で絞り込む"
+                          onClick={(e) => { e.stopPropagation(); haptic(); setSegOpen((o) => !o); }}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 5h18M6 12h12M10 19h4" />
+                          </svg>
+                        </button>
                       </span>
-                    </button>
+                    </div>
                     <div className="av-rule" />
                     <div className={"av-drop" + (segOpen ? " open" : "")}>
                       <div className="av-drop-inner av-unitabs">
@@ -3908,12 +3945,17 @@ export default function App() {
               ) : (
               <>
               <div className="sb-band">
-                <div className="sb-head" style={{ cursor: "default" }}>
-                  <span className="sb-head-l">
-                    <span className="sb-eyebrow">RECORDS · 紀録</span>
-                    <span className="sb-title">解<em>題</em>書</span>
+                <div className="sb-head">
+                  <button type="button" className="sb-switch" onClick={() => { hapticStrong(); setAnaMode("record"); }}
+                    aria-label="「叙勲録」へ切り替え">
+                    <span className="sb-eyebrow">ANALYSIS · 紀録</span>
+                    <span className="sb-titlewrap">
+                      <LedgerTitle scheme="slide" akey="analysis" dir={1} title={<>解<em>題</em>書</>} alt="叙勲録" />
+                    </span>
+                  </button>
+                  <span className="sb-head-r">
+                    <button type="button" className="quiz-entry" onClick={(e) => { e.stopPropagation(); setQuizOpen(true); }}>知識試験<i>◇</i></button>
                   </span>
-                  <button className="quiz-entry" onClick={() => setQuizOpen(true)}>知識試験<i>◇</i></button>
                 </div>
                 <div className="sb-rule" />
               </div>
@@ -6021,7 +6063,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 /* ═══ 叙勲録(称号 金箔リデザイン) ═══ */
 .av-sec{padding-top:0;margin-top:2px}
 .av-defs{position:absolute;width:0;height:0}
-.av-head{display:flex;align-items:flex-end;justify-content:space-between;width:100%;background:none;border:none;padding:4px 2px 0;cursor:pointer;text-align:left;gap:10px}
+.av-head{display:flex;align-items:flex-end;justify-content:space-between;width:100%;padding:4px 2px 0;gap:10px}
 .av-head:active{opacity:.75}
 .av-head-l{display:flex;flex-direction:column;min-width:0}
 .av-eyebrow{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9px;letter-spacing:.30em;color:var(--ink-mid);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -6035,20 +6077,47 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .av-rule{height:1px;margin:11px 0 0;background:linear-gradient(90deg,var(--gold),rgba(217,179,106,.05) 70%,transparent)}
 /* ── 簿冊表頭(博物誌/繪測巻/蔵品帳/発注簿):叙勲録の表頭に倣う ── */
 .sb-band{margin:2px 0 14px}
-.sb-head{display:flex;align-items:flex-end;justify-content:space-between;width:100%;background:none;border:none;padding:4px 2px 0;cursor:pointer;text-align:left;gap:10px}
-.sb-head:active{opacity:.75}
+.sb-head{display:flex;align-items:flex-end;justify-content:space-between;width:100%;padding:4px 2px 0;gap:10px}
+.sb-switch{display:flex;flex-direction:column;align-items:flex-start;min-width:0;flex:1;background:none;border:none;padding:0;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.sb-switch:active{opacity:.78}
 .sb-head-l{display:flex;flex-direction:column;min-width:0}
 .sb-eyebrow{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9px;letter-spacing:.30em;color:var(--ink-mid);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sb-title{font-family:var(--serif);font-weight:800;font-size:23px;letter-spacing:.05em;color:var(--ink-strong);margin-top:6px}
+.sb-titlewrap{display:flex;align-items:baseline;gap:9px;margin-top:6px;min-width:0;max-width:100%}
+.sb-title{font-family:var(--serif);font-weight:800;font-size:23px;letter-spacing:.05em;color:var(--ink-strong)}
 .sb-title em{font-style:normal;color:var(--gold)}
-.sb-head-r{display:flex;align-items:center;gap:11px;flex:none}
+.sb-alt{display:inline-flex;align-items:baseline;font-family:var(--serif);font-weight:600;font-size:12.5px;letter-spacing:.04em;color:var(--ink-dim);white-space:nowrap;flex:none;opacity:.9}
+.sb-alt-x{color:var(--gold);font-size:10px;margin-right:3px;opacity:.85}
+.sb-head-r{display:flex;align-items:center;gap:9px;flex:none}
 .sb-count{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10.5px;letter-spacing:.12em;color:var(--ink-mid);white-space:nowrap}
 .sb-count b{color:var(--gold);font-size:13px}
-.sb-find{flex:none;display:flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid var(--line);border-radius:9px;color:var(--ink-mid);background:none;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:color .2s,border-color .2s,background .2s}
-.sb-find:active{transform:scale(.92)}
-.sb-find svg{width:15px;height:15px;display:block}
-.sb-head:active .sb-find{border-color:var(--gold);color:var(--gold)}
-.sb-head.on .sb-find{color:var(--gold);border-color:var(--gold);background:rgba(217,179,106,.09)}
+.sb-icon{flex:none;display:flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid var(--line);border-radius:9px;color:var(--ink-mid);background:none;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:color .2s,border-color .2s,background .2s}
+.sb-icon:active{transform:scale(.92);border-color:var(--gold);color:var(--gold)}
+.sb-icon svg{width:15px;height:15px;display:block}
+.sb-icon.on{color:var(--gold);border-color:var(--gold);background:rgba(217,179,106,.09)}
+/* ── 表頭 表裏切換タイトル(A翻面/B捲軸/C滑移) ── */
+.lt{display:inline-flex;align-items:baseline;gap:9px;min-width:0;position:relative}
+.lt-win{display:inline-block}
+.lt-cur{display:inline-block}
+.lt-alt{display:inline-flex;align-items:baseline;font-family:var(--serif);font-weight:600;font-size:12.5px;letter-spacing:.04em;color:var(--ink-dim);white-space:nowrap;flex:none}
+.lt-x{color:var(--gold);font-size:10px;margin-right:3px;opacity:.85}
+/* A 翻面:正面が下端を軸に立ち上がる。配対名は裏側として下に薄く控える */
+.lt-flip{perspective:600px}
+.lt-flip .lt-win{transform-style:preserve-3d}
+.lt-flip .lt-cur{transform-origin:50% 100%;backface-visibility:hidden;animation:ltFlip .54s cubic-bezier(.45,.05,.2,1) both}
+@keyframes ltFlip{0%{transform:rotateX(-92deg);opacity:0}52%{opacity:1}100%{transform:rotateX(0);opacity:1}}
+.lt-flip .lt-alt{position:absolute;left:1px;top:100%;margin-top:-6px;transform:scaleY(.62);transform-origin:top;opacity:.4}
+.lt-flip .lt-x{display:none}
+/* B 捲軸:窗で裁ち、新題が下/上から巻き入る。配対名は窓下に半行覗く */
+.lt-roll{flex-direction:column;align-items:flex-start;gap:0}
+.lt-roll .lt-win{overflow:hidden;font-size:23px;height:1.2em;line-height:1.2em}
+.lt-roll .lt-cur{display:block;line-height:1.2em;animation:ltRoll .44s cubic-bezier(.3,0,.18,1) both}
+@keyframes ltRoll{from{transform:translateY(var(--fromY,100%));opacity:.15}to{transform:translateY(0);opacity:1}}
+.lt-roll .lt-alt{height:.6em;line-height:1.06em;overflow:hidden;opacity:.5;margin-top:1px}
+.lt-roll .lt-x{display:none}
+/* C 滑移:新題が横から滑り込み溶け込む。配対名は⇄付きで並ぶ */
+.lt-slide .lt-cur{animation:ltSlide .36s cubic-bezier(.2,.8,.3,1) both}
+@keyframes ltSlide{from{transform:translateX(var(--fromX,14px));opacity:0}to{transform:translateX(0);opacity:1}}
+.lt-slide .lt-alt{opacity:.9}
 .sb-rule{height:1px;margin:11px 0 0;background:linear-gradient(90deg,var(--gold),rgba(217,179,106,.05) 70%,transparent)}
 /* ── 表頭 転場アニメ:全頁共通の土台(掛載時のみ再生)。
    ・減少動態の設定下でも表示する(本人の明示的な希望) ── */
@@ -6061,7 +6130,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .sb-rule,.av-rule{transform-origin:left center;animation:sbRuleIn .50s cubic-bezier(.4,0,.2,1) .03s both}
 .sb-eyebrow,.av-eyebrow{animation:sbEyebrowIn .36s ease-out .10s both}
 .sb-title,.av-title{animation:pageIn .22s ease-out both}
-.sb-find{animation:sbFindIn .36s cubic-bezier(.2,.8,.3,1.2) .30s both}
+.sb-find,.sb-icon{animation:sbFindIn .36s cubic-bezier(.2,.8,.3,1.2) .30s both}
 .sb-count,.av-count{animation:pageIn .22s ease-out both}
 /* ── 検索浮動窓 ── */
 .search-modal{padding:18px 16px 22px}
