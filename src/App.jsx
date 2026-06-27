@@ -2062,6 +2062,46 @@ function SeriesPicker({ open, value, options, onPick, onClose }) {
   );
 }
 
+/* 世界観ピッカー(作品ピッカーと同じ独立リスト式)。options は [value,label] の配列。 */
+function UniPicker({ open, value, options, onPick, onClose }) {
+  const [q, setQ] = useState("");
+  useEffect(() => { if (open) setQ(""); }, [open]);
+  if (!open) return null;
+  const ql = q.trim().toLowerCase();
+  const filtered = ql ? options.filter(([u, l]) => l.toLowerCase().includes(ql) || u.toLowerCase().includes(ql)) : options;
+  return (
+    <div className="modal-bg sp-bg" onClick={onClose}>
+      <div className="sp-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="sp-head">
+          <input className="sp-search" autoFocus placeholder="世界観で絞り込み" value={q}
+            onChange={(e) => setQ(e.target.value)} />
+          <button className="sp-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="sp-list">
+          <button className={"sp-item" + (value === "" ? " on" : "")} onClick={() => onPick("")}>すべての世界観</button>
+          {filtered.map(([u, l]) => (
+            <button key={u} className={"sp-item" + (value === u ? " on" : "")} onClick={() => onPick(u)}>{l}</button>
+          ))}
+          {filtered.length === 0 && <div className="sp-empty">該当する世界観がありません</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* 表頭標題:表裏切換アニメ(A翻面/B捲軸/C滑移)。alt=配對名(暗示)。
+   ※ App 内に定義すると毎レンダーで identity が変わり remount→アニメ再生してしまう
+     (起動時の多段ロードで2〜3回跳ねる原因)。純粋なので module scope に固定。 */
+function LedgerTitle({ scheme, title, alt, akey, dir }) {
+  const sv = scheme === "flip" ? {} : scheme === "roll" ? { "--fromY": dir >= 0 ? "100%" : "-100%" } : { "--fromX": dir >= 0 ? "14px" : "-14px" };
+  return (
+    <span className={"lt lt-" + scheme}>
+      <span className="lt-win"><span key={akey} className="sb-title lt-cur" style={sv}>{title}</span></span>
+      {alt ? <span className="lt-alt"><span className="lt-x">⇄</span>{alt}</span> : null}
+    </span>
+  );
+}
+
 export default function App() {
   const [tab, setTab] = useState("zukan");
   const [records, setRecords] = useState({});
@@ -2124,6 +2164,8 @@ export default function App() {
   const [promptEdit, setPromptEdit] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchDraft, setSearchDraft] = useState(""); // 検索の下書き(候補表示用)。確定で query(リスト反映)へ。
+  const [uniPickerOpen, setUniPickerOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [fixOpen, setFixOpen] = useState(false);
   const [quizOpen, setQuizOpen] = useState(false);
@@ -3262,6 +3304,12 @@ export default function App() {
     });
     if (adv.series) pool = pool.filter((k) => (k.series || "") === adv.series);
     if (adv.uni) pool = pool.filter((k) => universeOfKit(k) === adv.uni);
+    // 確定済み検索語をリストへ反映(✓/Enter で commit された query)。候補ジャンプ時は query 未確定なので不動。
+    const term = (query || "").trim();
+    if (term) {
+      const q = normJa(term); const rq = toRomaji(q);
+      pool = pool.filter((k) => { const idx = searchIndex[k.id] || ""; return idx.includes(q) || (rq && rq !== q && idx.includes(rq)); });
+    }
     if (tab === "zukan" && zukanMode === "salon") pool = pool.filter((k) => !!thumbSrc(k.id));
     if (adv.prem === "pb") pool = pool.filter((k) => !!k.premium);
     else if (adv.prem === "base") pool = pool.filter((k) => !!k.base);
@@ -3279,7 +3327,7 @@ export default function App() {
       });
     }
     return pool;
-  }, [allKits, gf, searchIndex, adv, getRec, tab, zukanMode, thumbSrc]);
+  }, [allKits, gf, searchIndex, adv, getRec, tab, zukanMode, thumbSrc, query]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
@@ -3379,8 +3427,13 @@ export default function App() {
   );
 
   const advActive = adv.series || adv.uni || adv.prem || adv.stat || adv.yFrom || adv.yTo;
-  const openSearch = useCallback(() => { haptic(); setSearchOpen(true); }, []);
+  const openSearch = useCallback(() => { haptic(); setSearchDraft(tab === "collection" ? queries.c : queries.z); setSearchOpen(true); }, [tab, queries]);
   const closeSearch = useCallback(() => { setSearchOpen(false); }, []);
+  // 確定(✓ボタン / Enter):下書きを query へ反映 → リストが絞り込まれる。
+  const commitSearch = useCallback(() => {
+    setQueries((s) => ({ ...s, [tab === "collection" ? "c" : "z"]: searchDraft.trim() }));
+    setSearchOpen(false);
+  }, [tab, searchDraft]);
   const openFilter = useCallback(() => { haptic(); setFilterOpen(true); }, []);
   const closeFilter = useCallback(() => { setFilterOpen(false); }, []);
   /* タップ=onTap / 長押し=onLong。既存の makeLongPress/consumeLP を再利用 */
@@ -3395,17 +3448,17 @@ export default function App() {
     setQueries({ z: "", c: "" });
     patchSettings({ gfZukan: "", gfShuzo: "" });
   }, []);
-  /* 検索ヒット(即時表示・ジャンプ専用。リスト表示には反映しない) */
+  /* 検索ヒット(下書きに対する即時候補。タップ=該当機体へジャンプ、リストは不動) */
   const searchHits = useMemo(() => {
-    const term = (tab === "collection" ? queries.c : queries.z).trim();
+    const term = searchDraft.trim();
     if (!term) return [];
     const base = tab === "collection"
       ? allKits.filter((k) => (collMode === "plan" ? getRec(k.id).plan : getRec(k.id).owned))
       : allKits;
     const q = normJa(term); const rq = toRomaji(q);
     return base.filter((k) => { const idx = searchIndex[k.id] || ""; return idx.includes(q) || (rq && rq !== q && idx.includes(rq)); }).slice(0, 14);
-  }, [tab, collMode, queries, allKits, getRec, searchIndex]);
-  const renderSearchModal = ({ value, onChange, placeholder, title }) => (
+  }, [tab, collMode, searchDraft, allKits, getRec, searchIndex]);
+  const renderSearchModal = ({ placeholder, title }) => (
     <div className="modal-bg search-modal-bg" onClick={closeSearch}>
       <div className="modal search-modal" onClick={(e) => e.stopPropagation()}>
         <div className="sm-head">
@@ -3413,14 +3466,14 @@ export default function App() {
           <button className="modal-x static" onClick={closeSearch}>✕</button>
         </div>
         <div className="toolbar">
-          <input className="search" placeholder={placeholder} value={value} autoFocus
-            onChange={(e) => onChange(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); closeSearch(); } }} />
-          <button className="search-go" aria-label="確認" onClick={closeSearch}>
+          <input className="search" placeholder={placeholder} value={searchDraft} autoFocus
+            onChange={(e) => setSearchDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); commitSearch(); } }} />
+          <button className="search-go" aria-label="確認" onClick={commitSearch}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4 4L19 6.5" /></svg>
           </button>
         </div>
-        {value.trim() ? (
+        {searchDraft.trim() ? (
           <div className="sm-hits">
             {searchHits.length ? searchHits.map((k) => (
               <button key={k.id} className="sm-hit" onClick={() => { closeSearch(); setDetail(k.id); }}>
@@ -3434,16 +3487,7 @@ export default function App() {
     </div>
   );
   /* ── 簿冊表頭(博物誌/繪測巻/蔵品帳/発注簿):仿叙勲録の表頭。タップで検索窓 ── */
-  /* 表頭標題:表裏切換アニメ(A翻面/B捲軸/C滑移)。alt=配對名(暗示)。 */
-  const LedgerTitle = ({ scheme, title, alt, akey, dir }) => {
-    const sv = scheme === "flip" ? {} : scheme === "roll" ? { "--fromY": dir >= 0 ? "100%" : "-100%" } : { "--fromX": dir >= 0 ? "14px" : "-14px" };
-    return (
-      <span className={"lt lt-" + scheme}>
-        <span className="lt-win"><span key={akey} className="sb-title lt-cur" style={sv}>{title}</span></span>
-        {alt ? <span className="lt-alt"><span className="lt-x">⇄</span>{alt}</span> : null}
-      </span>
-    );
-  };
+  /* LedgerTitle は module scope へ移動済み(remount による表頭アニメ再生を防ぐため)。 */
 
   const LedgerHead = ({ eyebrow, title, alt, countNode, active, variant, onSwitch, scheme = "slide", akey, dir = 1, searchActive, onClearSearch }) => (
     <div key={variant} className={"sb-band sb-v-" + variant}>
@@ -3486,10 +3530,10 @@ export default function App() {
       </div>
       <div className="adv-row">
         <span className="adv-lbl">世界</span>
-        <select className="adv-sel adv-uni-sel" value={adv.uni} onChange={(e) => setAdv((a) => ({ ...a, uni: e.target.value }))}>
-          <option value="">すべての世界観</option>
-          {UNI_PICK.map(([u, l]) => <option key={u} value={u}>{l}</option>)}
-        </select>
+        <button className="adv-sel adv-series-btn" onClick={() => setUniPickerOpen(true)}>
+          <span className={adv.uni ? "" : "ph"}>{adv.uni ? ((UNI_PICK.find(([u]) => u === adv.uni) || [null, "すべての世界観"])[1]) : "すべての世界観"}</span>
+          <span className="adv-series-caret">▾</span>
+        </button>
       </div>
       <div className="adv-row">
         <span className="adv-lbl">区分</span>
@@ -3842,8 +3886,6 @@ export default function App() {
                 : <><b>{sorted.length}</b> / {allKits.length} 収録</>,
             })}
             {searchOpen && renderSearchModal({
-              value: queries.z,
-              onChange: (v) => setQueries((s) => ({ ...s, z: v })),
               placeholder: "機体名・型式・原作で検索",
               title: salonView ? <>絵<em>測</em>巻</> : <>博<em>物</em>誌</>,
             })}
@@ -3917,8 +3959,6 @@ export default function App() {
                   : <><b>{listKits.length}</b> / {ownedAll} 収蔵</>,
               })}
               {searchOpen && renderSearchModal({
-                value: queries.c,
-                onChange: (v) => setQueries((s) => ({ ...s, c: v })),
                 placeholder: isPlan ? "予定内を検索" : "収蔵内を機体名・型式で検索",
                 title: isPlan ? <>発<em>注</em>簿</> : <>蔵<em>品</em>帳</>,
               })}
@@ -4512,6 +4552,10 @@ export default function App() {
       <SeriesPicker open={seriesPickerOpen} value={adv.series} options={seriesList}
         onPick={(v) => { setAdv((a) => ({ ...a, series: v })); setSeriesPickerOpen(false); }}
         onClose={() => setSeriesPickerOpen(false)} />
+
+      <UniPicker open={uniPickerOpen} value={adv.uni} options={UNI_PICK}
+        onPick={(v) => { setAdv((a) => ({ ...a, uni: v })); setUniPickerOpen(false); }}
+        onClose={() => setUniPickerOpen(false)} />
 
       {detailKit && (
         <div className="modal-bg" onClick={closeDetail}>
@@ -5328,7 +5372,7 @@ input,textarea{font-family:var(--sans)}
 .adv-series-btn .ph{color:var(--ink-dim)}
 .adv-series-btn>span:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .adv-series-caret{flex:none;color:var(--gold);font-size:11px}
-.sp-bg{align-items:center}
+.sp-bg{align-items:center;z-index:72}
 .sp-modal{width:calc(100% - 36px);max-width:440px;max-height:74vh;margin:auto;display:flex;flex-direction:column;
   background:var(--bg2);border:1px solid var(--line);border-radius:14px;overflow:hidden;
   animation:up .26s cubic-bezier(.2,.9,.3,1.1)}
@@ -6832,11 +6876,17 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 
 /* ── アプリ内 通知(toast) ── */
 .toast-host{position:fixed;top:calc(10px + env(safe-area-inset-top));left:0;right:0;z-index:200;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
-.toast{display:flex;align-items:center;gap:9px;max-width:88vw;padding:11px 16px 11px 13px;border-radius:12px;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);box-shadow:0 12px 34px rgba(0,0,0,.5);font-size:13px;color:var(--ink-strong);font-family:var(--sans);animation:toast-in .26s cubic-bezier(.2,.9,.3,1);border-left-width:3px}
-.toast.ok{border-left-color:var(--teal)} .toast.err{border-left-color:var(--shu)} .toast.warn{border-left-color:var(--gold)} .toast.info{border-left-color:var(--blue)}
-.toast .ti{flex:none;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;line-height:1}
-.toast.ok .ti{background:rgba(111,211,199,.16);color:var(--teal)} .toast.err .ti{background:rgba(232,85,61,.16);color:var(--shu)} .toast.warn .ti{background:rgba(217,179,106,.16);color:var(--gold)} .toast.info .ti{background:rgba(111,159,224,.16);color:var(--blue)}
-.toast .tm{line-height:1.45}
+.toast{position:relative;display:flex;align-items:center;gap:11px;min-width:172px;max-width:88vw;padding:13px 18px 12px 16px;border-radius:6px;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);box-shadow:0 16px 38px rgba(0,0,0,.52);font-size:13px;color:var(--ink-strong);font-family:var(--serif);letter-spacing:.045em;animation:toast-in .28s cubic-bezier(.2,.9,.3,1);overflow:hidden}
+/* 档案調の表頭罫(cf-line と同系):色の短セグメント＋細罫 */
+.toast::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--teal) 0 40px,var(--line) 40px)}
+.toast.ok::before{background:linear-gradient(90deg,var(--teal) 0 40px,var(--line) 40px)}
+.toast.err::before{background:linear-gradient(90deg,var(--shu) 0 40px,var(--line) 40px)}
+.toast.warn::before{background:linear-gradient(90deg,var(--gold) 0 40px,var(--line) 40px)}
+.toast.info::before{background:linear-gradient(90deg,var(--blue) 0 40px,var(--line) 40px)}
+/* 朱印風の角型アイコン */
+.toast .ti{flex:none;width:22px;height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;line-height:1;font-family:var(--sans);border:1px solid currentColor;background:rgba(255,255,255,.02)}
+.toast.ok .ti{color:var(--teal)} .toast.err .ti{color:var(--shu)} .toast.warn .ti{color:var(--gold)} .toast.info .ti{color:var(--blue)}
+.toast .tm{line-height:1.55;font-family:var(--serif);letter-spacing:.045em;color:var(--ink-strong)}
 @keyframes toast-in{from{transform:translateY(-12px);opacity:0}to{transform:translateY(0);opacity:1}}
 /* ── アプリ内 確認ダイアログ ── */
 .cf-bg{position:fixed;inset:0;z-index:210;background:rgba(5,7,12,.66);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:24px;animation:ie-fade .16s ease}
