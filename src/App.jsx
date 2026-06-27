@@ -2064,6 +2064,23 @@ export default function App() {
   const [extras, setExtras] = useState({});       // 追加画像 {xid: src}
   const [albumMeta, setAlbumMeta] = useState({});  // {kitId:{order,thumb,acquire,framing}}
   const [settings, setSettings] = useState({ view: "list", compact: false, dimUnowned: true, showCode: true, showSeries: false, showPrice: true, showNo: false, showGrade: true, showYm: true, salonCols: 2, salonFit: "cover", listGrade: true, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "min", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", openaiKey: "", geminiModel: "gemini-3-pro-image", aiStyle: "boxart" });
+  // 設定の書込みは patchSettings 経由でフィールド級に時戳付け(records と同じ stamped LWW)。
+  // patch はオブジェクト、または現在値を読むトグル用に (s) => patch の関数も可。
+  // 変更したフィールドだけ時戳が進むため、別端末が別フィールドを変えても互いに潰さない。
+  const patchSettings = useCallback(
+    (patch) => setSettings((s) => stampRec(s, typeof patch === "function" ? patch(s) : patch, new Date().toISOString())),
+    []);
+  // 設定のフィールド級マージ。秘密鍵(API キー/Supabase 認証)は端末ローカル専用で
+  // クラウドへ値を出さない。古い _ts だけが残ると、値 undefined で「勝って」しまい
+  // ローカルの鍵を消す恐れがあるため、incoming 側の秘密フィールドを時戳ごと除外する。
+  const mergeSettings = useCallback((local, incoming) => {
+    if (!incoming) return local;
+    const inc = { ...incoming };
+    const ts = inc._ts ? { ...inc._ts } : null;
+    for (const k of (SECRET_KEYS || [])) { delete inc[k]; if (ts) delete ts[k]; }
+    if (ts) inc._ts = ts;
+    return mergeRec(local, inc);
+  }, []);
   // 既定画像モデルをNano Banana Proへ一度だけ移行(旧既定flash-imageのみ。明示選択は尊重)
   useEffect(() => {
     if (settings.geminiModel === "gemini-2.5-flash-image" && !settings._mdef3) {
@@ -2459,7 +2476,7 @@ export default function App() {
     if (d.overrides) setOverrides((prev) => mergeRecMap(prev, d.overrides));
     if (d.customKits) setCustomKits((prev) => mergeArrStamped(prev, d.customKits));
     if (d.kitTags) setKitTags((prev) => mergeRecMap(prev, d.kitTags));
-    if (d.settings) setSettings((s) => ({ ...s, ...d.settings }));
+    if (d.settings) setSettings((s) => mergeSettings(s, d.settings));
     if (d.sortKey) setSortKey(d.sortKey);
     if (d.sortDir) setSortDir(d.sortDir);
     if (d.achvSeen) setAchvSeen(d.achvSeen);
@@ -2947,7 +2964,7 @@ export default function App() {
       if (d.overrides) setOverrides((prev) => mergeRecMap(prev, stampMap(d.overrides)));
       if (d.customKits) setCustomKits((prev) => mergeArrStamped(prev, d.customKits.map((c) => ({ ...c, t: now }))));
       if (d.kitTags) setKitTags((prev) => mergeRecMap(prev, stampMap(d.kitTags)));
-      if (d.settings) setSettings((s) => ({ ...s, ...d.settings }));
+      if (d.settings) setSettings((s) => mergeRec(s, stampRecAll(d.settings, now)));
       if (d.sortKey && SORT_KEYS.includes(d.sortKey)) setSortKey(d.sortKey);
       if (d.sortDir === "asc" || d.sortDir === "desc") setSortDir(d.sortDir);
       if (d.images) {
@@ -3253,7 +3270,7 @@ export default function App() {
     <div className="gf-row">
       {GF_OPTS.map(([v, l]) => (
         <button key={v || "all"} className={"gf-btn" + (gf === v ? " on" : "")}
-          onClick={() => setSettings((s) => ({ ...s, [skey]: v }))}>{l}</button>
+          onClick={() => patchSettings({ [skey]: v })}>{l}</button>
       ))}
     </div>
   );
@@ -3269,20 +3286,20 @@ export default function App() {
 
   const ViewToggle = () => (
     <div className="view-toggle">
-      <button className={settings.view === "grid" ? "on" : ""} onClick={() => setSettings((s) => ({ ...s, view: "grid" }))}>▦ カード</button>
-      <button className={settings.view === "list" ? "on" : ""} onClick={() => setSettings((s) => ({ ...s, view: "list" }))}>☰ リスト</button>
+      <button className={settings.view === "grid" ? "on" : ""} onClick={() => patchSettings({ view: "grid" })}>▦ カード</button>
+      <button className={settings.view === "list" ? "on" : ""} onClick={() => patchSettings({ view: "list" })}>☰ リスト</button>
     </div>
   );
 
   const SalonControls = () => (
     <div className="salon-ctrl">
       <div className="view-toggle salon-seg">
-        <button className={(settings.salonCols || 2) === 2 ? "on" : ""} onClick={() => { haptic(); setSettings((s) => ({ ...s, salonCols: 2 })); }}>２列</button>
-        <button className={(settings.salonCols || 2) === 3 ? "on" : ""} onClick={() => { haptic(); setSettings((s) => ({ ...s, salonCols: 3 })); }}>３列</button>
+        <button className={(settings.salonCols || 2) === 2 ? "on" : ""} onClick={() => { haptic(); patchSettings({ salonCols: 2 }); }}>２列</button>
+        <button className={(settings.salonCols || 2) === 3 ? "on" : ""} onClick={() => { haptic(); patchSettings({ salonCols: 3 }); }}>３列</button>
       </div>
       <div className="view-toggle salon-seg">
-        <button className={(settings.salonFit || "cover") === "cover" ? "on" : ""} onClick={() => { haptic(); setSettings((s) => ({ ...s, salonFit: "cover" })); }}>切抜</button>
-        <button className={(settings.salonFit || "cover") === "contain" ? "on" : ""} onClick={() => { haptic(); setSettings((s) => ({ ...s, salonFit: "contain" })); }}>全体</button>
+        <button className={(settings.salonFit || "cover") === "cover" ? "on" : ""} onClick={() => { haptic(); patchSettings({ salonFit: "cover" }); }}>切抜</button>
+        <button className={(settings.salonFit || "cover") === "contain" ? "on" : ""} onClick={() => { haptic(); patchSettings({ salonFit: "contain" }); }}>全体</button>
       </div>
     </div>
   );
@@ -3302,7 +3319,7 @@ export default function App() {
     haptic();
     setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "" });
     setQueries({ z: "", c: "" });
-    setSettings((s) => ({ ...s, gfZukan: "", gfShuzo: "" }));
+    patchSettings({ gfZukan: "", gfShuzo: "" });
   }, []);
   /* 検索ヒット(即時表示・ジャンプ専用。リスト表示には反映しない) */
   const searchHits = useMemo(() => {
@@ -4127,13 +4144,13 @@ export default function App() {
             </button>
             <h2 className="panel-title">テーマ<span>THEME</span></h2>
             <div className="opt-group horizontal">
-              <button className={`opt ${settings.theme !== "light" ? "on" : ""}`} onClick={() => setSettings((s) => ({ ...s, theme: "dark" }))}>ダーク(漆黒)</button>
-              <button className={`opt ${settings.theme === "light" ? "on" : ""}`} onClick={() => setSettings((s) => ({ ...s, theme: "light" }))}>ライト(生成り)</button>
+              <button className={`opt ${settings.theme !== "light" ? "on" : ""}`} onClick={() => patchSettings({ theme: "dark" })}>ダーク(漆黒)</button>
+              <button className={`opt ${settings.theme === "light" ? "on" : ""}`} onClick={() => patchSettings({ theme: "light" })}>ライト(生成り)</button>
             </div>
             <h2 className="panel-title">触覚フィードバック<span>HAPTICS</span></h2>
             <div className="opt-group horizontal">
-              <button className={`opt ${settings.haptic !== false ? "on" : ""}`} onClick={() => { setSettings((s) => ({ ...s, haptic: true })); setHapticEnabled(true); haptic(); }}>オン</button>
-              <button className={`opt ${settings.haptic === false ? "on" : ""}`} onClick={() => setSettings((s) => ({ ...s, haptic: false }))}>オフ</button>
+              <button className={`opt ${settings.haptic !== false ? "on" : ""}`} onClick={() => { patchSettings({ haptic: true }); setHapticEnabled(true); haptic(); }}>オン</button>
+              <button className={`opt ${settings.haptic === false ? "on" : ""}`} onClick={() => patchSettings({ haptic: false })}>オフ</button>
             </div>
             <h2 className="panel-title">表示<span>DISPLAY</span></h2>
             <div className="opt-group horizontal">
@@ -4161,22 +4178,22 @@ export default function App() {
                     ["listBuild", "完成日を表示"],
                   ]
               ).map(([key, label]) => (
-                <button key={key} className="opt toggle" onClick={() => setSettings((s) => ({ ...s, [key]: !s[key] }))}>
+                <button key={key} className="opt toggle" onClick={() => patchSettings((s) => ({ [key]: !s[key] }))}>
                   <span>{label}</span>
                   <i className={`switch ${settings[key] ? "on" : ""}`}><b /></i>
                 </button>
               ))}
             </div>
             <div className="opt-group" style={{ marginTop: 8 }}>
-              <button className="opt toggle" onClick={() => setSettings((s) => ({ ...s, dimUnowned: !s.dimUnowned }))}>
+              <button className="opt toggle" onClick={() => patchSettings((s) => ({ dimUnowned: !s.dimUnowned }))}>
                 <span>未入手を淡色表示(共通)</span>
                 <i className={`switch ${settings.dimUnowned ? "on" : ""}`}><b /></i>
               </button>
-              <button className="opt toggle" onClick={() => setSettings((s) => ({ ...s, crtScan: s.crtScan === false ? true : false }))}>
+              <button className="opt toggle" onClick={() => patchSettings((s) => ({ crtScan: s.crtScan === false ? true : false }))}>
                 <span>未識別プレートのスキャンライン</span>
                 <i className={`switch ${settings.crtScan !== false ? "on" : ""}`}><b /></i>
               </button>
-              <button className="opt toggle" onClick={() => setSettings((s) => ({ ...s, vfFilter: s.vfFilter === false ? true : false }))}>
+              <button className="opt toggle" onClick={() => patchSettings((s) => ({ vfFilter: s.vfFilter === false ? true : false }))}>
                 <span>入手画像のビューファインダー風フィルター</span>
                 <i className={`switch ${settings.vfFilter !== false ? "on" : ""}`}><b /></i>
               </button>
@@ -4186,15 +4203,15 @@ export default function App() {
             <div className="opt-group">
               <label className="fld pad"><span>Gemini APIキー(この端末にのみ保存)</span>
                 <input type="password" value={settings.geminiKey || ""} placeholder="AIza..."
-                  onChange={(e) => setSettings((s) => ({ ...s, geminiKey: e.target.value }))} />
+                  onChange={(e) => patchSettings({ geminiKey: e.target.value })} />
               </label>
               <label className="fld pad"><span>OpenAI APIキー(この端末にのみ保存)</span>
                 <input type="password" value={settings.openaiKey || ""} placeholder="sk-..."
-                  onChange={(e) => setSettings((s) => ({ ...s, openaiKey: e.target.value }))} />
+                  onChange={(e) => patchSettings({ openaiKey: e.target.value })} />
               </label>
               <label className="fld pad"><span>画像生成モデル(選択した提供元のキーを使用)</span>
                 <select value={settings.geminiModel || "gemini-3-pro-image"}
-                  onChange={(e) => setSettings((s) => ({ ...s, geminiModel: e.target.value }))}>
+                  onChange={(e) => patchSettings({ geminiModel: e.target.value })}>
                   {AI_MODELS.map((g) => (
                     <optgroup key={g.group} label={g.group}>
                       {g.items.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
@@ -4216,11 +4233,11 @@ export default function App() {
             <div className="opt-group">
               <label className="fld pad"><span>Supabase URL</span>
                 <input value={settings.supaUrl || ""} placeholder="https://xxxx.supabase.co"
-                  onChange={(e) => setSettings((s) => ({ ...s, supaUrl: e.target.value }))} />
+                  onChange={(e) => patchSettings({ supaUrl: e.target.value })} />
               </label>
               <label className="fld pad"><span>anon キー(この端末にのみ保存)</span>
                 <input type="password" value={settings.supaKey || ""} placeholder="eyJhbGciOi..."
-                  onChange={(e) => setSettings((s) => ({ ...s, supaKey: e.target.value }))} />
+                  onChange={(e) => patchSettings({ supaKey: e.target.value })} />
               </label>
               <button className="opt" onClick={syncNow}><span>今すぐ同期</span><i>⇅</i></button>
               <button className="opt" onClick={async () => {
@@ -4397,7 +4414,7 @@ export default function App() {
         if (!ek) return null;
         return (
           <ImageEditorModal kit={ek} images={images} extras={extras} albumMeta={albumMeta} builderName={settings.builderName}
-            ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, model: settings.geminiModel, prompts: settings.aiPrompts, style: settings.aiStyle, onModel: (m) => setSettings((s) => ({ ...s, geminiModel: m })), onStyle: (st) => setSettings((s) => ({ ...s, aiStyle: st })) }}
+            ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, model: settings.geminiModel, prompts: settings.aiPrompts, style: settings.aiStyle, onModel: (m) => patchSettings({ geminiModel: m }), onStyle: (st) => patchSettings({ aiStyle: st }) }}
             onAddImage={(src, meta) => addAlbumImage(imgEdit, src, meta)}
             onRemoveImage={(ref) => removeAlbumImage(imgEdit, ref)}
             onSetRole={(ref, role) => setAlbumRole(imgEdit, ref, role)}
@@ -4484,7 +4501,7 @@ export default function App() {
                 </div>
                 <KitForm
                   seriesOptions={seriesOptions}
-                  ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, model: settings.geminiModel, prompts: settings.aiPrompts, style: settings.aiStyle, onModel: (m) => setSettings((s) => ({ ...s, geminiModel: m })), onStyle: (st) => setSettings((s) => ({ ...s, aiStyle: st })) }}
+                  ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, model: settings.geminiModel, prompts: settings.aiPrompts, style: settings.aiStyle, onModel: (m) => patchSettings({ geminiModel: m }), onStyle: (st) => patchSettings({ aiStyle: st }) }}
                   initial={detailKit}
                   currentImg={images[detailKit.id]}
                   album={kitAlbum(detailKit.id)}
@@ -4521,7 +4538,7 @@ export default function App() {
               <span>機体を追加</span>
               <button className="modal-x static" onClick={() => setAdding(false)}>✕</button>
             </div>
-            <KitForm seriesOptions={seriesOptions} ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, model: settings.geminiModel, prompts: settings.aiPrompts, style: settings.aiStyle, onModel: (m) => setSettings((s) => ({ ...s, geminiModel: m })), onStyle: (st) => setSettings((s) => ({ ...s, aiStyle: st })) }} initial={{}} currentImg={null} isCustom={false}
+            <KitForm seriesOptions={seriesOptions} ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, model: settings.geminiModel, prompts: settings.aiPrompts, style: settings.aiStyle, onModel: (m) => patchSettings({ geminiModel: m }), onStyle: (st) => patchSettings({ aiStyle: st }) }} initial={{}} currentImg={null} isCustom={false}
               onSave={saveNew} onCancel={() => setAdding(false)} />
           </div>
         </div>
@@ -4538,12 +4555,12 @@ export default function App() {
             <p className="setup-note">この端末の図鑑データは空です。Supabase の接続情報を入力すると、クラウドに保存済みのコレクション(記録・編集・画像)を復元できます。初めて使う場合は「新規ではじめる」を選んでください。</p>
             <label className="fld pad"><span>Supabase URL</span>
               <input value={settings.supaUrl || ""} placeholder="https://xxxx.supabase.co"
-                onChange={(e) => setSettings((s) => ({ ...s, supaUrl: e.target.value }))} />
+                onChange={(e) => patchSettings({ supaUrl: e.target.value })} />
             </label>
             <div style={{ height: 8 }} />
             <label className="fld pad"><span>anon キー</span>
               <input type="password" value={settings.supaKey || ""} placeholder="eyJhbGciOi..."
-                onChange={(e) => setSettings((s) => ({ ...s, supaKey: e.target.value }))} />
+                onChange={(e) => patchSettings({ supaKey: e.target.value })} />
             </label>
             {setupMsg && <p className="ana-note">{setupMsg}</p>}
             <div className="form-actions" style={{ marginTop: 12 }}>
@@ -4564,12 +4581,12 @@ export default function App() {
             </div>
             <label className="fld pad"><span>Builder名</span>
               <input value={settings.builderName || ""} placeholder="あなたの名前 / ID"
-                onChange={(e) => setSettings((s) => ({ ...s, builderName: e.target.value }))} />
+                onChange={(e) => patchSettings({ builderName: e.target.value })} />
             </label>
             <div style={{ height: 8 }} />
             <label className="fld pad"><span>ガンプラ歴 開始日</span>
               <input type="date" value={settings.builderSince || ""}
-                onChange={(e) => setSettings((s) => ({ ...s, builderSince: e.target.value }))} />
+                onChange={(e) => patchSettings({ builderSince: e.target.value })} />
             </label>
             <div className="form-actions" style={{ marginTop: 12 }}>
               <button className="btn primary" onClick={() => setProfileOpen(false)}>保存して閉じる</button>
@@ -4591,13 +4608,13 @@ export default function App() {
               value={(settings.aiPrompts && settings.aiPrompts[promptEdit]) != null
                 ? settings.aiPrompts[promptEdit]
                 : AI_STYLES.find((s) => s.id === promptEdit).prompt}
-              onChange={(e) => setSettings((s) => ({ ...s, aiPrompts: { ...(s.aiPrompts || {}), [promptEdit]: e.target.value } }))} />
+              onChange={(e) => patchSettings((s) => ({ aiPrompts: { ...(s.aiPrompts || {}), [promptEdit]: e.target.value } }))} />
             <div className="form-actions">
               <button className="btn primary" onClick={() => setPromptEdit(null)}>保存して閉じる</button>
-              <button className="btn" onClick={() => setSettings((s) => {
+              <button className="btn" onClick={() => patchSettings((s) => {
                 const ap = { ...(s.aiPrompts || {}) };
                 delete ap[promptEdit];
-                return { ...s, aiPrompts: ap };
+                return { aiPrompts: ap };
               })}>初期値に戻す</button>
             </div>
             <p className="ai-note">変更は自動保存されます。「初期値に戻す」で標準プロンプトに復帰。</p>
