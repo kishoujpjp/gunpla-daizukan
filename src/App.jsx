@@ -187,13 +187,20 @@ function SeriesWatermark({ kit, variant, size = 84 }) {
 
 if (typeof window !== "undefined" && !window.__mgErrHook) {
   window.__mgErrHook = true;
+  let el = null, hideTimer = null;
   window.addEventListener("error", (ev) => {
     try {
       if (!ev.message || (/^Script error\.?$/i.test(ev.message) && !ev.filename)) return;
-      const el = document.createElement("pre");
-      el.style.cssText = "position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;background:#5a1410;color:#fff;padding:10px 12px;border-radius:8px;font-size:11px;line-height:1.5;white-space:pre-wrap;max-height:42vh;overflow:auto";
-      el.textContent = "⚠ " + ev.message + "\n" + (ev.filename || "") + ":" + (ev.lineno || 0);
-      document.body.appendChild(el);
+      if (!el) {
+        el = document.createElement("pre");
+        el.style.cssText = "position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;background:#5a1410;color:#fff;padding:10px 12px;border-radius:8px;font-size:11px;line-height:1.5;white-space:pre-wrap;max-height:42vh;overflow:auto;cursor:pointer";
+        el.addEventListener("click", () => { if (el) { el.remove(); el = null; } });
+        document.body.appendChild(el);
+      }
+      // 積み重ねず最新の1件だけを表示。8秒で自動的に消す。
+      el.textContent = "⚠ " + ev.message + "\n" + (ev.filename || "") + ":" + (ev.lineno || 0) + "\n(タップで閉じる)";
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => { if (el) { el.remove(); el = null; } }, 8000);
     } catch (e) {}
   });
 }
@@ -1249,9 +1256,17 @@ function AIRestyleModal({ src, geminiKey, openaiKey, model, prompts, lastStyle, 
   const [chosenModel, setChosenModel] = useState(model);
   const [styleOpts, setStyleOpts] = useState(() => initStyleOpts(AI_STYLES.find((s) => s.id === (lastStyle || AI_STYLES[0].id)) || AI_STYLES[0]));
   const curStyle = AI_STYLES.find((s) => s.id === style) || AI_STYLES[0];
+  const ctrlRef = useRef(null);
+  // モーダルが閉じた/再生成で差し替わった時に進行中のリクエストを確実に中止する
+  useEffect(() => () => { if (ctrlRef.current) ctrlRef.current.abort(); }, []);
+  const cancel = () => { if (ctrlRef.current) ctrlRef.current.abort(); };
 
   const generate = async () => {
     setBusy(true); setError("");
+    if (ctrlRef.current) ctrlRef.current.abort();      // 二重実行の保護
+    const ctrl = new AbortController();
+    ctrlRef.current = ctrl;
+    const timer = setTimeout(() => ctrl.abort(), 90000); // 90秒で打ち切り(無限 busy 防止)
     try {
       const apiKey = isOpenAImodel(chosenModel) ? openaiKey : geminiKey;
       const b64 = src.split(",")[1];
@@ -1272,6 +1287,7 @@ function AIRestyleModal({ src, geminiKey, openaiKey, model, prompts, lastStyle, 
           method: "POST",
           headers: { Authorization: `Bearer ${apiKey}` },
           body: form,
+          signal: ctrl.signal,
         });
         const data = await res.json();
         if (!res.ok) throw new Error((data.error && data.error.message) || "HTTP " + res.status);
@@ -1286,6 +1302,7 @@ function AIRestyleModal({ src, geminiKey, openaiKey, model, prompts, lastStyle, 
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ contents: [{ parts: [{ inline_data: { mime_type: mime, data: b64 } }, { text: prompt }] }] }),
+            signal: ctrl.signal,
           }
         );
         const data = await res.json();
@@ -1296,7 +1313,12 @@ function AIRestyleModal({ src, geminiKey, openaiKey, model, prompts, lastStyle, 
         const pd = imgPart.inline_data || imgPart.inlineData;
         setResult(`data:${pd.mime_type || pd.mimeType || "image/png"};base64,${pd.data}`);
       }
-    } catch (e) { setError(String((e && e.message) || e)); }
+    } catch (e) {
+      if (e && e.name === "AbortError") setError("中止しました(90秒で時間切れ、または手動キャンセル)");
+      else setError(String((e && e.message) || e));
+    }
+    clearTimeout(timer);
+    ctrlRef.current = null;
     setBusy(false);
   };
 
@@ -1351,7 +1373,7 @@ function AIRestyleModal({ src, geminiKey, openaiKey, model, prompts, lastStyle, 
         <div className="crop-actions">
           {result && !busy && <button className="btn primary" onClick={adopt}>この画像を採用</button>}
           <button className="btn" disabled={busy} onClick={generate}>{busy ? "生成中…" : result ? "もう一度生成" : "生成する"}</button>
-          <button className="btn" disabled={busy} onClick={onClose}>やめる</button>
+          <button className="btn" onClick={busy ? cancel : onClose}>{busy ? "中止" : "やめる"}</button>
         </div>
         <p className="ai-note">画像はお使いの端末から{aiProviderLabel(model)} APIへ直接送信されます。</p>
       </div>
@@ -2499,18 +2521,13 @@ export default function App() {
     if (!cfg.url || !cfg.key) { notify("Supabase URL と anon キーを入力してください", { kind: "warn" }); return; }
     setSyncMsg("同期中…");
     try {
+      // 1) 雲端を取り込む(LWW で state へマージ)
       const nn = await pullCloud(cfg);
-      await saveKey(META_KEY, JSON.stringify({ schemaVersion: SCHEMA_VERSION, records, overrides, customKits, settings, sortKey, sortDir, achvSeen, albumMeta, kitTags, serifs }));
-      for (let i = 0; i < IMG_SHARDS; i++) {
-        const map = {};
-        for (const [ik, iv] of Object.entries(images)) if (hashId(ik) % IMG_SHARDS === i) map[ik] = iv;
-        await saveKey("mg_imgs_" + i, JSON.stringify(map));
-      }
-      for (let i = 0; i < XTRA_SHARDS; i++) {
-        const map = {};
-        for (const [ik, iv] of Object.entries(extras)) if (hashId(ik) % XTRA_SHARDS === i) map[ik] = iv;
-        await saveKey("mg_xtra_" + i, JSON.stringify(map));
-      }
+      // 2) 未送信のローカル変更だけを、変更時の時戳付きで再送する。
+      //    以前はここで pull 直後の「古い閉包の state」を新しい時戳で全件 push しており、
+      //    取り込んだばかりの雲端データ(特に時戳保護の無い settings/albumMeta/serifs)を
+      //    上書きして消す競合があった。dirty キューは正しい時戳を保持するため安全。
+      await flushDirty();
       setSyncMsg(`同期完了(受信 ${nn} 件)` + new Date().toLocaleTimeString());
     } catch (e) { setSyncMsg("同期エラー:" + ((e && e.message) || e)); }
   };
