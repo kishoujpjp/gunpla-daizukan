@@ -44,6 +44,10 @@ import {
 const SETTINGS_KEY = "mg_settings";
 const ALBUM_KEY = "mg_album";
 const SERIFS_KEY = "mg_serifs";
+/* クラウドへ絶対に出さない憑證キー。storage-lib の SECRET_KEYS に依存せず、
+   ここで明示的にも剝離する(SECRET_KEYS が supaUrl 等を含まない場合の保険)。 */
+const CRED_KEYS = ["supaUrl", "supaKey", "geminiKey", "openaiKey"];
+const secretFieldList = () => [...new Set([...(typeof SECRET_KEYS !== "undefined" && SECRET_KEYS ? SECRET_KEYS : []), ...CRED_KEYS])];
 
 const UNI_EMBLEM = {
   /* UC = 地球儀(経線3・緯線3のみ) */
@@ -2084,7 +2088,7 @@ export default function App() {
     if (!incoming) return local;
     const inc = { ...incoming };
     const ts = inc._ts ? { ...inc._ts } : null;
-    for (const k of (SECRET_KEYS || [])) { delete inc[k]; if (ts) delete ts[k]; }
+    for (const k of secretFieldList()) { delete inc[k]; if (ts) delete ts[k]; }
     if (ts) inc._ts = ts;
     return mergeRec(local, inc);
   }, []);
@@ -2324,7 +2328,10 @@ export default function App() {
     const settingsForCloud = (s) => {
       try {
         const o = stripSecrets(JSON.parse(s));
-        if (o && o._ts) { const ts = { ...o._ts }; for (const sk of (SECRET_KEYS || [])) delete ts[sk]; o._ts = ts; }
+        const secrets = secretFieldList();
+        const ts = o && o._ts ? { ...o._ts } : null;
+        for (const sk of secrets) { delete o[sk]; if (ts) delete ts[sk]; } // 値と _ts を明示剝離
+        if (ts) o._ts = ts;
         return JSON.stringify(o);
       } catch (e) { return s; }
     };
