@@ -17,7 +17,7 @@ export const MAX_SYNC_BYTES = 4 * 1024 * 1024;
    キーは値を空にするのではなく【削除】する。受信側の applyMeta /
    importData は `{ ...prev, ...incoming.settings }` で合成するため、
    削除しておけば既存の端末ローカルの値が上書きされず温存される。 */
-export const SECRET_KEYS = ["geminiKey", "openaiKey", "supaKey"];
+export const SECRET_KEYS = ["geminiKey", "openaiKey", "supaKey", "supaUrl"];
 export const stripSecrets = (settings) => {
   const out = { ...(settings || {}) };
   for (const k of SECRET_KEYS) delete out[k];
