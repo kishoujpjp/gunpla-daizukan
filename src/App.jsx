@@ -38,6 +38,13 @@ import {
   newImgId
 } from "./storage-lib.js";
 
+/* settings / albumMeta / serifs を mg_meta から独立した雲端鍵へ分離。
+   各キーが独自の updated_at を持つため、粗粒度の単一META gate を回避でき、
+   設定トグル等での「META 丸ごと再シリアライズ&再送(書込み増幅)」も無くなる。 */
+const SETTINGS_KEY = "mg_settings";
+const ALBUM_KEY = "mg_album";
+const SERIFS_KEY = "mg_serifs";
+
 const UNI_EMBLEM = {
   /* UC = 地球儀(経線3・緯線3のみ) */
   UC:`<circle class="s2" cx="32" cy="32" r="19" style="stroke-width:2.4"/>
@@ -2212,6 +2219,21 @@ export default function App() {
           if (d.serifs) setSerifs(d.serifs);
         }
       } catch (e) { /* 初次使用 */ }
+      // 独立鍵を読み、旧 META 由来の値の上にフィールド級でマージ(独立鍵が新しい本地正本)。
+      // settings は本地正本に秘密鍵を含むため mergeRec(剝離しない)で取り込む。初回更新後は
+      // 独立鍵が無いので旧 META の値がそのまま残る。
+      try {
+        const sr = await window.storage.get(SETTINGS_KEY);
+        if (sr && sr.value) { const sv = JSON.parse(sr.value); setSettings((s) => mergeRec(s, sv)); metaSettings = { ...(metaSettings || {}), ...sv }; }
+      } catch (e) { /* 旧データ:独立鍵なし */ }
+      try {
+        const ar = await window.storage.get(ALBUM_KEY);
+        if (ar && ar.value) setAlbumMeta((prev) => mergeRecMap(prev, JSON.parse(ar.value)));
+      } catch (e) { /* 同上 */ }
+      try {
+        const fr = await window.storage.get(SERIFS_KEY);
+        if (fr && fr.value) setSerifs((prev) => mergeRec(prev, JSON.parse(fr.value)));
+      } catch (e) { /* 同上 */ }
       setAchvSeen((s) => (s === null ? {} : s));
       try {
         const tsr = await window.storage.get("mg_sync_ts");
@@ -2297,7 +2319,16 @@ export default function App() {
       return false; // 一時的エラー→残して後で再送
     }
     if (v == null) { unmarkDirty(k); return true; }
-    const pushVal = k === META_KEY ? metaForCloud(v) : v;
+    // settings 独立鍵は秘密鍵(APIキー/Supabase認証)を雲端へ出さない。値と、残存し得る
+    // 秘密フィールドの _ts も剝離して、別端末で古い時戳の undefined が鍵を消すのを防ぐ。
+    const settingsForCloud = (s) => {
+      try {
+        const o = stripSecrets(JSON.parse(s));
+        if (o && o._ts) { const ts = { ...o._ts }; for (const sk of (SECRET_KEYS || [])) delete ts[sk]; o._ts = ts; }
+        return JSON.stringify(o);
+      } catch (e) { return s; }
+    };
+    const pushVal = k === META_KEY ? metaForCloud(v) : k === SETTINGS_KEY ? settingsForCloud(v) : v;
     // 画像シャードが大きすぎるとクラウドの行/リクエスト上限を超え、永久に
     // 失敗→再送ループになり、しかも flushDirty の queue を塞ぐ。事前にサイズ確認し、
     // 超過分は本地保存のみとして dirty を外し、最適化を促す(圧縮後の保存で再送される)。
@@ -2408,13 +2439,41 @@ export default function App() {
 
   /* ── 保存中繼資料 ── */
   const latestMetaRef = useRef("");
+  const latestSettingsRef = useRef("");
+  const latestAlbumRef = useRef("");
+  const latestSerifsRef = useRef("");
+  // META 本体(settings / albumMeta / serifs は独立鍵へ分離したので含めない)
   useEffect(() => {
     if (!loaded) return;
-    const payload = JSON.stringify({ schemaVersion: SCHEMA_VERSION, records, overrides, customKits, settings, sortKey, sortDir, achvSeen, albumMeta, kitTags, serifs });
+    const payload = JSON.stringify({ schemaVersion: SCHEMA_VERSION, records, overrides, customKits, sortKey, sortDir, achvSeen, kitTags });
     latestMetaRef.current = payload; // 背景化/終了時に debounce を待たず即落とすための最新版
     const t = setTimeout(() => { saveKey(META_KEY, payload); }, 350);
     return () => clearTimeout(t);
-  }, [records, overrides, customKits, settings, sortKey, sortDir, achvSeen, albumMeta, kitTags, serifs, loaded, saveKey]);
+  }, [records, overrides, customKits, sortKey, sortDir, achvSeen, kitTags, loaded, saveKey]);
+  // settings 独立鍵(秘密鍵は push 時に剝離)。設定変更で META 全体を再送しなくなる。
+  useEffect(() => {
+    if (!loaded) return;
+    const payload = JSON.stringify(settings);
+    latestSettingsRef.current = payload;
+    const t = setTimeout(() => { saveKey(SETTINGS_KEY, payload); }, 350);
+    return () => clearTimeout(t);
+  }, [settings, loaded, saveKey]);
+  // albumMeta 独立鍵
+  useEffect(() => {
+    if (!loaded) return;
+    const payload = JSON.stringify(albumMeta);
+    latestAlbumRef.current = payload;
+    const t = setTimeout(() => { saveKey(ALBUM_KEY, payload); }, 350);
+    return () => clearTimeout(t);
+  }, [albumMeta, loaded, saveKey]);
+  // serifs 独立鍵
+  useEffect(() => {
+    if (!loaded) return;
+    const payload = JSON.stringify(serifs);
+    latestSerifsRef.current = payload;
+    const t = setTimeout(() => { saveKey(SERIFS_KEY, payload); }, 350);
+    return () => clearTimeout(t);
+  }, [serifs, loaded, saveKey]);
 
   /* ── 背景化/終了の直前に未保存の META を即時 flush(debounce 350ms の取りこぼし防止)──
      visibilitychange→hidden は freeze 前に発火するため非同期書き込みも概ね間に合う。
@@ -2423,6 +2482,9 @@ export default function App() {
     if (!loaded) return;
     const doFlush = () => {
       if (latestMetaRef.current) saveKey(META_KEY, latestMetaRef.current);
+      if (latestSettingsRef.current) saveKey(SETTINGS_KEY, latestSettingsRef.current);
+      if (latestAlbumRef.current) saveKey(ALBUM_KEY, latestAlbumRef.current);
+      if (latestSerifsRef.current) saveKey(SERIFS_KEY, latestSerifsRef.current);
       flushDirty();
     };
     const onVisHide = () => { if (document.visibilityState === "hidden") doFlush(); };
@@ -2524,8 +2586,13 @@ export default function App() {
             return { ...next, ...m };
           });
         } catch (e) { continue; }
+      } else if (row.key === SETTINGS_KEY) {
+        try { setSettings((s) => mergeSettings(s, JSON.parse(row.value))); } catch (e) { continue; }
+      } else if (row.key === ALBUM_KEY) {
+        try { setAlbumMeta((prev) => mergeRecMap(prev, JSON.parse(row.value))); } catch (e) { continue; }
+      } else if (row.key === SERIFS_KEY) {
+        try { setSerifs((prev) => mergeRec(prev, JSON.parse(row.value))); } catch (e) { continue; }
       } else continue;
-      // 本地へ確実に落ちた時だけ時戳を進める。失敗時は時戳を据え置き、
       // 次回 pull で再適用させる(古い本地値に新時戳が付くのを防ぐ)。
       const okSet = await persist(row.key, row.value);
       if (!okSet) continue;
@@ -2534,7 +2601,7 @@ export default function App() {
     }
     await persist("mg_sync_ts", JSON.stringify(syncTsRef.current));
     return applied;
-  }, [applyMeta, persist]);
+  }, [applyMeta, persist, mergeSettings]);
 
   const syncNow = async () => {
     const cfg = supaRef.current;
