@@ -3266,14 +3266,10 @@ export default function App() {
   const closeSearch = useCallback(() => { setSearchOpen(false); }, []);
   const openFilter = useCallback(() => { haptic(); setFilterOpen(true); }, []);
   const closeFilter = useCallback(() => { setFilterOpen(false); }, []);
-  /* 長押し判定(タップ=onTap / 長押し=onLong)。アイコンの二役に使う */
-  const lpRef = useRef({ t: null, fired: false });
-  const longPress = (onTap, onLong, ms = 460) => ({
-    onPointerDown: () => { lpRef.current.fired = false; clearTimeout(lpRef.current.t); lpRef.current.t = setTimeout(() => { lpRef.current.fired = true; hapticStrong(); onLong && onLong(); }, ms); },
-    onPointerUp: () => { clearTimeout(lpRef.current.t); },
-    onPointerLeave: () => { clearTimeout(lpRef.current.t); },
-    onPointerCancel: () => { clearTimeout(lpRef.current.t); },
-    onClick: (e) => { if (e) e.stopPropagation(); if (lpRef.current.fired) { lpRef.current.fired = false; return; } onTap && onTap(); },
+  /* タップ=onTap / 長押し=onLong。既存の makeLongPress/consumeLP を再利用 */
+  const longPress = (onTap, onLong) => ({
+    ...makeLongPress(() => { hapticStrong(); onLong && onLong(); }),
+    onClick: (e) => { if (e) e.stopPropagation(); if (consumeLP()) return; onTap && onTap(); },
   });
   /* 全条件クリア:絞り込み(adv)+検索語+グレード を一括解除 */
   const clearAllConds = useCallback(() => {
