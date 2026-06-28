@@ -1958,7 +1958,6 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, ini
               <button type="button" className="ie-sheet-x" onClick={closeSheet} aria-label="閉じる">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
               </button>
-              <div className="ie-grip" />
               <div className="ie-sh-title">画像情報</div>
               <div className="ie-pv full" onTouchStart={onPvTouchStart} onTouchEnd={onPvTouchEnd}>
                 {selSrc ? <img src={selSrc} alt="" className="ie-pv-img" draggable={false} /> : <div className="ie-pv-blank" />}
@@ -1976,9 +1975,11 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, ini
                     </>
                   : <><dt>撮影者</dt><dd>{(selMeta && selMeta.by) || builderName || "—"}</dd></>}
                 <dt>追加</dt><dd>{fmtDT(selMeta && selMeta.at)}</dd>
+                {selMeta && selMeta.src === "ai" ? null : (<>
                 <dt>場所</dt><dd>{locEditing
                   ? <span className="ie-locedit"><input autoFocus value={locText} placeholder="例:自宅 / イベント名" onChange={(e) => setLocText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { onSetLoc(sel, locText); setLocEditing(false); } }} /><button onClick={() => { onSetLoc(sel, locText); setLocEditing(false); }}>保存</button></span>
                   : (selMeta && selMeta.loc ? <span>{selMeta.loc} <button className="ie-locbtn" onClick={() => { setLocText(selMeta.loc || ""); setLocEditing(true); }}>編集</button></span> : <span className="ie-dim2">未設定 <button className="ie-locbtn" onClick={() => { setLocText(""); setLocEditing(true); }}>＋ 入力</button></span>)}</dd>
+                </>)}
               </dl>
               <div className="ie-acts2">
                 <button className="ie-act2" onClick={() => { const r = sel; closeSheet(); onFrame(r); }}><span className="ic">⛶</span><span>構図を整える</span></button>
@@ -5752,7 +5753,7 @@ input,textarea{font-family:var(--sans)}
 /* シート共通 */
 .ie-dim{position:absolute;inset:0;background:rgba(6,8,12,.62);z-index:8;display:flex;align-items:flex-end;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);animation:ie-fade .18s ease}
 @keyframes ie-fade{from{opacity:0}to{opacity:1}}
-.ie-sheet{position:relative;width:100%;max-height:100%;overflow-y:auto;overscroll-behavior:contain;background:linear-gradient(180deg,var(--panel2),var(--panel));border-radius:20px 20px 0 0;padding:8px 18px calc(22px + env(safe-area-inset-bottom));box-shadow:0 -16px 44px rgba(0,0,0,.55);animation:ie-rise .26s cubic-bezier(.2,.9,.3,1)}
+.ie-sheet{position:relative;width:100%;max-height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;background:linear-gradient(180deg,var(--panel2),var(--panel));border-radius:20px 20px 0 0;padding:8px 18px calc(22px + env(safe-area-inset-bottom));box-shadow:0 -16px 44px rgba(0,0,0,.55);animation:ie-rise .26s cubic-bezier(.2,.9,.3,1)}
 @keyframes ie-rise{from{transform:translateY(16px);opacity:.5}to{transform:translateY(0);opacity:1}}
 .ie-grip{width:40px;height:4px;border-radius:2px;background:var(--line-soft);margin:4px auto 14px}
 .ie-sh-h{font-family:var(--serif);font-weight:600;font-size:14px;margin-bottom:12px;text-align:center}
@@ -5768,7 +5769,7 @@ input,textarea{font-family:var(--sans)}
 .ie-urlrow button{flex:none;border:1px solid var(--gold);color:var(--gold);background:rgba(217,179,106,.06);border-radius:9px;padding:0 18px;font-size:13px;cursor:pointer}
 .ie-urlrow button:active{background:rgba(217,179,106,.14)}
 /* 大プレビュー */
-.ie-pv{position:relative;width:100%;height:min(38vh,278px);border-radius:14px;overflow:hidden;background:#0c1016;border:1px solid var(--line);margin-bottom:14px;display:flex;align-items:center;justify-content:center}
+.ie-pv{position:relative;width:100%;height:min(34vh,248px);border-radius:14px;overflow:hidden;background:#0c1016;border:1px solid var(--line);margin-bottom:12px;display:flex;align-items:center;justify-content:center}
 .ie-pv img{width:100%;height:100%;object-fit:cover}
 .ie-pv.full img.ie-pv-img{width:100%;height:100%;object-fit:contain}
 .ie-sh-title{font-family:var(--serif);font-weight:800;font-size:15px;letter-spacing:.06em;color:var(--ink-strong);margin:2px 2px 11px}
@@ -5776,7 +5777,7 @@ input,textarea{font-family:var(--sans)}
 .ie-pv-idx{position:absolute;left:11px;bottom:11px;font-family:var(--serif);font-weight:700;font-size:16px;color:var(--ink-strong);padding:4px 11px;border-radius:9px;background:rgba(8,10,14,.6);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.12)}
 .ie-pv-idx i{font-size:11px;color:var(--ink-mid);font-weight:400;font-style:normal}
 .ie-pv-cover{position:absolute;right:11px;top:11px;font-family:var(--serif);font-size:11px;font-weight:700;color:var(--gold);letter-spacing:.1em;padding:4px 9px;border-radius:8px;background:rgba(8,10,14,.6);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border:1px solid rgba(217,179,106,.6)}
-.ie-sh-meta{display:grid;grid-template-columns:auto 1fr;gap:9px 14px;padding:13px 4px;margin:0 0 14px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:12.5px}
+.ie-sh-meta{display:grid;grid-template-columns:auto 1fr;gap:9px 14px;padding:11px 4px;margin:0 0 12px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:12.5px}
 .ie-sh-meta dt{color:var(--ink-mid);font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9.5px;letter-spacing:.08em;align-self:center;text-transform:uppercase}
 .ie-sh-meta dd{margin:0;color:var(--ink-strong)}
 .ie-sh-meta dd .pho{color:var(--teal)} .ie-sh-meta dd .ai{color:var(--gold)}
