@@ -512,15 +512,15 @@ function SwipeViewer({ slides, index, onIndex, onClose, resolveSrc, resetKey, se
           <div className="sv-slide" key={sl.kitId + "/" + sl.ref}
             style={{ transform: `translateX(calc(${(i - index) * 100}% + ${dragX}px))`, transition: paging ? "transform .3s cubic-bezier(.25,.8,.3,1)" : "none" }}>
             <div className="sv-stage">
-              {sl.ref && (() => {
+              {sl.ref && (onSerif || (serifOf && serifOf(sl))) ? (() => {
                 const sf = serifOf ? serifOf(sl) : "";
                 return (
                   <div className="sv-serif" onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => { e.stopPropagation(); if (onSerif) onSerif(sl); }}>
-                    {sf ? <span className="vs-text">{sf}</span> : (isCur ? <span className="vs-hint">＋ セリフを追加</span> : null)}
+                    {sf ? <span className="vs-text">{sf}</span> : (isCur && onSerif ? <span className="vs-hint">＋ セリフを追加</span> : null)}
                   </div>
                 );
-              })()}
+              })() : null}
               <div className="sv-imgwrap">
                 {src
                   ? <img src={src} alt="" draggable={false} className="sv-img"
@@ -1762,6 +1762,16 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, ini
   const [aiSrc, setAiSrc] = useState(null);
   const [locEditing, setLocEditing] = useState(false);
   const [locText, setLocText] = useState("");
+  // ── 同機体限定の鑑賞ビューア(長押しで起動。繪測卷と違い他機体へは飛ばない)──
+  const [viewRef, setViewRef] = useState(null);   // 表示中の ref(null=閉)
+  const [viewFrom, setViewFrom] = useState(null); // "sheet"=画像情報経由 / "grid"=編集グリッド経由
+  const lpRef = useRef({ timer: 0, fired: false });
+  const lpStart = (onLong, ms = 460) => { lpRef.current.fired = false; clearTimeout(lpRef.current.timer); lpRef.current.timer = setTimeout(() => { lpRef.current.fired = true; onLong(); }, ms); };
+  const lpCancel = () => clearTimeout(lpRef.current.timer);
+  const consumeLP = () => { if (lpRef.current.fired) { lpRef.current.fired = false; return true; } return false; };
+  const makeLP = (onLong) => ({ onTouchStart: () => lpStart(onLong), onTouchEnd: lpCancel, onTouchMove: lpCancel, onMouseDown: () => lpStart(onLong), onMouseUp: lpCancel, onMouseLeave: lpCancel, onContextMenu: (e) => e.preventDefault() });
+  const openView = (ref, from) => { if (!ref) return; setViewFrom(from); setViewRef(ref); };
+  useEffect(() => () => clearTimeout(lpRef.current.timer), []);
   const camRef = useRef(null);
   const albRef = useRef(null);
 
@@ -1882,6 +1892,12 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, ini
     if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.3) gotoRel(dx < 0 ? 1 : -1);
   };
 
+  // 鑑賞ビューア:この機体のアルバム順だけをスライドにする(他機体へは飛ばない)
+  const viewSlides = order.filter((r) => refSrc(r, kitId, images, extras)).map((r) => ({ kitId, ref: r, name: kit.name, series: kit.series, code: kit.code, no: kit.no }));
+  const viewIdx = Math.max(0, viewSlides.findIndex((s) => s.ref === viewRef));
+  // 閉じる:from=sheet は sel を維持して画像情報シートへ復帰 / from=grid は sel=null のままグリッドへ
+  const closeView = () => setViewRef(null);
+
   return (
     <>
     <div className="ie-bg" onClick={() => { if (sel) closeSheet(); else if (addOpen) setAddOpen(false); else onClose(); }}>
@@ -1915,9 +1931,9 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, ini
               const src = refSrc(ref, kitId, images, extras);
               const fr = framingStyle((albumMeta[kitId] && albumMeta[kitId].framing && albumMeta[kitId].framing[ref]) || null);
               return (
-                <div key={ref} ref={(el) => { if (el) tileEls.current[ref] = el; else delete tileEls.current[ref]; }} data-ref={ref} className={"ie-tile" + (dragId === ref ? " drag" : "")} onClick={() => { if (!dragId) setSel(ref); }}>
+                <div key={ref} ref={(el) => { if (el) tileEls.current[ref] = el; else delete tileEls.current[ref]; }} data-ref={ref} className={"ie-tile" + (dragId === ref ? " drag" : "")} {...makeLP(() => openView(ref, "grid"))} onClick={() => { if (consumeLP()) return; if (!dragId) setSel(ref); }}>
                   {src ? <img src={src} alt="" className="ie-img" style={fr} draggable={false} /> : <div className="ie-img blank" />}
-                  {srcFilter === "all" && <button type="button" className="ie-drag" onPointerDown={onHandleDown(ref)} onClick={(e) => e.stopPropagation()}>⠿</button>}
+                  {srcFilter === "all" && <button type="button" className="ie-drag" onPointerDown={onHandleDown(ref)} onTouchStart={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>⠿</button>}
                   {ref === thumbR ? <span className="ie-cover">封面</span> : null}
                 </div>
               );
@@ -1958,7 +1974,11 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, ini
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
               </button>
               <div className="ie-sh-title">画像情報</div>
-              <div className="ie-pv full" onTouchStart={onPvTouchStart} onTouchEnd={onPvTouchEnd}>
+              <div className="ie-pv full"
+                onTouchStart={(e) => { onPvTouchStart(e); lpStart(() => openView(sel, "sheet")); }}
+                onTouchEnd={(e) => { lpCancel(); onPvTouchEnd(e); }}
+                onTouchMove={lpCancel}
+                onContextMenu={(e) => e.preventDefault()}>
                 {selSrc ? <img src={selSrc} alt="" className="ie-pv-img" draggable={false} /> : <div className="ie-pv-blank" />}
                 <span className="ie-pv-idx">{selIdx >= 0 ? selIdx + 1 : "—"}<i> / {order.length}</i></span>
                 {sel === thumbR ? <span className="ie-pv-cover">封面</span> : null}
@@ -1998,6 +2018,15 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, ini
         </div>
       ) : null}
     </div>
+
+      {viewRef ? (
+        <div className="viewer-bg" onClick={closeView}>
+          <SwipeViewer slides={viewSlides} index={viewIdx} resetKey={String(viewRef)}
+            resolveSrc={(sl) => (sl.ref ? refSrc(sl.ref, kitId, images, extras) : null)}
+            onIndex={(i) => { const r = viewSlides[i] && viewSlides[i].ref; if (!r) return; setViewRef(r); if (viewFrom === "sheet") setSel(r); }}
+            onClose={closeView} />
+        </div>
+      ) : null}
 
       {aiOpen && aiSrc ? (
         <AIRestyleModal src={aiSrc} geminiKey={ai && ai.geminiKey} openaiKey={ai && ai.openaiKey} model={(ai && ai.model) || "gemini-3-pro-image"} prompts={ai && ai.prompts} lastStyle={ai && ai.style} onModel={ai && ai.onModel} onStyle={ai && ai.onStyle}
@@ -5702,7 +5731,7 @@ input,textarea{font-family:var(--sans)}
 .ie-open-btn{width:100%;display:flex;align-items:center;justify-content:center;border:1px solid var(--gold);color:var(--gold);background:rgba(217,179,106,.06);border-radius:9px;padding:13px 0;font-size:13px;letter-spacing:.04em;cursor:pointer;font-family:inherit}
 .ie-open-btn:active{background:rgba(217,179,106,.13)}
 .ie-bg{position:fixed;inset:0;height:100vh;height:var(--app-vh,100vh);height:100dvh;background:rgba(5,7,12,.92);z-index:70;display:flex;align-items:center;justify-content:center;padding:max(env(safe-area-inset-top),2.4vh) 12px max(env(safe-area-inset-bottom),2.4vh)}
-.ie-panel{position:relative;width:100%;max-width:520px;min-height:min(560px,100%);max-height:100%;background:var(--bg);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+.ie-panel{position:relative;width:100%;max-width:520px;min-height:min(640px,100%);max-height:100%;background:var(--bg);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
 /* ── 編集室 ATELIER ── */
 .ie-head{flex:none;position:relative;padding:15px 16px 11px;background:linear-gradient(180deg,var(--bg2),var(--bg));border-bottom:1px solid var(--line)}
 .ie-head .sm-head{margin-bottom:0}
@@ -5752,7 +5781,7 @@ input,textarea{font-family:var(--sans)}
 /* シート共通 */
 .ie-dim{position:absolute;inset:0;background:rgba(6,8,12,.62);z-index:8;display:flex;align-items:flex-end;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);animation:ie-fade .18s ease}
 @keyframes ie-fade{from{opacity:0}to{opacity:1}}
-.ie-sheet{position:relative;width:100%;max-height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;background:linear-gradient(180deg,var(--panel2),var(--panel));border-radius:20px 20px 0 0;padding:8px 18px calc(22px + env(safe-area-inset-bottom));box-shadow:0 -16px 44px rgba(0,0,0,.55);animation:ie-rise .26s cubic-bezier(.2,.9,.3,1)}
+.ie-sheet{position:relative;width:100%;max-height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;background:linear-gradient(180deg,var(--panel2),var(--panel));border-radius:20px 20px 0 0;padding:8px 18px calc(10px + env(safe-area-inset-bottom));box-shadow:0 -16px 44px rgba(0,0,0,.55);animation:ie-rise .26s cubic-bezier(.2,.9,.3,1)}
 @keyframes ie-rise{from{transform:translateY(16px);opacity:.5}to{transform:translateY(0);opacity:1}}
 .ie-grip{width:40px;height:4px;border-radius:2px;background:var(--line-soft);margin:4px auto 14px}
 .ie-sh-h{font-family:var(--serif);font-weight:600;font-size:14px;margin-bottom:12px;text-align:center}
@@ -5768,7 +5797,7 @@ input,textarea{font-family:var(--sans)}
 .ie-urlrow button{flex:none;border:1px solid var(--gold);color:var(--gold);background:rgba(217,179,106,.06);border-radius:9px;padding:0 18px;font-size:13px;cursor:pointer}
 .ie-urlrow button:active{background:rgba(217,179,106,.14)}
 /* 大プレビュー */
-.ie-pv{position:relative;width:100%;height:min(34vh,248px);border-radius:14px;overflow:hidden;background:#0c1016;border:1px solid var(--line);margin-bottom:12px;display:flex;align-items:center;justify-content:center}
+.ie-pv{position:relative;width:100%;height:min(46vh,380px);border-radius:14px;overflow:hidden;background:#0c1016;border:1px solid var(--line);margin-bottom:12px;display:flex;align-items:center;justify-content:center}
 .ie-pv img{width:100%;height:100%;object-fit:cover}
 .ie-pv.full img.ie-pv-img{width:100%;height:100%;object-fit:contain}
 /* 画像情報シート:メッセージ(タイトル/メタ/操作)を常時全表示し、余白の上下スクロールを出さない。
