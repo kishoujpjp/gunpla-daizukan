@@ -1608,6 +1608,7 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
   const baseRefs = albumRefs(kitId, images, extras, albumMeta);
   const baseKey = baseRefs.join("|");
   const [order, setOrder] = useState(baseRefs);
+  const [cols, setCols] = useState(2); // 工房グリッドの列数(2 / 3)
   const orderRef = useRef(order);
   const dragRef = useRef(null);
   useEffect(() => { orderRef.current = order; }, [order]);
@@ -1751,25 +1752,30 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
           <div className="ie-headline" />
           <div className="ie-headrow">
             <div className="ie-headl">
-              <div className="ie-eyebrow">ATELIER</div>
-              <div className="ie-title">工房<small>{[kit.code || kit.name, kit.grade].filter(Boolean).join(" · ")}</small></div>
+              <div className="ie-eyebrow">ATELIER · 画像編集</div>
+              <div className="ie-title">編集室<small>{[kit.code || kit.name, kit.grade].filter(Boolean).join(" · ")}</small></div>
             </div>
             <button className="ie-x" onClick={onClose}>×</button>
           </div>
         </div>
-        <div className="ie-bar"><span className="ie-cnt">{order.length}<i>枚</i></span><span className="ie-hint"><span className="g">⠿</span> ドラッグで並べ替え · 先頭が封面</span></div>
+        <div className="ie-bar">
+          <span className="ie-cnt">{order.length}<i>枚</i></span>
+          <span className="ie-hint"><span className="g">⠿</span> ドラッグで並べ替え · 先頭が封面</span>
+          <span className="ie-cols">
+            <button type="button" className={"ie-colbtn" + (cols === 2 ? " on" : "")} onClick={() => setCols(2)} aria-label="2列">▥</button>
+            <button type="button" className={"ie-colbtn" + (cols === 3 ? " on" : "")} onClick={() => setCols(3)} aria-label="3列">▦</button>
+          </span>
+        </div>
         <div className="ie-scroll" onPointerMove={onGridMove} onPointerUp={onGridUp} onPointerCancel={onGridUp} onPointerLeave={onGridUp}>
-          <div className="ie-grid">
+          <div className={"ie-grid" + (cols === 3 ? " c3" : "")}>
             {order.map((ref) => {
               const src = refSrc(ref, kitId, images, extras);
-              const ml = metaLine(ref);
               const fr = framingStyle((albumMeta[kitId] && albumMeta[kitId].framing && albumMeta[kitId].framing[ref]) || null);
               return (
                 <div key={ref} ref={(el) => { if (el) tileEls.current[ref] = el; else delete tileEls.current[ref]; }} data-ref={ref} className={"ie-tile" + (dragId === ref ? " drag" : "")} onClick={() => { if (!dragId) setSel(ref); }}>
                   {src ? <img src={src} alt="" className="ie-img" style={fr} draggable={false} /> : <div className="ie-img blank" />}
                   <button type="button" className="ie-drag" onPointerDown={onHandleDown(ref)} onClick={(e) => e.stopPropagation()}>⠿</button>
                   {ref === thumbR ? <span className="ie-cover">封面</span> : null}
-                  <div className="ie-tfoot"><span className={ml.cls}>{ml.text}</span>{ml.date ? <span className="ie-dt"> · {ml.date}</span> : null}</div>
                 </div>
               );
             })}
@@ -1886,7 +1892,8 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
       <div className="f-sec">画像<span>IMAGES</span></div>
       {albumMode ? (
         <button type="button" className="ie-open-btn" onClick={() => { if (onEditImages) onEditImages(); }}>
-          ✎ 工房{album && album.length ? `（${album.length}枚）` : ""}
+          <svg className="bico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M16 3l5 5-9 9-5-5z" /><path d="M7 12l-2.5 2.5a2.1 2.1 0 0 0 3 3L10 15" /></svg>
+          編集{album && album.length ? `（${album.length}枚）` : ""}
         </button>
       ) : (
       <div className="form-img-row">
@@ -2244,6 +2251,20 @@ export default function App() {
     };
   };
   const consumeLP = () => { if (lpRef.current.fired) { lpRef.current.fired = false; return true; } return false; };
+  /* 画像領域の長押し=工房(編集室)へ直行。stopPropagation でカード本体の長押し(予定切替)を抑止。
+     短タップは伝播させてカードの onClick(詳細表示)に委ねる。 */
+  const imgPress = (kitId) => {
+    const lp = makeLongPress(() => { hapticStrong(); setImgEdit(kitId); });
+    return {
+      onTouchStart: (e) => { e.stopPropagation(); lp.onTouchStart(); },
+      onTouchEnd: lp.onTouchEnd,
+      onTouchMove: lp.onTouchMove,
+      onMouseDown: (e) => { e.stopPropagation(); lp.onMouseDown(); },
+      onMouseUp: lp.onMouseUp,
+      onMouseLeave: lp.onMouseLeave,
+      onContextMenu: (e) => e.preventDefault(),
+    };
+  };
 
   /* ── 載入永續資料 ── */
   useEffect(() => {
@@ -3667,7 +3688,7 @@ export default function App() {
     if (salonView) {
       return (
         <button key={kit.id} className={`sl-card ${dim ? "dim" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""} ${rec.buildDate ? "built" : ""}`} onClick={onCardClick} {...longPress}>
-          <div className="sl-frame">
+          <div className="sl-frame" {...imgPress(kit.id)}>
             {settings.showGrade && kit.grade ? <span className="sl-grade">{kit.grade}</span> : null}
             {img
               ? <img className="sl-img" src={img} alt={kit.name} loading="lazy" decoding="async"
@@ -3691,7 +3712,7 @@ export default function App() {
       return (
         <div key={kit.id} className="kz-rowscroll">
           <button className={`kz-row ${dim ? "dim" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""} ${rec.buildDate ? "built" : ""}`} onClick={onCardClick} {...longPress}>
-            <div className="kz-rframe">
+            <div className="kz-rframe" {...imgPress(kit.id)}>
               {img
                 ? <KitImage kit={kit} img={img} owned={rec.owned} built={!!rec.buildDate} size={88} cls="sm" frame={thumbFrameStyle(kit.id)} />
                 : <SeriesWatermark kit={kit} variant="list" />}
@@ -3736,7 +3757,7 @@ export default function App() {
       <button key={kit.id} className={`kz-card ${dim ? "dim" : ""} ${settings.compact ? "compact" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""} ${rec.buildDate ? "built" : ""}`} onClick={onCardClick} {...longPress}>
         {noLine && <div className="kz-no">{noLine}</div>}
         {rec.buildDate ? <span className="kz-seal">済</span> : rec.plan ? <span className="kz-plan">予</span> : null}
-        <div className="kz-frame">
+        <div className="kz-frame" {...imgPress(kit.id)}>
           <KitImage kit={kit} img={img} owned={rec.owned} built={!!rec.buildDate} size={settings.compact ? 56 : 78} frame={thumbFrameStyle(kit.id)} />
           {kit.premium && <span className="line-chip pb corner-pb">プレバン</span>}
           {kit.base && <span className="line-chip base corner-base">ベース</span>}
@@ -4598,9 +4619,10 @@ export default function App() {
                         <span className="dc-unref">REF · {detailKit.code || (detailKit.no !== "—" ? "No." + detailKit.no : "—")}</span>
                       </div>}
                   {acquireSrc(detailKit.id) ? <span className="dc-seal">鑑定済</span> : null}
-                  {acquireSrc(detailKit.id) && (
-                    <button className="dc-frame-btn" onClick={(e) => { e.stopPropagation(); setImgEdit(detailKit.id); }}>✎ 工房</button>
-                  )}
+                  <button className="dc-frame-btn" onClick={(e) => { e.stopPropagation(); setImgEdit(detailKit.id); }}>
+                    <svg className="bico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M16 3l5 5-9 9-5-5z" /><path d="M7 12l-2.5 2.5a2.1 2.1 0 0 0 3 3L10 15" /></svg>
+                    編集
+                  </button>
                 </div>
                 <div className="dc-spec" onClick={closeDetail}>
                   <div className="dc-srow"><span className="dc-k">原作</span><span className="dc-v">{detailKit.series || "—"}</span></div>
@@ -5403,7 +5425,7 @@ input,textarea{font-family:var(--sans)}
 .form{display:flex;flex-direction:column;gap:12px}
 .form-img-row{display:flex;gap:14px;align-items:flex-start}
 .form-album{display:flex;flex-direction:column;gap:9px}
-.ie-open-btn{width:100%;border:1px solid var(--gold);color:var(--gold);background:rgba(217,179,106,.06);border-radius:9px;padding:13px 0;font-size:13px;letter-spacing:.04em;cursor:pointer;font-family:inherit}
+.ie-open-btn{width:100%;display:flex;align-items:center;justify-content:center;border:1px solid var(--gold);color:var(--gold);background:rgba(217,179,106,.06);border-radius:9px;padding:13px 0;font-size:13px;letter-spacing:.04em;cursor:pointer;font-family:inherit}
 .ie-open-btn:active{background:rgba(217,179,106,.13)}
 .ie-bg{position:fixed;inset:0;background:rgba(5,7,12,.92);z-index:70;display:flex;align-items:stretch;justify-content:center}
 .ie-panel{position:relative;width:100%;max-width:520px;height:100%;background:var(--bg);border-left:1px solid var(--line);border-right:1px solid var(--line);overflow:hidden;display:flex;flex-direction:column}
@@ -5416,13 +5438,18 @@ input,textarea{font-family:var(--sans)}
 .ie-title small{display:block;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;color:var(--ink-mid);letter-spacing:.08em;margin-top:6px;font-weight:400}
 .ie-x{flex:none;color:var(--ink-mid);font-size:24px;width:36px;height:36px;line-height:1;border-radius:9px}
 .ie-x:active{background:rgba(255,255,255,.05);transform:scale(.92)}
-.ie-bar{flex:none;display:flex;justify-content:space-between;align-items:center;padding:8px 18px;font-size:11px;color:var(--ink-mid);border-bottom:1px solid var(--line-soft);background:var(--panel)}
-.ie-cnt{font-family:var(--serif);font-size:15px;color:var(--ink-strong);font-weight:700}
+.ie-bar{flex:none;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 18px;font-size:11px;color:var(--ink-mid);border-bottom:1px solid var(--line-soft);background:var(--panel)}
+.ie-cnt{flex:none;font-family:var(--serif);font-size:15px;color:var(--ink-strong);font-weight:700}
 .ie-cnt i{font-size:10px;color:var(--ink-mid);margin-left:2px;font-style:normal;font-weight:400}
-.ie-hint{letter-spacing:.03em}
+.ie-hint{flex:1;min-width:0;letter-spacing:.03em;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ie-cols{flex:none;display:inline-flex;gap:4px}
+.ie-colbtn{width:30px;height:26px;border:1px solid var(--line);border-radius:7px;background:var(--bg2);color:var(--ink-mid);font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center;transition:color .14s,border-color .14s,background .14s}
+.ie-colbtn.on{color:var(--gold);border-color:var(--gold);background:rgba(217,179,106,.1)}
 .ie-bar .g{color:var(--gold)}
 .ie-scroll{flex:1;min-height:0;overflow-y:auto;padding:14px 14px 28px;touch-action:pan-y}
 .ie-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ie-grid.c3{grid-template-columns:1fr 1fr 1fr;gap:9px}
+.bico{width:13px;height:13px;display:inline-block;vertical-align:-2px;margin-right:5px;flex:none}
 .ie-tile{position:relative;border-radius:13px;overflow:hidden;border:1px solid var(--line);aspect-ratio:1/1.04;background:linear-gradient(150deg,var(--panel2),#10141a);padding:0;cursor:pointer;user-select:none;-webkit-user-select:none;transition:transform .14s ease,border-color .16s ease,box-shadow .16s ease}
 .ie-tile:not(.drag):active{transform:scale(.975);filter:brightness(.96)}
 .ie-tile.drag{border-color:var(--gold);background:rgba(217,179,106,.05)}
@@ -6743,7 +6770,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .dc-art.owned{border-color:var(--hair)}
 .dc-frame{width:100%;height:100%;display:flex;align-items:center;justify-content:center;cursor:zoom-in;position:relative}
 .dc-frame .kit-img.tc{width:100%;height:100%;object-fit:cover}
-.dc-frame-btn{position:absolute;bottom:9px;right:9px;z-index:4;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;color:var(--gold);background:rgba(13,16,24,.72);border:1px solid var(--hair);border-radius:2px;padding:5px 10px;cursor:pointer}
+.dc-frame-btn{position:absolute;bottom:9px;right:9px;z-index:4;display:inline-flex;align-items:center;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;color:var(--gold);background:rgba(13,16,24,.72);border:1px solid var(--hair);border-radius:2px;padding:5px 10px;cursor:pointer}
 .dc-seal{position:absolute;top:11px;right:11px;z-index:4;transform:rotate(-5deg);font-family:var(--serif);font-weight:800;writing-mode:vertical-rl;font-size:13px;letter-spacing:.12em;color:#c8503a;border:2px solid #c8503a;border-radius:2px;padding:8px 5px;background:rgba(200,80,58,.08);box-shadow:0 0 0 1px rgba(200,80,58,.12)}
 .dc-plan{position:absolute;top:11px;right:11px;z-index:4;font-family:var(--mono);font-size:12px;font-weight:700;color:var(--gold);border:1px dashed var(--gold);background:rgba(217,179,106,.05);border-radius:2px;padding:5px 6px;writing-mode:vertical-rl;letter-spacing:.06em}
 .dc-classified{position:relative;width:100%;height:100%;background:#0a0d13;box-shadow:inset 0 0 34px 10px rgba(0,0,0,.6);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px}
