@@ -3586,6 +3586,16 @@ export default function App() {
   const planAll = allKits.filter((k) => getRec(k.id).plan).length;
   const collectPct = Math.round((ownedAll / Math.max(1, allKits.length)) * 100);
   const futurePct = Math.round(((ownedAll + planAll) / Math.max(1, allKits.length)) * 100);
+  const builtPct = Math.round((builtAll / Math.max(1, ownedAll)) * 100); // 完成率:完成÷所持
+  // 繪測卷ヘッダ用:撮影数(機体画像の総数)と 撮影率(画像ありの機体 / 全収録)。
+  const imgStats = useMemo(() => {
+    let total = 0, kitsWith = 0;
+    for (const k of allKits) {
+      const n = albumRefs(k.id, images, extras, albumMeta).filter((ref) => refSrc(ref, k.id, images, extras)).length;
+      if (n) { kitsWith++; total += n; }
+    }
+    return { total, kitsWith, pct: Math.round((kitsWith / Math.max(1, allKits.length)) * 100) };
+  }, [allKits, images, extras, albumMeta]);
   const planKits = sorted.filter((k) => getRec(k.id).plan);
   const planVisible = planKits.slice(0, paintLimit);
 
@@ -4097,9 +4107,14 @@ export default function App() {
             : { jp: "管理档案", en: "ADMINISTRATION" };
           const isPlan = tab === "collection" && collMode === "plan";
           const isDecor = tab === "analysis" && anaMode === "record";
+          const isSalon = tab === "zukan" && zukanMode === "salon";
           const titlesGot = titles.filter((t) => t.unlocked).length;
           const titlesPct = Math.round((titlesGot / Math.max(1, titles.length)) * 100);
-          const pct = isDecor ? titlesPct : isPlan ? futurePct : collectPct;
+          const pct = isDecor ? titlesPct
+            : isPlan ? futurePct
+            : isSalon ? imgStats.pct
+            : tab === "collection" ? builtPct
+            : collectPct;
           return (
             <div className="hf" role="button" tabIndex={0}
               onClick={() => { haptic(); if (bodyRef.current) bodyRef.current.scrollTo({ top: 0, behavior: "smooth" }); }}>
@@ -4134,13 +4149,21 @@ export default function App() {
                         <div className="hf-div" />
                         <div className="s"><b className="kin"><Roll value={futurePct} resetKey={arc.jp} />%</b><span>収集率</span></div>
                       </>
+                    ) : isSalon ? (
+                      <>
+                        <div className="s"><b><Roll value={allKits.length} resetKey={arc.jp} /></b><span>収録</span></div>
+                        <div className="hf-div" />
+                        <div className="s"><b className="kin"><Roll value={imgStats.total} resetKey={arc.jp} /></b><span>撮影数</span></div>
+                        <div className="hf-div" />
+                        <div className="s"><b className="kin"><Roll value={imgStats.pct} resetKey={arc.jp} />%</b><span>撮影率</span></div>
+                      </>
                     ) : (
                       <>
                         <div className="s"><b><Roll value={tab === "collection" ? ownedAll : allKits.length} resetKey={arc.jp} /></b><span>{tab === "collection" ? "収蔵" : "収録"}</span></div>
                         <div className="hf-div" />
                         <div className="s"><b><Roll value={tab === "collection" ? builtAll : ownedAll} resetKey={arc.jp} /></b><span>{tab === "collection" ? "完成" : "入手"}</span></div>
                         <div className="hf-div" />
-                        <div className="s"><b><Roll value={collectPct} resetKey={arc.jp} />%</b><span>収集率</span></div>
+                        <div className="s"><b><Roll value={tab === "collection" ? builtPct : collectPct} resetKey={arc.jp} />%</b><span>{tab === "collection" ? "完成率" : "収集率"}</span></div>
                       </>
                     )}
                   </div>
