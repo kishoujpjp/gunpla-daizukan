@@ -216,6 +216,62 @@ if (typeof window !== "undefined" && !window.__mgErrHook) {
   });
 }
 
+/* ── Web フォントを非ブロッキングで注入(旧 @import の置換)──
+   media="print"→onload で "all" に切替える定石。CDN 失敗(オフライン等)は
+   onerror で握り潰し、CSS のフォールバック書体に委ねる。@import と違い
+   初回ペイントを止めない。 */
+if (typeof document !== "undefined" && typeof window !== "undefined" && !window.__mgFonts) {
+  window.__mgFonts = true;
+  try {
+    const PRECONN = ["https://fonts.googleapis.com", "https://fonts.gstatic.com", "https://cdn.jsdelivr.net"];
+    PRECONN.forEach((href) => {
+      const l = document.createElement("link");
+      l.rel = "preconnect"; l.href = href; l.crossOrigin = "";
+      document.head.appendChild(l);
+    });
+    const FONTS = [
+      "https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap",
+      "https://fonts.googleapis.com/css2?family=Lugrasimo&display=swap",
+      "https://fonts.googleapis.com/css2?family=STIX+Two+Math&display=swap",
+      "https://cdn.jsdelivr.net/npm/lxgw-wenkai-tc-webfont/style.css",
+      "https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont/style.css",
+    ];
+    FONTS.forEach((href) => {
+      const l = document.createElement("link");
+      l.rel = "stylesheet"; l.href = href; l.media = "print";
+      l.onload = function () { this.media = "all"; };
+      l.onerror = function () { /* オフライン/CDN 不達:フォールバック書体に委ねる */ };
+      document.head.appendChild(l);
+    });
+  } catch (e) {}
+}
+
+/* ── iOS 向け viewport 正規化 ──
+   1) viewport-fit=cover を強制 → env(safe-area-inset-*) が 0 にならず、ノッチ/ホーム
+      インジケータ回避(本アプリは safe-area を多用)。index.html に cover が無い場合の保険。
+   2) maximum-scale=1 → 入力フォーカス時の iOS オートズーム(縮小されず版面がずれる不具合)を抑止。
+      画像の拡大は本アプリ独自のピンチズームで担保済み。
+   既存 content の他キーは保持し、上記2点のみ上書き/追加する。 */
+if (typeof document !== "undefined" && typeof window !== "undefined" && !window.__mgViewport) {
+  window.__mgViewport = true;
+  try {
+    let m = document.querySelector('meta[name="viewport"]');
+    if (!m) { m = document.createElement("meta"); m.setAttribute("name", "viewport"); document.head.appendChild(m); }
+    const parts = new Map();
+    (m.getAttribute("content") || "").split(",").forEach((p) => {
+      const i = p.indexOf("=");
+      const k = (i < 0 ? p : p.slice(0, i)).trim();
+      const v = i < 0 ? "" : p.slice(i + 1).trim();
+      if (k) parts.set(k, v);
+    });
+    if (!parts.has("width")) parts.set("width", "device-width");
+    if (!parts.has("initial-scale")) parts.set("initial-scale", "1");
+    parts.set("viewport-fit", "cover");
+    parts.set("maximum-scale", "1");
+    m.setAttribute("content", [...parts].map(([k, v]) => (v ? k + "=" + v : k)).join(", "));
+  } catch (e) {}
+}
+
 /* ── 圖像不存在時的抽象簡筆畫(種子化變化) ── */
 function MechSketch({ seedKey, owned, built, size = 84 }) {
   const h = hashId(seedKey);
@@ -3215,11 +3271,16 @@ export default function App() {
       catch (e) { if (e && e.name === "AbortError") return; }
     }
     const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
+    a.href = url;
     a.download = name;
+    a.rel = "noopener";
+    a.style.display = "none";
+    document.body.appendChild(a); // 一部ブラウザ(Firefox 等)は DOM 接続が必要
     a.click();
-    URL.revokeObjectURL(a.href);
+    // 即時 revoke は一部端末でダウンロードを取り消すため遅延。要素も後始末。
+    setTimeout(() => { try { URL.revokeObjectURL(url); a.remove(); } catch (e) {} }, 1500);
   };
   const importData = async (e) => {
     const f = e.target.files && e.target.files[0];
@@ -5120,12 +5181,8 @@ export default function App() {
 
 /* ───────────── 樣式 ───────────── */
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Lugrasimo&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=STIX+Two+Math&display=swap');
-@import url('https://cdn.jsdelivr.net/npm/lxgw-wenkai-tc-webfont/style.css');
-@import url('https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont/style.css');
-
+/* Web フォントは JS で非ブロッキングに <link> 注入(下部の __mgFonts 参照)。
+   オフライン(offline-first)や CDN 失敗時は下記フォールバック書体に委ねる。 */
 :root{
   --bg:#0d1018; --bg2:#12161f; --panel:#171c28; --panel2:#1c2230;
   --line:#2a3042; --line-soft:#222837;
@@ -5133,7 +5190,7 @@ const CSS = `
   --shu:#e8553d; --shu-deep:#b13a28; --gold:#d9b36a; --teal:#6fd3c7;
   --kin:#d9b36a; --kin-deep:#b8924a; --blue:#6f9fe0;
   --crt-line:#5f9c92;
-  --serif:'Shippori Mincho',serif; --sans:'Zen Kaku Gothic New',sans-serif;
+  --serif:'Shippori Mincho','Hiragino Mincho ProN','Yu Mincho','Noto Serif JP','Noto Serif CJK JP',serif; --sans:'Zen Kaku Gothic New','Hiragino Sans','Hiragino Kaku Gothic ProN',-apple-system,'Yu Gothic','Noto Sans JP','Noto Sans CJK JP',sans-serif;
   --kaiti:"LXGW WenKai TC","LXGW WenKai","Kaiti TC","Kaiti SC","BiauKai","STKaiti","KaiTi","DFKai-SB",serif;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
