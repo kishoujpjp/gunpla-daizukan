@@ -2404,7 +2404,6 @@ export default function App() {
   const [setupBusy, setSetupBusy] = useState(false);
   const [setupMsg, setSetupMsg] = useState("");
   const bodyRef = useRef(null);
-  const pullStartRef = useRef({ y: 0, armed: false });
   const syncTsRef = useRef({});
   const pushTimers = useRef({});
   const supaRef = useRef({ url: "", key: "" });
@@ -2950,23 +2949,6 @@ export default function App() {
       }
     } catch (e) { setSetupMsg("エラー:" + ((e && e.message) || e)); }
     setSetupBusy(false);
-  };
-
-  /* ── 下拉顯示搜尋列 ── */
-  const onBodyTouchStart = (e) => {
-    const el = bodyRef.current;
-    pullStartRef.current = {
-      y: e.touches[0].clientY,
-      armed: !!el && el.scrollTop <= 0 && (tab === "zukan" || tab === "collection") && !searchOpen && !filterOpen,
-    };
-  };
-  const onBodyTouchMove = (e) => {
-    if (!pullStartRef.current.armed) return;
-    if (e.touches[0].clientY - pullStartRef.current.y > 55) {
-      haptic();
-      setFilterOpen(true);
-      pullStartRef.current.armed = false;
-    }
   };
 
   /* ── 下滾自動收回搜尋列:完全滑過後才瞬間收合 + 補償捲動位置,內容零跳動 ── */
@@ -4232,8 +4214,7 @@ export default function App() {
         })()}
       </header>
 
-      <main className="body" ref={bodyRef} onTouchStart={onBodyTouchStart} onTouchMove={onBodyTouchMove}
-        onScroll={onBodyScroll}>
+      <main className="body" ref={bodyRef} onScroll={onBodyScroll}>
         <div key={tab} className="tab-page">
         {tab === "zukan" && (
           <>
