@@ -1609,6 +1609,7 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
   const baseKey = baseRefs.join("|");
   const [order, setOrder] = useState(baseRefs);
   const [cols, setCols] = useState(2); // 工房グリッドの列数(2 / 3)
+  const [srcFilter, setSrcFilter] = useState("all"); // 由来フィルタ: all / photo / ai
   const orderRef = useRef(order);
   const dragRef = useRef(null);
   useEffect(() => { orderRef.current = order; }, [order]);
@@ -1749,18 +1750,19 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
     <div className="ie-bg" onClick={onClose}>
       <div className="ie-panel" onClick={(e) => e.stopPropagation()}>
         <div className="ie-head">
-          <div className="ie-headline" />
-          <div className="ie-headrow">
-            <div className="ie-headl">
-              <div className="ie-eyebrow">ATELIER · 画像編集</div>
-              <div className="ie-title">編集室<small>{[kit.code || kit.name, kit.grade].filter(Boolean).join(" · ")}</small></div>
-            </div>
-            <button className="ie-x" onClick={onClose}>×</button>
+          <div className="sm-head">
+            <span className="sm-title">画像<em>編集</em> <span className="sm-eyebrow">atelier</span></span>
+            <button className="modal-x static" onClick={onClose}>✕</button>
           </div>
+          {[kit.code || kit.name, kit.grade].filter(Boolean).length ? <div className="ie-subcode">{[kit.code || kit.name, kit.grade].filter(Boolean).join(" · ")}</div> : null}
         </div>
         <div className="ie-bar">
           <span className="ie-cnt">{order.length}<i>枚</i></span>
-          <span className="ie-hint"><span className="g">⠿</span> ドラッグで並べ替え · 先頭が封面</span>
+          <span className="ie-srcfilter">
+            {[["all", "全"], ["photo", "写真"], ["ai", "AI"]].map(([v, l]) => (
+              <button key={v} type="button" className={"ie-sfbtn" + (srcFilter === v ? " on" : "")} onClick={() => setSrcFilter(v)}>{l}</button>
+            ))}
+          </span>
           <span className="ie-cols">
             <button type="button" className={"ie-colbtn" + (cols === 2 ? " on" : "")} onClick={() => setCols(2)} aria-label="2列">▥</button>
             <button type="button" className={"ie-colbtn" + (cols === 3 ? " on" : "")} onClick={() => setCols(3)} aria-label="3列">▦</button>
@@ -1768,20 +1770,26 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
         </div>
         <div className="ie-scroll" onPointerMove={onGridMove} onPointerUp={onGridUp} onPointerCancel={onGridUp} onPointerLeave={onGridUp}>
           <div className={"ie-grid" + (cols === 3 ? " c3" : "")}>
-            {order.map((ref) => {
+            {(srcFilter === "all" ? order : order.filter((ref) => {
+              const m = imgMetaFrom(albumMeta, kitId, ref);
+              const s = m && m.src === "ai" ? "ai" : "photo";
+              return s === srcFilter;
+            })).map((ref) => {
               const src = refSrc(ref, kitId, images, extras);
               const fr = framingStyle((albumMeta[kitId] && albumMeta[kitId].framing && albumMeta[kitId].framing[ref]) || null);
               return (
                 <div key={ref} ref={(el) => { if (el) tileEls.current[ref] = el; else delete tileEls.current[ref]; }} data-ref={ref} className={"ie-tile" + (dragId === ref ? " drag" : "")} onClick={() => { if (!dragId) setSel(ref); }}>
                   {src ? <img src={src} alt="" className="ie-img" style={fr} draggable={false} /> : <div className="ie-img blank" />}
-                  <button type="button" className="ie-drag" onPointerDown={onHandleDown(ref)} onClick={(e) => e.stopPropagation()}>⠿</button>
+                  {srcFilter === "all" && <button type="button" className="ie-drag" onPointerDown={onHandleDown(ref)} onClick={(e) => e.stopPropagation()}>⠿</button>}
                   {ref === thumbR ? <span className="ie-cover">封面</span> : null}
                 </div>
               );
             })}
+            {srcFilter === "all" && (
             <button data-ref="add" className="ie-tile add" onClick={() => setAddOpen(true)} disabled={busy}>
               <span className="ie-plus">{busy ? "…" : "＋"}</span><span className="ie-addl">画像を追加</span><span className="ie-addo">カメラ / アルバム / URL</span>
             </button>
+            )}
           </div>
         </div>
 
@@ -1805,8 +1813,9 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
           <div className="ie-dim" onClick={closeSheet}>
             <div className="ie-sheet sel" onClick={(e) => e.stopPropagation()}>
               <div className="ie-grip" />
-              <div className="ie-pv">
-                {selSrc ? <img src={selSrc} alt="" style={selFr} /> : <div className="ie-pv-blank" />}
+              <div className="ie-sh-title">画像情報</div>
+              <div className="ie-pv full">
+                {selSrc ? <img src={selSrc} alt="" className="ie-pv-img" /> : <div className="ie-pv-blank" />}
                 <span className="ie-pv-idx">{selIdx >= 0 ? selIdx + 1 : "—"}<i> / {order.length}</i></span>
                 {sel === thumbR ? <span className="ie-pv-cover">封面</span> : null}
               </div>
@@ -1889,54 +1898,35 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
 
   return (
     <div className="form">
-      <div className="f-sec">画像<span>IMAGES</span></div>
-      {albumMode ? (
-        <button type="button" className="ie-open-btn" onClick={() => { if (onEditImages) onEditImages(); }}>
-          <svg className="bico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M16 3l5 5-9 9-5-5z" /><path d="M7 12l-2.5 2.5a2.1 2.1 0 0 0 3 3L10 15" /></svg>
-          編集{album && album.length ? `（${album.length}枚）` : ""}
-        </button>
-      ) : (
-      <div className="form-img-row">
-        <div className="form-img-box">
-          {previewImg
-            ? <img src={previewImg} alt="" className="kit-img big" />
-            : <MechSketch seedKey={initial.id || f.name || "new"} owned built={false} size={72} />}
-        </div>
-        <div className="form-img-btns">
-          <button className="mini-btn" onClick={() => fileRef.current && fileRef.current.click()} disabled={busy}>
-            {busy ? "読込中…" : "画像をアップロード"}
-          </button>
-          <div className="url-row">
-            <input placeholder="または画像URLを貼り付け" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} />
-            <button className="mini-btn" onClick={() => { if (urlInput.trim()) { setImgVal(urlInput.trim()); setUrlInput(""); } }}>適用</button>
+      {!albumMode && (
+        <>
+          <div className="f-sec">画像<span>IMAGES</span></div>
+          <div className="form-img-row">
+            <div className="form-img-box">
+              {previewImg
+                ? <img src={previewImg} alt="" className="kit-img big" />
+                : <MechSketch seedKey={initial.id || f.name || "new"} owned built={false} size={72} />}
+            </div>
+            <div className="form-img-btns">
+              <button className="mini-btn" onClick={() => fileRef.current && fileRef.current.click()} disabled={busy}>
+                {busy ? "読込中…" : "画像をアップロード"}
+              </button>
+              <div className="url-row">
+                <input placeholder="または画像URLを貼り付け" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} />
+                <button className="mini-btn" onClick={() => { if (urlInput.trim()) { setImgVal(urlInput.trim()); setUrlInput(""); } }}>適用</button>
+              </div>
+              <button className="mini-btn ai" onClick={() => {
+                if (!previewImg) { notify("先に画像を設定してください", { kind: "warn" }); return; }
+                if (!aiActiveKey(ai)) { notify(aiProviderLabel(ai && ai.model) + " のAPIキーを設定タブで入力してください", { kind: "warn", dur: 3200 }); return; }
+                setAiOpen(true);
+              }}>✨ AIスタイル変換</button>
+              {previewImg && <button className="mini-btn" onClick={() => setCropSrc(previewImg)}>✂ 切り抜き</button>}
+              {previewImg && <button className="mini-btn ghost" onClick={() => setImgVal(null)}>画像を削除(スケッチに戻す)</button>}
+              <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={pickFile} />
+            </div>
           </div>
-          <button className="mini-btn ai" onClick={() => {
-            if (!previewImg) { notify("先に画像を設定してください", { kind: "warn" }); return; }
-            if (!aiActiveKey(ai)) { notify(aiProviderLabel(ai && ai.model) + " のAPIキーを設定タブで入力してください", { kind: "warn", dur: 3200 }); return; }
-            setAiOpen(true);
-          }}>✨ AIスタイル変換</button>
-          {previewImg && <button className="mini-btn" onClick={() => setCropSrc(previewImg)}>✂ 切り抜き</button>}
-          {previewImg && <button className="mini-btn ghost" onClick={() => setImgVal(null)}>画像を削除(スケッチに戻す)</button>}
-          <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={pickFile} />
-        </div>
-      </div>
+        </>
       )}
-
-      <div className="f-sec">記録<span>RECORD</span></div>
-      <div className="form-dates">
-        <label className="fld"><span>購入日</span>
-          <span className="date-wrap">
-            <input type="date" value={dates.purchaseDate} onChange={(e) => setDates((d) => ({ ...d, purchaseDate: e.target.value }))} />
-            {dates.purchaseDate && <button type="button" className="date-clear" onClick={() => setDates((d) => ({ ...d, purchaseDate: "" }))}>✕</button>}
-          </span>
-        </label>
-        <label className="fld"><span>制作完了日</span>
-          <span className="date-wrap">
-            <input type="date" value={dates.buildDate} onChange={(e) => setDates((d) => ({ ...d, buildDate: e.target.value }))} />
-            {dates.buildDate && <button type="button" className="date-clear" onClick={() => setDates((d) => ({ ...d, buildDate: "" }))}>✕</button>}
-          </span>
-        </label>
-      </div>
 
       <div className="f-sec">基本情報<span>BASIC</span></div>
       <div className="fld-row name-row">
@@ -1969,6 +1959,22 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
         </div>
       </div>
       <label className="fld"><span>メモ</span><textarea rows={2} value={f.note} onChange={set("note")} placeholder="改修予定、塗装レシピ、保管場所など" /></label>
+
+      <div className="f-sec">記録<span>RECORD</span></div>
+      <div className="form-dates">
+        <label className="fld"><span>購入日</span>
+          <span className="date-wrap">
+            <input type="date" value={dates.purchaseDate} onChange={(e) => setDates((d) => ({ ...d, purchaseDate: e.target.value }))} />
+            {dates.purchaseDate && <button type="button" className="date-clear" onClick={() => setDates((d) => ({ ...d, purchaseDate: "" }))}>✕</button>}
+          </span>
+        </label>
+        <label className="fld"><span>制作完了日</span>
+          <span className="date-wrap">
+            <input type="date" value={dates.buildDate} onChange={(e) => setDates((d) => ({ ...d, buildDate: e.target.value }))} />
+            {dates.buildDate && <button type="button" className="date-clear" onClick={() => setDates((d) => ({ ...d, buildDate: "" }))}>✕</button>}
+          </span>
+        </label>
+      </div>
 
       <div className="form-actions">
         <button className="btn primary" disabled={!f.name.trim()}
@@ -3834,7 +3840,7 @@ export default function App() {
 
       <header className="head">
         {(() => {
-          const arc = tab === "zukan" ? (zukanMode === "salon" ? { jp: "絵測档案", en: "SALON" } : { jp: "機体档案", en: "REGISTRY" })
+          const arc = tab === "zukan" ? (zukanMode === "salon" ? { jp: "絵測档案", en: "GALLERY" } : { jp: "機体档案", en: "REGISTRY" })
             : tab === "collection" ? (collMode === "plan" ? { jp: "発注档案", en: "REQUISITION" } : { jp: "収蔵档案", en: "HOLDINGS" })
             : tab === "analysis" ? (anaMode === "analysis" ? { jp: "観測档案", en: "ANALYSIS" } : { jp: "叙勲档案", en: "DECORATIONS" })
             : { jp: "管理档案", en: "ADMINISTRATION" };
@@ -4592,7 +4598,8 @@ export default function App() {
 
       {detailKit && (
         <div className="modal-bg" onClick={closeDetail}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal dc-modal" onClick={(e) => e.stopPropagation()}>
+            {!editing && <button className="dc-x" onClick={(e) => { e.stopPropagation(); closeDetail(); }} aria-label="閉じる">✕</button>}
             {!editing ? (
               <>
                 <div className="dc-head">
@@ -5427,10 +5434,12 @@ input,textarea{font-family:var(--sans)}
 .form-album{display:flex;flex-direction:column;gap:9px}
 .ie-open-btn{width:100%;display:flex;align-items:center;justify-content:center;border:1px solid var(--gold);color:var(--gold);background:rgba(217,179,106,.06);border-radius:9px;padding:13px 0;font-size:13px;letter-spacing:.04em;cursor:pointer;font-family:inherit}
 .ie-open-btn:active{background:rgba(217,179,106,.13)}
-.ie-bg{position:fixed;inset:0;background:rgba(5,7,12,.92);z-index:70;display:flex;align-items:stretch;justify-content:center}
-.ie-panel{position:relative;width:100%;max-width:520px;height:100%;background:var(--bg);border-left:1px solid var(--line);border-right:1px solid var(--line);overflow:hidden;display:flex;flex-direction:column}
-/* ── 工房 ATELIER ── */
-.ie-head{flex:none;position:relative;padding:calc(16px + env(safe-area-inset-top)) 18px 13px;background:linear-gradient(180deg,var(--bg2),var(--bg));border-bottom:1px solid var(--line)}
+.ie-bg{position:fixed;inset:0;background:rgba(5,7,12,.92);z-index:70;display:flex;align-items:center;justify-content:center;padding:max(env(safe-area-inset-top),4vh) 12px max(env(safe-area-inset-bottom),4vh)}
+.ie-panel{position:relative;width:100%;max-width:520px;max-height:92vh;background:var(--bg);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+/* ── 編集室 ATELIER ── */
+.ie-head{flex:none;position:relative;padding:15px 16px 11px;background:linear-gradient(180deg,var(--bg2),var(--bg));border-bottom:1px solid var(--line)}
+.ie-head .sm-head{margin-bottom:0}
+.ie-subcode{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;color:var(--ink-mid);letter-spacing:.08em;margin-top:6px}
 .ie-headline{position:absolute;top:0;left:18px;right:18px;height:2px;background:linear-gradient(90deg,var(--shu) 0 52px,var(--line) 52px)}
 .ie-headrow{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .ie-eyebrow{font-size:9px;letter-spacing:.32em;color:var(--ink-mid);margin-bottom:5px}
@@ -5444,6 +5453,10 @@ input,textarea{font-family:var(--sans)}
 .ie-hint{flex:1;min-width:0;letter-spacing:.03em;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ie-cols{flex:none;display:inline-flex;gap:4px}
 .ie-colbtn{width:30px;height:26px;border:1px solid var(--line);border-radius:7px;background:var(--bg2);color:var(--ink-mid);font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center;transition:color .14s,border-color .14s,background .14s}
+.ie-srcfilter{flex:none;display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--bg2)}
+.ie-sfbtn{padding:5px 11px;font-size:11px;letter-spacing:.04em;color:var(--ink-mid);background:transparent;border:0;border-right:1px solid var(--line);line-height:1.4;transition:color .14s,background .14s}
+.ie-sfbtn:last-child{border-right:0}
+.ie-sfbtn.on{color:var(--gold);background:rgba(217,179,106,.12)}
 .ie-colbtn.on{color:var(--gold);border-color:var(--gold);background:rgba(217,179,106,.1)}
 .ie-bar .g{color:var(--gold)}
 .ie-scroll{flex:1;min-height:0;overflow-y:auto;padding:14px 14px 28px;touch-action:pan-y}
@@ -5488,6 +5501,8 @@ input,textarea{font-family:var(--sans)}
 /* 大プレビュー */
 .ie-pv{position:relative;width:100%;height:min(46vh,330px);border-radius:14px;overflow:hidden;background:#0c1016;border:1px solid var(--line);margin-bottom:14px;display:flex;align-items:center;justify-content:center}
 .ie-pv img{width:100%;height:100%;object-fit:cover}
+.ie-pv.full img.ie-pv-img{width:100%;height:100%;object-fit:contain}
+.ie-sh-title{font-family:var(--serif);font-weight:800;font-size:15px;letter-spacing:.06em;color:var(--ink-strong);margin:2px 2px 11px}
 .ie-pv-blank{width:100%;height:100%;background:linear-gradient(140deg,#20262f,#14181f)}
 .ie-pv-idx{position:absolute;left:11px;bottom:11px;font-family:var(--serif);font-weight:700;font-size:16px;color:var(--ink-strong);padding:4px 11px;border-radius:9px;background:rgba(8,10,14,.6);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.12)}
 .ie-pv-idx i{font-size:11px;color:var(--ink-mid);font-weight:400;font-style:normal}
@@ -5946,7 +5961,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 }
 /* ═══ v2.8 ═══ */
 /* 3. 編輯視窗不超出畫面:上邊距縮小+高度上限 */
-.modal{margin-top:4vh;max-height:calc(100dvh - 4vh - 14px - env(safe-area-inset-bottom) - 22px)}
+.modal{margin-top:calc(env(safe-area-inset-top) + 4vh);max-height:calc(100dvh - env(safe-area-inset-top) - 4vh - env(safe-area-inset-bottom) - 18px)}
 
 /* 4. rail頂行:プレバン+No. 下緣與原作行對齊 */
 .row-rail{padding:0 0 3px}
@@ -6763,6 +6778,9 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .kz-rplan{flex:none;font-family:ui-monospace,monospace;font-size:11px;font-weight:700;color:var(--gold);border:1px dashed var(--gold);background:rgba(217,179,106,.05);border-radius:2px;padding:4px 5px;writing-mode:vertical-rl;letter-spacing:.06em}
 /* ═══ 入手頁(機密档案) ═══ */
 .dc-head{padding:2px 0 0}
+.dc-modal{position:relative}
+.dc-x{position:absolute;top:11px;right:11px;z-index:8;width:30px;height:30px;display:flex;align-items:center;justify-content:center;color:var(--ink-dim);font-size:15px;line-height:1;border-radius:8px;background:rgba(8,10,14,.5);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);border:1px solid var(--hair)}
+.dc-x:active{background:rgba(255,255,255,.07);color:var(--ink-strong);transform:scale(.92)}
 .dc-eye{font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;color:var(--ink-mid);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dc-name{font-family:var(--serif);font-weight:800;font-size:25px;line-height:1.25;color:var(--ink-strong);margin-top:6px}
 .dc-rule{height:1px;margin:13px 0 0;background:linear-gradient(90deg,var(--gold),rgba(217,179,106,.05) 75%,transparent)}
