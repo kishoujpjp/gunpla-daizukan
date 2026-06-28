@@ -2206,7 +2206,6 @@ export default function App() {
   const [viewerDel, setViewerDel] = useState(false); // 鑑賞内の削除確認
   const [frameEdit, setFrameEdit] = useState(null); // 構図調整: {kitId, ref} | null
   const [imgEdit, setImgEdit] = useState(null); // 画像編集ウィンドウ対象 kitId | null
-  const [planConfirm, setPlanConfirm] = useState(null); // 予定取消確認 kit
   const [quickKit, setQuickKit] = useState(null); // リスト文字長押しの予定/入手クイックメニュー対象
   const [ownConfirm, setOwnConfirm] = useState(null); // 入手取消確認 kit
   const [loaded, setLoaded] = useState(false);
@@ -3718,22 +3717,11 @@ export default function App() {
     const rec = getRec(kit.id);
     const dim = settings.dimUnowned && !rec.owned && !rec.plan;
     const img = thumbSrc(kit.id);
-    const longPress = makeLongPress(() => {
-      if (rec.owned) { haptic(); return; } // 已入手:無效輕震
-      if (rec.plan && collMode === "plan" && tab === "collection") {
-        // 予定分頁取消予定:確認避免誤刪
-        hapticStrong();
-        setPlanConfirm(kit);
-        return;
-      }
-      hapticStrong();
-      togglePlan(kit.id);
-    });
     const onCardClick = () => { if (consumeLP()) return; setDetail(kit.id); setEditing(false); };
     const sketchCrt = !rec.owned && !img; // 未入手かつ画像なし=ベクター→CRT風に
     if (salonView) {
       return (
-        <button key={kit.id} className={`sl-card ${dim ? "dim" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""} ${rec.buildDate ? "built" : ""}`} onClick={onCardClick} {...longPress}>
+        <button key={kit.id} className={`sl-card ${dim ? "dim" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""} ${rec.buildDate ? "built" : ""}`} onClick={onCardClick}>
           <div className="sl-frame" {...imgPress(kit.id)}>
             {settings.showGrade && kit.grade ? <span className="sl-grade">{kit.grade}</span> : null}
             {img
@@ -3792,7 +3780,7 @@ export default function App() {
       settings.showCode && kit.code,
     ].filter(Boolean).join(" · ");
     return (
-      <button key={kit.id} className={`kz-card ${dim ? "dim" : ""} ${settings.compact ? "compact" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""} ${rec.buildDate ? "built" : ""}`} onClick={onCardClick} {...longPress}>
+      <button key={kit.id} className={`kz-card ${dim ? "dim" : ""} ${settings.compact ? "compact" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""} ${rec.buildDate ? "built" : ""}`} onClick={onCardClick}>
         {noLine && <div className="kz-no">{noLine}</div>}
         {rec.buildDate ? <span className="kz-seal">済</span> : rec.plan ? <span className="kz-plan">予</span> : null}
         <div className="kz-frame" {...imgPress(kit.id)}>
@@ -4503,20 +4491,6 @@ export default function App() {
       {identifyOpen && <KitIdentifyModal allKits={allKits} geminiKey={settings.geminiKey} openaiKey={settings.openaiKey} cameraMode={identifyCam} onAttach={attachPhoto} onClose={() => setIdentifyOpen(false)} />}
 
       {/* ── 詳細 / 編輯彈窗 ── */}
-      {planConfirm && (
-        <div className="modal-bg confirm-bg" onClick={() => setPlanConfirm(null)} style={{ zIndex: 90 }}>
-          <div className="confirm-card" onClick={(e) => e.stopPropagation()}>
-            <div className="confirm-icon">◆</div>
-            <div className="confirm-title">購入予定を解除しますか?</div>
-            <div className="confirm-name">{planConfirm.name}</div>
-            <div className="confirm-btns">
-              <button className="btn" onClick={() => setPlanConfirm(null)}>やめる</button>
-              <button className="btn primary" onClick={() => { togglePlan(planConfirm.id); setPlanConfirm(null); }}>解除する</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {quickKit && (() => {
         const qr = getRec(quickKit.id);
         return (
