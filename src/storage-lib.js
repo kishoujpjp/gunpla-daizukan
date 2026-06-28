@@ -141,13 +141,17 @@ export function imgMetaFrom(albumMeta, kitId, ref) {
    scale∈[1,3]、x/y はビューポート%(中心0)。満版維持のため ±(scale-1)/2*100 にクランプ。 */
 export function clampFraming(fr) {
   if (!fr) return null;
-  const s = Math.min(3, Math.max(1, Number(fr.scale) || 1));
-  const lim = (s - 1) / 2 * 100;
-  const cl = (v) => Math.max(-lim, Math.min(lim, Number(v) || 0));
+  // scale<1 を許可(letterbox=全画像表示)。下限0.2で最大5:1まで全体表示可。
+  const s = Math.min(3, Math.max(0.2, Number(fr.scale) || 1));
+  // 平行移動(%)はelement box基準。letterboxや広い画像の高倍率で大きく振れるため緩い安全域で通す。
+  const cl = (v) => Math.max(-520, Math.min(520, Number(v) || 0));
   return { scale: s, x: cl(fr.x), y: cl(fr.y) };
 }
 export function isDefaultFraming(fr) {
-  return !fr || ((Number(fr.scale) || 1) <= 1.001 && Math.abs(Number(fr.x) || 0) < 0.5 && Math.abs(Number(fr.y) || 0) < 0.5);
+  if (!fr) return true;
+  // scale≈1 かつ無移動のみ既定。scale<1(全画像letterbox)は既定ではない→transformを適用させる。
+  const s = Number(fr.scale) || 1;
+  return Math.abs(s - 1) < 0.005 && Math.abs(Number(fr.x) || 0) < 0.5 && Math.abs(Number(fr.y) || 0) < 0.5;
 }
 export function framingStyle(fr) {
   if (isDefaultFraming(fr)) return undefined;

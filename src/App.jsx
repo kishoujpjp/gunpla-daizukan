@@ -577,76 +577,106 @@ function PinchZoom({ src, alt = "", className = "", imgClassName = "", imgStyle,
 /* ── 構図調整モーダル: ドラッグ平移 + ピンチ/ホイール拡大 + 中央リセット ──
    方形ビューポート内で object-fit:cover の画像を pan/zoom。保存値は {scale,x,y}。原画像は無加工。 */
 function FramingEditor({ src, initial, onSave, onCancel }) {
-  const [fr, setFr] = useState(() => clampFraming(initial) || { scale: 1, x: 0, y: 0 });
-  const vpRef = useRef(null);
-  const pts = useRef(new Map());
+  /* 全画像を表示し、正方形の枠を自由に移動/サイズ変更して構図を選ぶ。
+     枠は既存の cover+transform モデル({scale,x,y})へ変換して保存(全描画箇所と互換)。
+     枠が画像より大きい=letterbox(全体表示) / 小さい=拡大トリミング。 */
+  const stageRef = useRef(null);
+  const [nat, setNat] = useState(null);   // 画像自然サイズ {w,h}
+  const [box, setBox] = useState(null);   // 枠 正規化(0-1, ステージ基準) {x,y,s}
   const drag = useRef(null);
-  const pinch = useRef(null);
-  const clampNow = (next) => clampFraming(next);
-  const vpSize = () => { const el = vpRef.current; return el ? el.getBoundingClientRect() : { width: 280, height: 280 }; };
+  const inited = useRef("");
 
-  const down = (e) => {
+  useEffect(() => { setNat(null); setBox(null); inited.current = ""; }, [src]);
+
+  // ステージ(正方形)内での画像表示矩形(contain) + cover寸法(container単位)
+  const disp = useMemo(() => {
+    if (!nat) return null;
+    const a = (nat.w || 1) / (nat.h || 1);
+    let iw, ih;
+    if (a >= 1) { iw = 1; ih = 1 / a; } else { ih = 1; iw = a; }
+    return { a, iw, ih, ix: (1 - iw) / 2, iy: (1 - ih) / 2, Wd: a >= 1 ? a : 1, Hd: a >= 1 ? 1 : 1 / a };
+  }, [nat]);
+
+  // 初期化: 既存framingを逆変換して枠へ / なければ cover中央正方形
+  useEffect(() => {
+    if (!disp || inited.current === src) return;
+    inited.current = src;
+    const { iw, ih, ix, iy, Wd, Hd } = disp;
+    const fr = initial && !isDefaultFraming(initial) ? clampFraming(initial) : null;
+    if (!fr) {
+      const s = Math.min(iw, ih);
+      setBox({ x: ix + (iw - s) / 2, y: iy + (ih - s) / 2, s });
+      return;
+    }
+    const sc = fr.scale, tx = fr.x / 100, ty = fr.y / 100;
+    const bw = 1 / (sc * Wd), boxS = bw * iw;
+    const ex1 = 0.5 - (tx + 0.5) / sc, bx = (ex1 - (1 - Wd) / 2) / Wd;
+    const ey1 = 0.5 - (ty + 0.5) / sc, by = (ey1 - (1 - Hd) / 2) / Hd;
+    setBox({ x: ix + bx * iw, y: iy + by * ih, s: boxS });
+  }, [disp, src, initial]);
+
+  // 枠 → framing {scale,x,y}(cover+transform 基準)
+  const toFraming = (b) => {
+    const { iw, ih, ix, iy, Wd, Hd } = disp;
+    const bx = (b.x - ix) / iw, by = (b.y - iy) / ih, bw = b.s / iw;
+    const sc = 1 / (bw * Wd);
+    const ex1 = (1 - Wd) / 2 + bx * Wd, ey1 = (1 - Hd) / 2 + by * Hd;
+    return { scale: sc, x: (-0.5 - (ex1 - 0.5) * sc) * 100, y: (-0.5 - (ey1 - 0.5) * sc) * 100 };
+  };
+
+  const MINS = 0.12;
+  const clampBox = (b) => {
+    const s = Math.max(MINS, Math.min(1, b.s));
+    return { s, x: Math.max(0, Math.min(1 - s, b.x)), y: Math.max(0, Math.min(1 - s, b.y)) };
+  };
+  const vpPx = () => { const el = stageRef.current; return el ? el.clientWidth : 1; };
+
+  const onDown = (mode) => (e) => {
+    e.stopPropagation();
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
-    pts.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    const arr = [...pts.current.values()];
-    if (arr.length === 2) {
-      const dx = arr[0].x - arr[1].x, dy = arr[0].y - arr[1].y;
-      pinch.current = { dist: Math.hypot(dx, dy), scale: fr.scale };
-      drag.current = null;
-    } else {
-      drag.current = { x: e.clientX, y: e.clientY, fx: fr.x, fy: fr.y };
-    }
+    drag.current = { mode, px: e.clientX, py: e.clientY, box };
   };
-  const move = (e) => {
-    if (!pts.current.has(e.pointerId)) return;
-    pts.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    const arr = [...pts.current.values()];
-    if (arr.length >= 2 && pinch.current) {
-      const dx = arr[0].x - arr[1].x, dy = arr[0].y - arr[1].y;
-      const dist = Math.hypot(dx, dy);
-      const s = pinch.current.scale * (dist / (pinch.current.dist || 1));
-      setFr((p) => clampNow({ ...p, scale: s }));
-    } else if (drag.current) {
-      const rect = vpSize();
-      const ddx = (e.clientX - drag.current.x) / rect.width * 100;
-      const ddy = (e.clientY - drag.current.y) / rect.height * 100;
-      const nx = drag.current.fx + ddx, ny = drag.current.fy + ddy;
-      setFr((p) => clampNow({ ...p, x: nx, y: ny }));
-    }
+  const onMove = (e) => {
+    if (!drag.current || !box) return;
+    const vp = vpPx();
+    const dx = (e.clientX - drag.current.px) / vp, dy = (e.clientY - drag.current.py) / vp;
+    const b0 = drag.current.box;
+    if (drag.current.mode === "move") setBox(clampBox({ ...b0, x: b0.x + dx, y: b0.y + dy }));
+    else setBox(clampBox({ ...b0, s: b0.s + Math.max(dx, dy) })); // 角ドラッグ=正方形維持
   };
-  const up = (e) => {
-    pts.current.delete(e.pointerId);
-    const arr = [...pts.current.values()];
-    if (arr.length < 2) pinch.current = null;
-    if (arr.length === 1) drag.current = { x: arr[0].x, y: arr[0].y, fx: fr.x, fy: fr.y };
-    if (arr.length === 0) drag.current = null;
-  };
-  const wheel = (e) => {
-    e.preventDefault();
-    const factor = e.deltaY < 0 ? 1.08 : 1 / 1.08;
-    setFr((p) => clampNow({ ...p, scale: p.scale * factor }));
-  };
+  const onUp = () => { drag.current = null; };
+
+  const setFull = () => { if (disp) setBox(clampBox({ x: 0, y: 0, s: 1 })); };
+  const setSquare = () => { if (!disp) return; const { iw, ih, ix, iy } = disp; const s = Math.min(iw, ih); setBox({ x: ix + (iw - s) / 2, y: iy + (ih - s) / 2, s }); };
+
+  const frLive = box && disp ? toFraming(box) : null;
 
   return (
     <div className="crop-bg" onClick={onCancel}>
       <div className="crop-panel frm" onClick={(e) => e.stopPropagation()}>
-        <div className="crop-head">構図を調整<span>ドラッグで移動 / ピンチ・ホイールで拡大</span></div>
-        <div className="frm-vp" ref={vpRef}
-          onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onWheel={wheel}
-          style={{ touchAction: "none" }}>
-          <img src={src} alt="" className="frm-img" draggable={false}
-            style={{ transform: `translate(${fr.x}%, ${fr.y}%) scale(${fr.scale})`, transformOrigin: "center center" }} />
-          <div className="frm-grid" aria-hidden="true"><span /><span /><span /><span /></div>
+        <div className="crop-head">構図を選ぶ<span>枠をドラッグ・角でサイズ変更 / 枠外は切り取り</span></div>
+        <div className="frm-stage" ref={stageRef} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} style={{ touchAction: "none" }}>
+          <img src={src} alt="" className="frm-fullimg" draggable={false}
+            onLoad={(e) => setNat({ w: e.target.naturalWidth || 1, h: e.target.naturalHeight || 1 })} />
+          {box && (
+            <div className="frm-cropbox" onPointerDown={onDown("move")}
+              style={{ left: box.x * 100 + "%", top: box.y * 100 + "%", width: box.s * 100 + "%", height: box.s * 100 + "%" }}>
+              <span className="frm-cg" aria-hidden="true"><i /><i /><i /><i /></span>
+              <button type="button" className="frm-handle" onPointerDown={onDown("resize")} onClick={(e) => e.stopPropagation()} aria-label="サイズ変更" />
+            </div>
+          )}
         </div>
-        <div className="frm-scale">
-          <span>拡大</span>
-          <input type="range" min="1" max="3" step="0.01" value={fr.scale}
-            onChange={(e) => setFr((p) => clampNow({ ...p, scale: Number(e.target.value) }))} />
-          <b>{fr.scale.toFixed(2)}×</b>
+        <div className="frm-tools">
+          <div className="frm-mini" aria-hidden="true">
+            <img src={src} alt="" draggable={false} style={frLive ? (framingStyle(frLive) || undefined) : undefined} />
+          </div>
+          <div className="frm-qbtns">
+            <button type="button" className="btn" onClick={setSquare}>中央正方</button>
+            <button type="button" className="btn" onClick={setFull}>全体表示</button>
+          </div>
         </div>
         <div className="crop-actions">
-          <button className="btn" onClick={() => setFr({ scale: 1, x: 0, y: 0 })}>中央に戻す</button>
-          <button className="btn primary" onClick={() => onSave(isDefaultFraming(fr) ? null : clampFraming(fr))}>保存</button>
+          <button className="btn primary" onClick={() => onSave(frLive && !isDefaultFraming(frLive) ? clampFraming(frLive) : null)}>保存</button>
           <button className="btn" onClick={onCancel}>やめる</button>
         </div>
       </div>
@@ -5640,16 +5670,18 @@ input,textarea{font-family:var(--sans)}
 .tc-frame-btn{position:absolute;right:8px;bottom:8px;z-index:5;font-size:11px;font-weight:700;
   color:var(--ink);background:rgba(20,24,32,.82);border:1px solid var(--line);border-radius:8px;
   padding:5px 9px;backdrop-filter:blur(4px)}
-.frm-vp{position:relative;width:100%;aspect-ratio:1;max-height:60vh;margin:0 auto;background:#000;
-  border-radius:8px;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
-.frm-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
-.frm-grid{position:absolute;inset:0;pointer-events:none;display:grid;
-  grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr}
-.frm-grid span{border:0.5px solid rgba(255,255,255,.18)}
-.frm-grid{box-shadow:inset 0 0 0 1px rgba(111,211,199,.25)}
-.frm-scale{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:11px;color:var(--ink-mid)}
-.frm-scale input[type=range]{flex:1;accent-color:var(--shu)}
-.frm-scale b{font-variant-numeric:tabular-nums;color:var(--ink);min-width:42px;text-align:right}
+.frm-stage{position:relative;width:100%;aspect-ratio:1;max-height:58vh;margin:0 auto;background:repeating-conic-gradient(#15191f 0% 25%,#0e1217 0% 50%) 50%/18px 18px;border-radius:8px;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+.frm-fullimg{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;pointer-events:none}
+.frm-cropbox{position:absolute;box-sizing:border-box;border:1.5px solid var(--gold);box-shadow:0 0 0 9999px rgba(6,8,12,.62);cursor:move;touch-action:none}
+.frm-cg{position:absolute;inset:0;pointer-events:none;display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr}
+.frm-cg i{border:.5px solid rgba(255,255,255,.22)}
+.frm-handle{position:absolute;right:-13px;bottom:-13px;width:30px;height:30px;border-radius:50%;background:var(--gold);border:2px solid var(--bg2);box-shadow:0 2px 8px rgba(0,0,0,.5);touch-action:none;cursor:nwse-resize}
+.frm-handle::after{content:"";position:absolute;inset:9px;border-right:2px solid var(--bg2);border-bottom:2px solid var(--bg2)}
+.frm-tools{display:flex;align-items:center;gap:12px;margin-top:14px}
+.frm-mini{flex:none;width:64px;height:64px;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:#0c1016}
+.frm-mini img{width:100%;height:100%;object-fit:cover;display:block;transform-origin:center center}
+.frm-qbtns{flex:1;display:flex;gap:8px}
+.frm-qbtns .btn{flex:1}
 .crop-panel.frm .crop-actions{margin-top:14px}
 
 /* ═══ iPad / 大画面 ═══ */
