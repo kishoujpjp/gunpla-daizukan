@@ -1414,7 +1414,7 @@ function AIRestyleModal({ src, geminiKey, openaiKey, model, prompts, lastStyle, 
       im.onerror = () => res(result);
       im.src = result;
     });
-    onAdopt(out, { src: "ai", model: chosenModel });
+    onAdopt(out, { src: "ai", model: chosenModel, style });
   };
 
   return (
@@ -1813,6 +1813,15 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, ini
   const addUrl = () => { const u = urlVal.trim(); if (!u) return; onAddImage(u, { src: "photo" }); setUrlVal(""); setAddOpen(false); };
   const openAI = () => { if (!aiActiveKey(ai)) { notify(aiProviderLabel(ai && ai.model) + " のAPIキーを設定タブで入力してください", { kind: "warn", dur: 3200 }); return; } setAiSrc(selSrc); setAiOpen(true); setSel(null); setLocEditing(false); };
   const closeSheet = () => { setSel(null); setLocEditing(false); };
+  // 画像情報シート:前後の画像へ(矢印 / 左右スワイプ)
+  const gotoRel = (d) => { const i = order.indexOf(sel); const j = i + d; if (j >= 0 && j < order.length) { setSel(order[j]); setLocEditing(false); } };
+  const pvSwipe = useRef(null);
+  const onPvTouchStart = (e) => { const t = e.touches[0]; pvSwipe.current = { x: t.clientX, y: t.clientY }; };
+  const onPvTouchEnd = (e) => {
+    const s = pvSwipe.current; if (!s) return; pvSwipe.current = null;
+    const t = e.changedTouches[0]; const dx = t.clientX - s.x, dy = t.clientY - s.y;
+    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.3) gotoRel(dx < 0 ? 1 : -1);
+  };
 
   return (
     <>
@@ -1887,17 +1896,25 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, ini
         {sel ? (
           <div className="ie-dim" onClick={closeSheet}>
             <div className="ie-sheet sel" onClick={(e) => e.stopPropagation()}>
+              <button type="button" className="ie-sheet-x" onClick={closeSheet} aria-label="閉じる">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+              </button>
               <div className="ie-grip" />
               <div className="ie-sh-title">画像情報</div>
-              <div className="ie-pv full">
-                {selSrc ? <img src={selSrc} alt="" className="ie-pv-img" /> : <div className="ie-pv-blank" />}
+              <div className="ie-pv full" onTouchStart={onPvTouchStart} onTouchEnd={onPvTouchEnd}>
+                {selSrc ? <img src={selSrc} alt="" className="ie-pv-img" draggable={false} /> : <div className="ie-pv-blank" />}
                 <span className="ie-pv-idx">{selIdx >= 0 ? selIdx + 1 : "—"}<i> / {order.length}</i></span>
                 {sel === thumbR ? <span className="ie-pv-cover">封面</span> : null}
+                {selIdx > 0 ? <button type="button" className="ie-pv-nav prev" onClick={() => gotoRel(-1)} aria-label="前の画像">‹</button> : null}
+                {selIdx >= 0 && selIdx < order.length - 1 ? <button type="button" className="ie-pv-nav next" onClick={() => gotoRel(1)} aria-label="次の画像">›</button> : null}
               </div>
               <dl className="ie-sh-meta">
                 <dt>由来</dt><dd>{selMeta && selMeta.src === "ai" ? <span className="ai">✦ AI生成</span> : <span className="pho">◉ 写真</span>}</dd>
                 {selMeta && selMeta.src === "ai"
-                  ? <><dt>モデル</dt><dd>{(AI_MODEL_OPTS.find((x) => x.value === selMeta.model) || {}).label || (selMeta && selMeta.model) || "—"}</dd></>
+                  ? <>
+                      <dt>スタイル</dt><dd>{(AI_STYLES.find((x) => x.id === selMeta.style) || {}).label || "—"}</dd>
+                      <dt>モデル</dt><dd>{(AI_MODEL_OPTS.find((x) => x.value === selMeta.model) || {}).label || (selMeta && selMeta.model) || "—"}</dd>
+                    </>
                   : <><dt>撮影者</dt><dd>{(selMeta && selMeta.by) || builderName || "—"}</dd></>}
                 <dt>追加</dt><dd>{fmtDT(selMeta && selMeta.at)}</dd>
                 <dt>場所</dt><dd>{locEditing
@@ -1908,7 +1925,7 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, ini
                 <button className="ie-act2" onClick={() => { const r = sel; closeSheet(); onFrame(r); }}><span className="ic">⛶</span><span>構図を整える</span></button>
                 <button className="ie-act2 g" onClick={openAI}><span className="ic">✨</span><span>AIで変換</span></button>
               </div>
-              <button className="ie-del" onClick={async () => { if (await appConfirm("この画像を削除します。元に戻せません。", { title: "画像を削除", okText: "削除", danger: true })) { onRemoveImage(sel); closeSheet(); } }}><span className="ic">🗑</span>この画像を削除</button>
+              <button className="ie-del" onClick={async () => { if (await appConfirm("この画像を削除します。元に戻せません。", { title: "画像を削除", okText: "削除", danger: true })) { onRemoveImage(sel); closeSheet(); } }}><svg className="ie-delic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16" /><path d="M9 7V5.6A1.6 1.6 0 0 1 10.6 4h2.8A1.6 1.6 0 0 1 15 5.6V7" /><path d="M6.4 7l.9 12.3a1.6 1.6 0 0 0 1.6 1.5h6.2a1.6 1.6 0 0 0 1.6-1.5L17.6 7" /><path d="M10 11v6M14 11v6" /></svg>この画像を削除</button>
             </div>
           </div>
         ) : null}
@@ -5489,8 +5506,8 @@ input,textarea{font-family:var(--sans)}
 .form-album{display:flex;flex-direction:column;gap:9px}
 .ie-open-btn{width:100%;display:flex;align-items:center;justify-content:center;border:1px solid var(--gold);color:var(--gold);background:rgba(217,179,106,.06);border-radius:9px;padding:13px 0;font-size:13px;letter-spacing:.04em;cursor:pointer;font-family:inherit}
 .ie-open-btn:active{background:rgba(217,179,106,.13)}
-.ie-bg{position:fixed;inset:0;background:rgba(5,7,12,.92);z-index:70;display:flex;align-items:center;justify-content:center;padding:max(env(safe-area-inset-top),4vh) 12px max(env(safe-area-inset-bottom),4vh)}
-.ie-panel{position:relative;width:100%;max-width:520px;min-height:min(88vh,624px);max-height:92vh;background:var(--bg);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+.ie-bg{position:fixed;inset:0;height:100vh;height:100dvh;background:rgba(5,7,12,.92);z-index:70;display:flex;align-items:center;justify-content:center;padding:max(env(safe-area-inset-top),2.4vh) 12px max(env(safe-area-inset-bottom),2.4vh)}
+.ie-panel{position:relative;width:100%;max-width:520px;min-height:min(560px,100%);max-height:100%;background:var(--bg);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
 /* ── 編集室 ATELIER ── */
 .ie-head{flex:none;position:relative;padding:15px 16px 11px;background:linear-gradient(180deg,var(--bg2),var(--bg));border-bottom:1px solid var(--line)}
 .ie-head .sm-head{margin-bottom:0}
@@ -5540,7 +5557,7 @@ input,textarea{font-family:var(--sans)}
 /* シート共通 */
 .ie-dim{position:absolute;inset:0;background:rgba(6,8,12,.62);z-index:8;display:flex;align-items:flex-end;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);animation:ie-fade .18s ease}
 @keyframes ie-fade{from{opacity:0}to{opacity:1}}
-.ie-sheet{width:100%;max-height:100%;overflow-y:auto;overscroll-behavior:contain;background:linear-gradient(180deg,var(--panel2),var(--panel));border-top:1px solid var(--gold);border-radius:20px 20px 0 0;padding:8px 18px calc(22px + env(safe-area-inset-bottom));box-shadow:0 -16px 44px rgba(0,0,0,.55);animation:ie-rise .26s cubic-bezier(.2,.9,.3,1)}
+.ie-sheet{width:100%;max-height:100%;overflow-y:auto;overscroll-behavior:contain;background:linear-gradient(180deg,var(--panel2),var(--panel));border-radius:20px 20px 0 0;padding:8px 18px calc(22px + env(safe-area-inset-bottom));box-shadow:0 -16px 44px rgba(0,0,0,.55);animation:ie-rise .26s cubic-bezier(.2,.9,.3,1)}
 @keyframes ie-rise{from{transform:translateY(16px);opacity:.5}to{transform:translateY(0);opacity:1}}
 .ie-grip{width:40px;height:4px;border-radius:2px;background:var(--line-soft);margin:4px auto 14px}
 .ie-sh-h{font-family:var(--serif);font-weight:600;font-size:14px;margin-bottom:12px;text-align:center}
@@ -5584,6 +5601,16 @@ input,textarea{font-family:var(--sans)}
 .ie-del{width:100%;display:flex;align-items:center;justify-content:center;gap:7px;padding:12px;font-size:12.5px;color:var(--shu);background:none;border:1px solid transparent;border-radius:11px;cursor:pointer;font-family:inherit;transition:background .14s}
 .ie-del .ic{font-size:15px}
 .ie-del:active{background:rgba(232,85,61,.1)}
+.ie-del .ie-delic{width:16px;height:16px;flex:none}
+/* 画像情報シート:閉じる(X) */
+.ie-sheet-x{position:absolute;top:10px;right:12px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:9px;background:var(--bg2);border:1px solid var(--line);color:var(--ink-mid);z-index:3;transition:transform .12s,color .14s,border-color .14s}
+.ie-sheet-x svg{width:16px;height:16px}
+.ie-sheet-x:active{transform:scale(.9);color:var(--ink-strong);border-color:var(--gold)}
+/* 画像情報シート:前後ナビ矢印(左右スワイプにも対応) */
+.ie-pv-nav{position:absolute;top:50%;transform:translateY(-50%);width:38px;height:54px;display:flex;align-items:center;justify-content:center;font-size:30px;line-height:1;color:var(--ink-strong);background:rgba(8,10,14,.46);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.12);border-radius:11px;z-index:3;font-family:var(--serif)}
+.ie-pv-nav.prev{left:10px}
+.ie-pv-nav.next{right:10px}
+.ie-pv-nav:active{transform:translateY(-50%) scale(.9);background:rgba(217,179,106,.28);border-color:var(--gold)}
 .form-album-strip{display:flex;gap:8px;flex-wrap:wrap}
 .fa-thumb{position:relative;width:72px;height:72px;border-radius:8px;overflow:hidden;
   border:1px solid var(--line);background:var(--panel);padding:0}
