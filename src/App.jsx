@@ -2687,6 +2687,33 @@ export default function App() {
   }, [settings.theme]);
   useEffect(() => { setHapticEnabled(settings.haptic !== false); }, [settings.haptic]);
 
+  /* ── 旧 Android(dvh 非対応)向け視口高フォールバック ──
+     CSS は height:100vh → var(--app-vh) → 100dvh の順。dvh 対応ブラウザ(現行 Chrome/Safari)は
+     100dvh が勝つので JS は何もしない。非対応環境のみ --app-vh を実測高で与え、
+     URL バー表示時に底部タブバーが切れる 100vh 問題を回避する。 */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.CSS && CSS.supports && CSS.supports("height", "100dvh")) return; // 現行ブラウザは CSS に委譲
+    const root = document.documentElement;
+    let raf = 0;
+    const apply = () => {
+      raf = 0;
+      const h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+      if (h) root.style.setProperty("--app-vh", h + "px");
+    };
+    const onResize = () => { if (!raf) raf = requestAnimationFrame(apply); };
+    apply();
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    if (window.visualViewport) window.visualViewport.addEventListener("resize", onResize);
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+      if (window.visualViewport) window.visualViewport.removeEventListener("resize", onResize);
+    };
+  }, []);
+
   /* 無限スクロールの監視は sorted/ownedKits/planKits 確定後に定義(下方)。
      依存配列なしで毎レンダー再生成すると observer churn と limit の暴走増分を招くため。 */
 
@@ -5263,7 +5290,7 @@ input,textarea{font-family:var(--sans)}
 .empty p{margin-top:14px;font-family:var(--serif);font-size:15px}
 .empty-sub{font-family:var(--sans)!important;font-size:11.5px!important;color:var(--ink-dim);margin-top:6px!important}
 
-.modal-bg{position:fixed;inset:0;background:rgba(5,7,12,.72);backdrop-filter:blur(3px);
+.modal-bg{position:fixed;inset:0;background:rgba(5,7,12,.72);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);
   display:flex;align-items:flex-end;justify-content:center;z-index:50;animation:bgfade .2s ease-out}
 @keyframes bgfade{from{opacity:0}to{opacity:1}}
 .modal{width:100%;max-width:520px;background:var(--bg2);border:1px solid var(--line);
@@ -5539,7 +5566,7 @@ input,textarea{font-family:var(--sans)}
 .viewer-dots .vd.on{background:var(--teal);transform:scale(1.25)}
 .viewer-bar{position:fixed;left:50%;transform:translateX(-50%);z-index:122;
   bottom:calc(26px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:8px;
-  background:rgba(20,24,32,.92);border:1px solid var(--line);border-radius:12px;padding:7px 10px;backdrop-filter:blur(6px)}
+  background:rgba(20,24,32,.92);border:1px solid var(--line);border-radius:12px;padding:7px 10px;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
 .vb-count{font-variant-numeric:tabular-nums;font-size:12px;color:var(--ink-mid);padding:0 4px;letter-spacing:.05em}
 .vb-btn{font-size:12px;font-weight:700;color:var(--ink);background:var(--panel);
   border:1px solid var(--line);border-radius:8px;padding:7px 11px}
@@ -5591,7 +5618,7 @@ input,textarea{font-family:var(--sans)}
 .form-album{display:flex;flex-direction:column;gap:9px}
 .ie-open-btn{width:100%;display:flex;align-items:center;justify-content:center;border:1px solid var(--gold);color:var(--gold);background:rgba(217,179,106,.06);border-radius:9px;padding:13px 0;font-size:13px;letter-spacing:.04em;cursor:pointer;font-family:inherit}
 .ie-open-btn:active{background:rgba(217,179,106,.13)}
-.ie-bg{position:fixed;inset:0;height:100vh;height:100dvh;background:rgba(5,7,12,.92);z-index:70;display:flex;align-items:center;justify-content:center;padding:max(env(safe-area-inset-top),2.4vh) 12px max(env(safe-area-inset-bottom),2.4vh)}
+.ie-bg{position:fixed;inset:0;height:100vh;height:var(--app-vh,100vh);height:100dvh;background:rgba(5,7,12,.92);z-index:70;display:flex;align-items:center;justify-content:center;padding:max(env(safe-area-inset-top),2.4vh) 12px max(env(safe-area-inset-bottom),2.4vh)}
 .ie-panel{position:relative;width:100%;max-width:520px;min-height:min(560px,100%);max-height:100%;background:var(--bg);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
 /* ── 編集室 ATELIER ── */
 .ie-head{flex:none;position:relative;padding:15px 16px 11px;background:linear-gradient(180deg,var(--bg2),var(--bg));border-bottom:1px solid var(--line)}
@@ -5737,7 +5764,7 @@ input,textarea{font-family:var(--sans)}
 .btn.danger{flex:none;color:var(--shu);border-color:rgba(232,85,61,.4);padding:12px 14px}
 
 .tabbar{position:fixed;left:0;right:0;bottom:0;display:flex;z-index:40;
-  background:rgba(13,16,24,.92);backdrop-filter:blur(10px);
+  background:rgba(13,16,24,.92);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
   border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
 .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;
   padding:9px 0 12px;color:var(--ink-dim);position:relative;transition:color .15s}
@@ -5808,7 +5835,7 @@ input,textarea{font-family:var(--sans)}
 .tc-art>.tc-frame img.kit-img.tc{width:100%;height:100%;object-fit:cover;will-change:transform}
 .tc-frame-btn{position:absolute;right:8px;bottom:8px;z-index:5;font-size:11px;font-weight:700;
   color:var(--ink);background:rgba(20,24,32,.82);border:1px solid var(--line);border-radius:8px;
-  padding:5px 9px;backdrop-filter:blur(4px)}
+  padding:5px 9px;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
 .frm-stage{position:relative;width:min(100%,56vh);aspect-ratio:1;margin:0 auto;background:repeating-conic-gradient(#15191f 0% 25%,#0e1217 0% 50%) 50%/18px 18px;border-radius:8px;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
 .frm-fullimg{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;pointer-events:none}
 .frm-cropbox{position:absolute;box-sizing:border-box;border:1.5px solid var(--gold);box-shadow:0 0 0 9999px rgba(6,8,12,.62);cursor:move;touch-action:none}
@@ -6073,7 +6100,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 }
 /* ═══ v2.6 ═══ */
 /* 2. flex 三明治結構:head 固定 / body 捲動 / tabbar 常駐 */
-.app{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;padding-bottom:0}
+.app{display:flex;flex-direction:column;height:100vh;height:var(--app-vh,100vh);height:100dvh;overflow:hidden;padding-bottom:0}
 .head{flex:none}
 .body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
   max-width:none;margin:0;padding:8px 14px calc(28px + env(safe-area-inset-bottom))}
@@ -6122,7 +6149,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 
 /* 3. カードのプレバン章は写真右上 */
 .corner-pb{position:absolute;top:7px;right:7px;margin:0;
-  background:rgba(13,16,24,.74);backdrop-filter:blur(2px)}
+  background:rgba(13,16,24,.74);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
 .app.light .corner-pb{background:rgba(253,250,243,.85)}
 
 @media (min-width:768px){
