@@ -1392,8 +1392,10 @@ function AIRestyleModal({ src, geminiKey, openaiKey, model, prompts, lastStyle, 
   const [styleOpts, setStyleOpts] = useState(() => initStyleOpts(AI_STYLES.find((s) => s.id === (lastStyle || AI_STYLES[0].id)) || AI_STYLES[0]));
   const curStyle = AI_STYLES.find((s) => s.id === style) || AI_STYLES[0];
   const ctrlRef = useRef(null);
-  // モーダルが閉じた/再生成で差し替わった時に進行中のリクエストを確実に中止する
-  useEffect(() => () => { if (ctrlRef.current) ctrlRef.current.abort(); }, []);
+  const aliveRef = useRef(true);
+  // モーダルが閉じた/再生成で差し替わった時に進行中のリクエストを確実に中止する。
+  // aliveRef でアンマウント後の setState(警告/無駄な更新)も防ぐ。
+  useEffect(() => () => { aliveRef.current = false; if (ctrlRef.current) ctrlRef.current.abort(); }, []);
   const cancel = () => { if (ctrlRef.current) ctrlRef.current.abort(); };
 
   const generate = async () => {
@@ -1428,7 +1430,7 @@ function AIRestyleModal({ src, geminiKey, openaiKey, model, prompts, lastStyle, 
         if (!res.ok) throw new Error((data.error && data.error.message) || "HTTP " + res.status);
         const out = data.data && data.data[0] && data.data[0].b64_json;
         if (!out) throw new Error("画像が返されませんでした(モデレーションの可能性があります)");
-        setResult(`data:image/png;base64,${out}`);
+        if (aliveRef.current) setResult(`data:image/png;base64,${out}`);
       } else {
         /* Google Gemini: generateContent(inline_data で画像返却) */
         const res = await fetch(
@@ -1446,15 +1448,16 @@ function AIRestyleModal({ src, geminiKey, openaiKey, model, prompts, lastStyle, 
         const imgPart = parts.find((pt) => pt.inline_data || pt.inlineData);
         if (!imgPart) throw new Error("画像が返されませんでした(セーフティブロックの可能性があります)");
         const pd = imgPart.inline_data || imgPart.inlineData;
-        setResult(`data:${pd.mime_type || pd.mimeType || "image/png"};base64,${pd.data}`);
+        if (aliveRef.current) setResult(`data:${pd.mime_type || pd.mimeType || "image/png"};base64,${pd.data}`);
       }
     } catch (e) {
-      if (e && e.name === "AbortError") setError("中止しました(90秒で時間切れ、または手動キャンセル)");
+      if (!aliveRef.current) { /* アンマウント済み:状態更新しない */ }
+      else if (e && e.name === "AbortError") setError("中止しました(90秒で時間切れ、または手動キャンセル)");
       else setError(String((e && e.message) || e));
     }
     clearTimeout(timer);
     ctrlRef.current = null;
-    setBusy(false);
+    if (aliveRef.current) setBusy(false);
   };
 
   const adopt = async () => {
@@ -3419,7 +3422,7 @@ export default function App() {
     list.push({ id: "total", label: "収蔵総数", value: `${owned.length}体`, sub: "" });
     list.push({ id: "prem", label: "プレバン限定", value: `${prem}体`, sub: `収蔵の ${pcv(prem)}%` });
     list.push({ id: "built", label: "完成", value: `${builtL.length}体`, sub: `完成率 ${pcv(builtL.length)}%` });
-    list.push({ id: "sighted", label: "目撃数", value: `${sighted}体`, sub: `撮影率 ${pcv(shotOwned)}%` });
+    list.push({ id: "sighted", label: "目撃数", value: `${sighted}体`, sub: `収蔵撮影率 ${pcv(shotOwned)}%` });
     list.push({ id: "tsumi_n", label: "積み", value: `${tsumiN}体`, sub: `未制作 ${pcv(tsumiN)}%` });
     list.push({ id: "yspend", label: "年間消費", value: fmtYen(ySpend), sub: `${ty}年購入分・定価` });
     list.push({ id: "tprice", label: "定価合計", value: fmtYen(totalPrice), sub: `記録 ${priced.length} 体分` });
@@ -3427,7 +3430,7 @@ export default function App() {
     if (chp) list.push({ id: "min", label: "最安値", value: fmtYen(chp.price), sub: chp.name });
     if (tsumi) list.push({ id: "tsumi", label: "積み最長", value: `${tsumi.days}日`, sub: tsumi.k.name });
     if (ln) list.push({ id: "lname", label: "名称最長のガンプラ", value: ln.name, sub: `${(ln.name || "").length}文字`, nameVal: true });
-    if (sn) list.push({ id: "sname", label: "名称最短のガンプラ", value: sn.name, sub: `${(sn.name || "").length}文字` });
+    if (sn && owned.length > 1) list.push({ id: "sname", label: "名称最短のガンプラ", value: sn.name, sub: `${(sn.name || "").length}文字` });
     if (sArr.length) list.push({ id: "topser", label: "収蔵最多の作品", value: sArr[0][0], sub: `${sArr[0][1]}体` });
     if (sArr.length) list.push({ id: "lowser", label: "収蔵最少の作品", value: sArr[sArr.length - 1][0], sub: `${sArr[sArr.length - 1][1]}体` });
     if (yArr.length) list.push({ id: "topyear", label: "購入最多の年", value: `${yArr[0][0]}年`, sub: `${yArr[0][1]}体` });
@@ -5208,7 +5211,7 @@ button,.tab,.card,.row,.gf-btn,.adv-seg-btn,.tab-label,.tab-icon{
 .app.light .tab:active{background:radial-gradient(112% 80% at 50% 100%,rgba(156,120,56,.16),rgba(156,120,56,.04) 56%,transparent 78%)}
 .btn:active,.add-btn:active,.more-btn:active,.own-btn:active,.gf-btn:active,.adv-seg-btn:active,.view-toggle button:active,.sort-bar button:active,.search-x:active,.edit-link:active{
   transform:scale(.95);filter:brightness(.92)}
-.app{min-height:100vh;background:
+.app{min-height:0;background:
   radial-gradient(1100px 500px at 80% -10%, rgba(232,85,61,.07), transparent 60%),
   radial-gradient(800px 400px at -10% 30%, rgba(111,211,199,.05), transparent 60%),
   var(--bg);
@@ -6113,9 +6116,10 @@ input,textarea{font-family:var(--sans)}
   border-radius:8px;color:var(--ink-mid);font-size:12.5px;letter-spacing:.08em;background:var(--panel)}
 .more-btn:active{transform:scale(.97)}
 /* ═══ v2.5 ═══ */
-/* 8+9. 滾動架構:body 不滾動,.app 為滾動容器 → 分頁列絕對固定;彈窗開啟時鎖定背景 */
+/* 8+9. 滾動架構:html/body は不滾動。.app の高さ/スクロールは後段 v2.6 の flex 三明治
+   (.app=flex 縦 / .body=スクロール / .tabbar=常駐)が最終定義。旧「.app＝スクロール容器」
+   定義は overflow:hidden に上書き済みで無効のため撤去。 */
 html,body{height:100%;overflow:hidden;overscroll-behavior:none}
-.app{height:100vh;height:100dvh;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .app.lock{overflow:hidden}
 .modal{overscroll-behavior:contain}
 .crop-panel{overscroll-behavior:contain}
