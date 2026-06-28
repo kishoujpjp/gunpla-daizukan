@@ -494,10 +494,12 @@ function SwipeViewer({ slides, index, onIndex, onClose, resolveSrc, resetKey, se
     if (!s) return;
     if (s.mode === "page") {
       const el = wrapRef.current;
-      const th = el ? Math.min(80, el.clientWidth * 0.22) : 80;
+      const w = el ? el.clientWidth : 360;
+      const th = Math.min(60, w * 0.16);                 // ページ送り確定の距離(従来 80→60 で感度↑)
+      const flick = (Date.now() - (s.t0 || 0)) < 260 && Math.abs(dragX) > 24; // 素早いフリックは小移動でも送る
       setPaging(true);
-      if (dragX <= -th && index < n - 1) onIndex(index + 1);
-      else if (dragX >= th && index > 0) onIndex(index - 1);
+      if ((dragX <= -th || (flick && dragX < 0)) && index < n - 1) onIndex(index + 1);
+      else if ((dragX >= th || (flick && dragX > 0)) && index > 0) onIndex(index - 1);
       setDragX(0);
     } else if (!s.moved && zr.current.scale <= 1.01 && (Date.now() - (s.t0 || 0)) < 500) {
       onClose(e);
