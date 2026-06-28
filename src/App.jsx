@@ -447,7 +447,7 @@ function SwipeViewer({ slides, index, onIndex, onClose, resolveSrc, resetKey, se
     if (arr.length >= 2) {
       st.current = { mode: "pinch", baseDist: dist(arr[0], arr[1]) || 1, baseScale: zr.current.scale, bx: zr.current.x, by: zr.current.y, moved: true };
     } else {
-      st.current = { mode: null, sx: e.clientX, sy: e.clientY, bx: zr.current.x, by: zr.current.y, moved: false };
+      st.current = { mode: null, sx: e.clientX, sy: e.clientY, bx: zr.current.x, by: zr.current.y, moved: false, t0: Date.now() };
       setPaging(false);
     }
   };
@@ -491,7 +491,7 @@ function SwipeViewer({ slides, index, onIndex, onClose, resolveSrc, resetKey, se
       if (dragX <= -th && index < n - 1) onIndex(index + 1);
       else if (dragX >= th && index > 0) onIndex(index - 1);
       setDragX(0);
-    } else if (!s.moved && zr.current.scale <= 1.01) {
+    } else if (!s.moved && zr.current.scale <= 1.01 && (Date.now() - (s.t0 || 0)) < 500) {
       onClose(e);
     }
   };
@@ -1730,7 +1730,7 @@ function AppDialogHost() {
   );
 }
 
-function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, initialCols, onCols, onAddImage, onRemoveImage, onSetRole, onFrame, onReorder, onSetLoc, onClose }) {
+function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, initialCols, onCols, onAddImage, onRemoveImage, onSetRole, onFrame, onReorder, onSetLoc, onClose, onBack }) {
   const kitId = kit.id;
   const baseRefs = albumRefs(kitId, images, extras, albumMeta);
   const baseKey = baseRefs.join("|");
@@ -1895,8 +1895,28 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, ini
   // 鑑賞ビューア:この機体のアルバム順だけをスライドにする(他機体へは飛ばない)
   const viewSlides = order.filter((r) => refSrc(r, kitId, images, extras)).map((r) => ({ kitId, ref: r, name: kit.name, series: kit.series, code: kit.code, no: kit.no }));
   const viewIdx = Math.max(0, viewSlides.findIndex((s) => s.ref === viewRef));
+  // ビューアを閉じる際、pointerup 起点のクローズ直後に発火する「ゴーストクリック」を1回だけ握り潰す
+  // (背景のタイル等への突き抜けタップを防止)。
+  const swallowNextClick = () => {
+    const h = (e) => { e.stopPropagation(); e.preventDefault(); document.removeEventListener("click", h, true); clearTimeout(t); };
+    const t = setTimeout(() => document.removeEventListener("click", h, true), 700);
+    document.addEventListener("click", h, true);
+  };
   // 閉じる:from=sheet は sel を維持して画像情報シートへ復帰 / from=grid は sel=null のままグリッドへ
   const closeView = () => setViewRef(null);
+
+  // ── 内部レイヤーを App の戻るキースタックへ橋渡し(内側→外側の順) ──
+  const internalCloses = [];
+  if (viewRef) internalCloses.push(closeView);
+  if (aiOpen) internalCloses.push(() => setAiOpen(false));
+  if (addOpen) internalCloses.push(() => setAddOpen(false));
+  if (sel) internalCloses.push(closeSheet);
+  const internalClosesRef = useRef(internalCloses);
+  internalClosesRef.current = internalCloses;
+  const closeTopRef = useRef(null);
+  if (!closeTopRef.current) closeTopRef.current = () => { const f = internalClosesRef.current[0]; if (f) f(); };
+  useEffect(() => { if (onBack) onBack(internalCloses.length, closeTopRef.current); }, [internalCloses.length]);
+  useEffect(() => () => { if (onBack) onBack(0, null); }, []);
 
   return (
     <>
@@ -2024,7 +2044,7 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, ini
           <SwipeViewer slides={viewSlides} index={viewIdx} resetKey={String(viewRef)}
             resolveSrc={(sl) => (sl.ref ? refSrc(sl.ref, kitId, images, extras) : null)}
             onIndex={(i) => { const r = viewSlides[i] && viewSlides[i].ref; if (!r) return; setViewRef(r); if (viewFrom === "sheet") setSel(r); }}
-            onClose={closeView} />
+            onClose={() => { swallowNextClick(); closeView(); }} />
         </div>
       ) : null}
 
@@ -2439,8 +2459,8 @@ export default function App() {
   const consumeLP = () => { if (lpRef.current.fired) { lpRef.current.fired = false; return true; } return false; };
   /* 画像領域の長押し=工房(編集室)へ直行。stopPropagation でカード本体の長押し(予定切替)を抑止。
      短タップは伝播させてカードの onClick(詳細表示)に委ねる。 */
-  const imgPress = (kitId) => {
-    const lp = makeLongPress(() => { hapticStrong(); setImgEdit(kitId); });
+  const imgPress = (kitId, action) => {
+    const lp = makeLongPress(() => { hapticStrong(); (action || (() => setImgEdit(kitId)))(); });
     return {
       onTouchStart: (e) => { e.stopPropagation(); lp.onTouchStart(); },
       onTouchEnd: lp.onTouchEnd,
@@ -3076,7 +3096,7 @@ export default function App() {
 
   // 鑑賞モードを開く(入手指定の画像から)
   const viewerGuard = useRef(0);
-  const openViewer = useCallback((kitId) => {
+  const openViewer = useCallback((kitId, from = "detail") => {
     if (Date.now() - viewerGuard.current < 400) return; // 閉じた直後のゴーストクリック対策
     const refs = albumRefs(kitId, images, extras, albumMeta).filter((ref) => refSrc(ref, kitId, images, extras));
     if (!refs.length) return;
@@ -3084,7 +3104,7 @@ export default function App() {
     const ref = refs.includes(acqRef) ? acqRef : refs[0];
     haptic();
     setViewerDel(false);
-    setViewer({ kitId, ref });
+    setViewer({ kitId, ref, from });
   }, [images, extras, albumMeta]);
 
   /* ── 画像最適化:既存の大きな画像を480pxへ再圧縮 ── */
@@ -3923,7 +3943,7 @@ export default function App() {
     if (salonView) {
       return (
         <button key={kit.id} className={`sl-card ${dim ? "dim" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""} ${rec.buildDate ? "built" : ""}`} onClick={onCardClick}>
-          <div className="sl-frame" {...imgPress(kit.id)}>
+          <div className="sl-frame" {...imgPress(kit.id, () => openViewer(kit.id, "salon"))}>
             {settings.showGrade && kit.grade ? <span className="sl-grade">{kit.grade}</span> : null}
             {img
               ? <img className="sl-img" src={img} alt={kit.name} loading="lazy" decoding="async"
@@ -4023,8 +4043,10 @@ export default function App() {
      各浮層 = 1 個 history entry。返回鍵(popstate)關閉最上層;UI で閉じた時は
      余剰 entry を history.go で巻き戻して同期を保つ。浮層が無い時は素通りで通常の
      戻る(アプリ離脱)を許す。配列は「内側(先に閉じる)→外側」の順。
-     ※子コンポーネント内部のシート(AIRestyleModal / CropModal / ATELIER の操作シート等)は
-       親から閉じられないため、それらが開いている時の戻るは当該の親浮層ごと閉じる。 */
+     ※ATELIER(ImageEditorModal)内部のレイヤー(鑑賞ビューア / 画像情報シート / 追加メニュー /
+       AI変換)は onBack 経由で atelierDepth として本スタックへ橋渡しする。 */
+  const [atelierDepth, setAtelierDepth] = useState(0);
+  const atelierCloseRef = useRef(null);
   const histDepthRef = useRef(0);
   const swallowRef = useRef(0);
   const overlayLayersRef = useRef([]);
@@ -4035,12 +4057,14 @@ export default function App() {
     { open: seriesPickerOpen, close: () => setSeriesPickerOpen(false) },
     { open: uniPickerOpen, close: () => setUniPickerOpen(false) },
     { open: frameEdit != null, close: () => setFrameEdit(null) },
+    ...Array.from({ length: atelierDepth }, () => ({ open: true, close: () => { const f = atelierCloseRef.current; if (f) f(); } })),
     { open: imgEdit != null, close: () => setImgEdit(null) },
     { open: viewer != null, close: () => {
         const kid = viewer && viewer.kitId;
+        const vf = viewer && viewer.from;
         viewerGuard.current = Date.now();
         setViewerDel(false); setSerifEdit(null); setViewer(null); setEditing(false);
-        if (kid) setDetail(kid); // 鑑賞は詳細から開くため、戻るで詳細へ復帰(UI クローズと一致)
+        if (kid && vf !== "salon") setDetail(kid); // 通常は詳細へ復帰。salon 起点は繪測卷へ戻る
       } },
     { open: promptEdit != null, close: () => setPromptEdit(null) },
     { open: profileOpen, close: () => setProfileOpen(false) },
@@ -4821,7 +4845,8 @@ export default function App() {
         if (!flat.length) { setTimeout(() => { setViewer(null); setViewerDel(false); }, 0); return null; }
         const slide = flat[gi];
         const curKitId = slide.kitId, curRef = slide.ref;
-        const close = () => { viewerGuard.current = Date.now(); setViewer(null); setViewerDel(false); setSerifEdit(null); setDetail(curKitId); setEditing(false); };
+        const vfrom = viewer.from; // "salon"=繪測卷へ復帰(入手ページは開かない) / それ以外=入手ページへ
+        const close = () => { viewerGuard.current = Date.now(); setViewer(null); setViewerDel(false); setSerifEdit(null); if (vfrom !== "salon") { setDetail(curKitId); setEditing(false); } };
         const curAlbum = kitAlbum(curKitId);
         const aIdx = Math.max(0, curAlbum.findIndex((a) => a.ref === curRef));
         const thumbRef = pickRef("thumb", curKitId, images, extras, albumMeta);
@@ -4839,7 +4864,7 @@ export default function App() {
               resolveSrc={(sl) => (sl.ref ? refSrc(sl.ref, sl.kitId, images, extras) : null)}
               serifOf={(sl) => (sl.ref ? (serifs[sl.ref] || "") : "")}
               onSerif={(sl) => { if (sl.ref) setSerifEdit({ ref: sl.ref, text: serifs[sl.ref] || "" }); }}
-              onIndex={(i) => { setViewerDel(false); setSerifEdit(null); setViewer({ kitId: flat[i].kitId, ref: flat[i].ref }); }}
+              onIndex={(i) => { setViewerDel(false); setSerifEdit(null); setViewer({ kitId: flat[i].kitId, ref: flat[i].ref, from: vfrom }); }}
               onClose={close} />
 
             {serifEdit && (
@@ -4872,6 +4897,7 @@ export default function App() {
             onFrame={(ref) => setFrameEdit({ kitId: imgEdit, ref })}
             onReorder={(order) => setAlbumOrder(imgEdit, order)}
             onSetLoc={(ref, loc) => setImgLoc(imgEdit, ref, loc)}
+            onBack={(depth, closeTop) => { atelierCloseRef.current = closeTop; setAtelierDepth(depth); }}
             onClose={() => setImgEdit(null)} />
         );
       })()}
@@ -5475,7 +5501,7 @@ input,textarea{font-family:var(--sans)}
 .sv-wm{position:absolute;right:11px;bottom:9px;z-index:2;font-family:var(--mono);font-size:10px;letter-spacing:.04em;
   color:rgba(255,255,255,.3);text-shadow:0 1px 2px rgba(0,0,0,.55);pointer-events:none;
   max-width:72%;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sv-img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;transform-origin:center center;will-change:transform;user-select:none;-webkit-user-drag:none}
+.sv-img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;transform-origin:center center;will-change:transform;user-select:none;-webkit-user-drag:none;-webkit-touch-callout:default}
 /* 銘牌(様式4:枠なし・最小)— 画像直下に追従。作品名(明朝・小)/機体名(楷体・台詞欄基準) */
 .sv-plate{flex:none;margin-top:12px;text-align:center;max-width:90%;padding:0 8px;pointer-events:none}
 .svp-work{font-family:var(--serif);font-size:10.5px;font-weight:600;letter-spacing:.30em;color:var(--ink-dim);
@@ -5764,7 +5790,7 @@ input,textarea{font-family:var(--sans)}
 .ie-tile.drag{border-color:var(--gold);background:rgba(217,179,106,.05)}
 .ie-tile.drag .ie-img,.ie-tile.drag .ie-tfoot,.ie-tile.drag .ie-cover,.ie-tile.drag .ie-drag{opacity:0}
 .ie-tile.drag::after{content:"";position:absolute;inset:6px;border:1.5px dashed rgba(217,179,106,.55);border-radius:9px;pointer-events:none}
-.ie-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;-webkit-user-drag:none}
+.ie-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;-webkit-user-drag:none;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .ie-img.blank{background:linear-gradient(140deg,#20262f,#14181f)}
 .ie-drag{position:absolute;top:8px;left:8px;width:30px;height:30px;border-radius:8px;background:rgba(8,10,14,.62);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;color:var(--ink);font-size:14px;z-index:4;pointer-events:auto;touch-action:none;cursor:grab;border:1px solid rgba(255,255,255,.14)}
 .ie-drag:active{cursor:grabbing;background:rgba(217,179,106,.3);border-color:var(--gold);color:var(--ink-strong)}
@@ -5799,7 +5825,7 @@ input,textarea{font-family:var(--sans)}
 /* 大プレビュー */
 .ie-pv{position:relative;width:100%;height:min(46vh,380px);border-radius:14px;overflow:hidden;background:#0c1016;border:1px solid var(--line);margin-bottom:12px;display:flex;align-items:center;justify-content:center}
 .ie-pv img{width:100%;height:100%;object-fit:cover}
-.ie-pv.full img.ie-pv-img{width:100%;height:100%;object-fit:contain}
+.ie-pv.full img.ie-pv-img{width:100%;height:100%;object-fit:contain;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;-webkit-user-drag:none}
 /* 画像情報シート:メッセージ(タイトル/メタ/操作)を常時全表示し、余白の上下スクロールを出さない。
    高さが足りない時はプレビューだけが縮む(flex-shrink)。極端に低い画面のみ overflow で退避。 */
 .ie-sheet.sel{display:flex;flex-direction:column}
