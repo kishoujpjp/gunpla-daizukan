@@ -5558,7 +5558,7 @@ input,textarea{font-family:var(--sans)}
 /* シート共通 */
 .ie-dim{position:absolute;inset:0;background:rgba(6,8,12,.62);z-index:8;display:flex;align-items:flex-end;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);animation:ie-fade .18s ease}
 @keyframes ie-fade{from{opacity:0}to{opacity:1}}
-.ie-sheet{width:100%;max-height:100%;overflow-y:auto;overscroll-behavior:contain;background:linear-gradient(180deg,var(--panel2),var(--panel));border-radius:20px 20px 0 0;padding:8px 18px calc(22px + env(safe-area-inset-bottom));box-shadow:0 -16px 44px rgba(0,0,0,.55);animation:ie-rise .26s cubic-bezier(.2,.9,.3,1)}
+.ie-sheet{position:relative;width:100%;max-height:100%;overflow-y:auto;overscroll-behavior:contain;background:linear-gradient(180deg,var(--panel2),var(--panel));border-radius:20px 20px 0 0;padding:8px 18px calc(22px + env(safe-area-inset-bottom));box-shadow:0 -16px 44px rgba(0,0,0,.55);animation:ie-rise .26s cubic-bezier(.2,.9,.3,1)}
 @keyframes ie-rise{from{transform:translateY(16px);opacity:.5}to{transform:translateY(0);opacity:1}}
 .ie-grip{width:40px;height:4px;border-radius:2px;background:var(--line-soft);margin:4px auto 14px}
 .ie-sh-h{font-family:var(--serif);font-weight:600;font-size:14px;margin-bottom:12px;text-align:center}
