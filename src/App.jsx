@@ -6215,10 +6215,10 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .row-sketch{width:112px}
 .kit-img.sm{width:112px;height:112px}
 
-/* 8. 分頁列圖標與字體 */
+/* 8. 分頁列圖標與字體放大 */
 .tab{padding:10px 0 12px;gap:3px}
-.tab-icon{font-size:18px}
-.tab-label{font-size:10.5px;letter-spacing:.16em}
+.tab-icon{font-size:20px}
+.tab-label{font-size:11.5px;letter-spacing:.18em}
 
 @media (min-width:768px){
   .row-sketch{width:132px}
@@ -6404,7 +6404,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
   .row{padding:12px 14px 12px 12px}
 }
 /* ═══ v3.5:「最小」模式按鈕內距同步收緊,標籤貼至螢幕下緣 ═══ */
-.tabbar.pad-min .tab{padding:5px 0 2px;gap:1px}
+.tabbar.pad-min .tab{padding:7px 0 2px;gap:2px}
 /* ═══ v3.6 ═══ */
 /* 1. 検索ドロワー */
 .search-drawer{overflow:hidden;max-height:0;opacity:0;transition:max-height .3s ease,opacity .25s ease}
