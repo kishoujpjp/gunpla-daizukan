@@ -2880,6 +2880,7 @@ export default function App() {
       imeta[ref] = {
         src: (meta && meta.src) || "photo",
         model: (meta && meta.model) || "",
+        style: (meta && meta.style) || "",
         at: (meta && meta.at) || Date.now(),
         by: (meta && meta.by) || settings.builderName || "",
       };
