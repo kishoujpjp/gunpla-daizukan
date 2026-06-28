@@ -2687,13 +2687,8 @@ export default function App() {
   }, [settings.theme]);
   useEffect(() => { setHapticEnabled(settings.haptic !== false); }, [settings.haptic]);
 
-  useEffect(() => {
-    const el = moreRef.current;
-    if (!el || typeof IntersectionObserver === "undefined") return;
-    const ob = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) setLimit((n) => n + 80); }));
-    ob.observe(el);
-    return () => ob.disconnect();
-  });
+  /* 無限スクロールの監視は sorted/ownedKits/planKits 確定後に定義(下方)。
+     依存配列なしで毎レンダー再生成すると observer churn と limit の暴走増分を招くため。 */
 
   /* ── 保存圖像分片 ── */
   const persistShard = useCallback(async (allImages, id) => {
@@ -3502,6 +3497,26 @@ export default function App() {
   const futurePct = Math.round(((ownedAll + planAll) / Math.max(1, allKits.length)) * 100);
   const planKits = sorted.filter((k) => getRec(k.id).plan);
   const planVisible = planKits.slice(0, paintLimit);
+
+  /* ── 無限スクロール:末尾センチネルが視界に入ったら limit を伸ばす ──
+     依存配列で「センチネルの有無(moreVisible)/タブ/limit」が変わった時だけ
+     observer を張り直す。依存なしの旧実装は毎レンダー再生成し、センチネルが
+     視界内にあると isIntersecting の初回コールバックが繰り返し発火して limit が
+     一気に跳ね上がっていた(遅延ロードの意図が崩れる)。 */
+  const moreVisible = (tab === "zukan" ? sorted.length
+    : tab === "collection" ? (collMode === "plan" ? planKits.length : ownedKits.length)
+    : 0) > limit;
+  useEffect(() => {
+    const el = moreRef.current;
+    if (!el || !moreVisible || typeof IntersectionObserver === "undefined") return;
+    const ob = new IntersectionObserver(
+      (es) => es.forEach((e) => { if (e.isIntersecting) setLimit((n) => n + 80); }),
+      { rootMargin: "200px" }
+    );
+    ob.observe(el);
+    return () => ob.disconnect();
+  }, [moreVisible, tab, collMode, limit]);
+
   const seriesList = useMemo(() => {
     const s = new Set();
     for (const k of allKits) if (k.series) s.add(k.series);
@@ -3873,6 +3888,75 @@ export default function App() {
     -(Math.random() * 8.6).toFixed(2),  // 太線(周期8.6s)
     -(Math.random() * 7).toFixed(2),    // 細線(周期7s)
   ], [detail]);
+
+  /* ── Android 返回鍵:逐層關閉浮層 ──
+     各浮層 = 1 個 history entry。返回鍵(popstate)關閉最上層;UI で閉じた時は
+     余剰 entry を history.go で巻き戻して同期を保つ。浮層が無い時は素通りで通常の
+     戻る(アプリ離脱)を許す。配列は「内側(先に閉じる)→外側」の順。
+     ※子コンポーネント内部のシート(AIRestyleModal / CropModal / ATELIER の操作シート等)は
+       親から閉じられないため、それらが開いている時の戻るは当該の親浮層ごと閉じる。 */
+  const histDepthRef = useRef(0);
+  const swallowRef = useRef(0);
+  const overlayLayersRef = useRef([]);
+  const overlayLayers = [
+    { open: serifEdit != null, close: () => setSerifEdit(null) },
+    { open: quickKit != null, close: () => setQuickKit(null) },
+    { open: ownConfirm != null, close: () => setOwnConfirm(null) },
+    { open: seriesPickerOpen, close: () => setSeriesPickerOpen(false) },
+    { open: uniPickerOpen, close: () => setUniPickerOpen(false) },
+    { open: frameEdit != null, close: () => setFrameEdit(null) },
+    { open: imgEdit != null, close: () => setImgEdit(null) },
+    { open: viewer != null, close: () => {
+        const kid = viewer && viewer.kitId;
+        viewerGuard.current = Date.now();
+        setViewerDel(false); setSerifEdit(null); setViewer(null); setEditing(false);
+        if (kid) setDetail(kid); // 鑑賞は詳細から開くため、戻るで詳細へ復帰(UI クローズと一致)
+      } },
+    { open: promptEdit != null, close: () => setPromptEdit(null) },
+    { open: profileOpen, close: () => setProfileOpen(false) },
+    { open: setupOpen, close: () => setSetupOpen(false) },
+    { open: fixOpen, close: () => setFixOpen(false) },
+    { open: quizOpen, close: () => setQuizOpen(false) },
+    { open: identifyOpen, close: () => setIdentifyOpen(false) },
+    { open: titleDetail != null, close: () => setTitleDetail(null) },
+    { open: !!adding, close: () => setAdding(false) },
+    { open: !!detailKit && editing, close: () => setEditing(false) },
+    { open: searchOpen, close: () => setSearchOpen(false) },
+    { open: filterOpen, close: () => setFilterOpen(false) },
+    { open: !!detailKit, close: closeDetail },
+  ];
+  overlayLayersRef.current = overlayLayers;
+  const overlayCount = overlayLayers.reduce((n, l) => n + (l.open ? 1 : 0), 0);
+
+  useEffect(() => {
+    const onPop = () => {
+      // 自分の history.go(...) で発生した popstate は1回ぶん吞んで何もしない
+      if (swallowRef.current > 0) { swallowRef.current -= 1; return; }
+      const top = overlayLayersRef.current.find((l) => l.open);
+      if (top) {
+        histDepthRef.current = Math.max(0, histDepthRef.current - 1);
+        top.close();
+      }
+      // 浮層が無ければ素通り(ブラウザの戻るに委ねる)
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  useEffect(() => {
+    if (!loaded || typeof window === "undefined" || !window.history) return;
+    if (overlayCount > histDepthRef.current) {
+      const add = overlayCount - histDepthRef.current;
+      for (let i = 0; i < add; i++) window.history.pushState({ mgOverlay: true }, "");
+      histDepthRef.current = overlayCount;
+    } else if (overlayCount < histDepthRef.current) {
+      const surplus = histDepthRef.current - overlayCount;
+      histDepthRef.current = overlayCount;
+      // go(-n) は popstate を1回だけ発火する仕様 → 吞むのは1回
+      swallowRef.current += 1;
+      window.history.go(-surplus);
+    }
+  }, [overlayCount, loaded]);
 
   if (!loaded) return (
     <div className={"app " + (settings.theme === "light" ? "light" : "")}><style>{CSS}</style>
