@@ -1884,7 +1884,7 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, ini
 
   return (
     <>
-    <div className="ie-bg" onClick={onClose}>
+    <div className="ie-bg" onClick={() => { if (sel) closeSheet(); else if (addOpen) setAddOpen(false); else onClose(); }}>
       <div className="ie-panel" onClick={(e) => e.stopPropagation()}>
         <div className="ie-head">
           <div className="sm-head">
@@ -1934,7 +1934,6 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, ini
         {addOpen ? (
           <div className="ie-dim" onClick={() => setAddOpen(false)}>
             <div className="ie-sheet add" onClick={(e) => e.stopPropagation()}>
-              <div className="ie-grip" />
               <div className="ie-sh-title">画像を追加</div>
               <div className="ie-addbtns">
                 <button className="ie-abtn" onClick={() => camRef.current && camRef.current.click()}>
@@ -1967,19 +1966,19 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, ini
                 {selIdx >= 0 && selIdx < order.length - 1 ? <button type="button" className="ie-pv-nav next" onClick={() => gotoRel(1)} aria-label="次の画像">›</button> : null}
               </div>
               <dl className="ie-sh-meta">
-                <dt>由来</dt><dd>{selMeta && selMeta.src === "ai" ? <span className="ai">✦ AI生成</span> : <span className="pho">◉ 写真</span>}</dd>
+                <dt>由来</dt><dd>{selMeta && selMeta.src === "ai" ? <span className="ai">AI生成</span> : <span className="pho">写真</span>}</dd>
                 {selMeta && selMeta.src === "ai"
                   ? <>
-                      <dt>スタイル</dt><dd>{(AI_STYLES.find((x) => x.id === selMeta.style) || {}).label || "—"}</dd>
                       <dt>モデル</dt><dd>{(AI_MODEL_OPTS.find((x) => x.value === selMeta.model) || {}).label || (selMeta && selMeta.model) || "—"}</dd>
+                      <dt>スタイル</dt><dd>{(AI_STYLES.find((x) => x.id === selMeta.style) || {}).label || "—"}</dd>
                     </>
                   : <><dt>撮影者</dt><dd>{(selMeta && selMeta.by) || builderName || "—"}</dd></>}
-                <dt>追加</dt><dd>{fmtDT(selMeta && selMeta.at)}</dd>
                 {selMeta && selMeta.src === "ai" ? null : (<>
                 <dt>場所</dt><dd>{locEditing
                   ? <span className="ie-locedit"><input autoFocus value={locText} placeholder="例:自宅 / イベント名" onChange={(e) => setLocText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { onSetLoc(sel, locText); setLocEditing(false); } }} /><button onClick={() => { onSetLoc(sel, locText); setLocEditing(false); }}>保存</button></span>
                   : (selMeta && selMeta.loc ? <span>{selMeta.loc} <button className="ie-locbtn" onClick={() => { setLocText(selMeta.loc || ""); setLocEditing(true); }}>編集</button></span> : <span className="ie-dim2">未設定 <button className="ie-locbtn" onClick={() => { setLocText(""); setLocEditing(true); }}>＋ 入力</button></span>)}</dd>
                 </>)}
+                <dt>追加</dt><dd>{fmtDT(selMeta && selMeta.at)}</dd>
               </dl>
               <div className="ie-acts2">
                 <button className="ie-act2" onClick={() => { const r = sel; closeSheet(); onFrame(r); }}><span className="ic">⛶</span><span>構図を整える</span></button>
@@ -5772,6 +5771,11 @@ input,textarea{font-family:var(--sans)}
 .ie-pv{position:relative;width:100%;height:min(34vh,248px);border-radius:14px;overflow:hidden;background:#0c1016;border:1px solid var(--line);margin-bottom:12px;display:flex;align-items:center;justify-content:center}
 .ie-pv img{width:100%;height:100%;object-fit:cover}
 .ie-pv.full img.ie-pv-img{width:100%;height:100%;object-fit:contain}
+/* 画像情報シート:メッセージ(タイトル/メタ/操作)を常時全表示し、余白の上下スクロールを出さない。
+   高さが足りない時はプレビューだけが縮む(flex-shrink)。極端に低い画面のみ overflow で退避。 */
+.ie-sheet.sel{display:flex;flex-direction:column}
+.ie-sheet.sel > .ie-sh-title,.ie-sheet.sel > .ie-sh-meta,.ie-sheet.sel > .ie-acts2,.ie-sheet.sel > .ie-del{flex:none}
+.ie-sheet.sel > .ie-pv.full{flex:0 1 auto;min-height:120px}
 .ie-sh-title{font-family:var(--serif);font-weight:800;font-size:15px;letter-spacing:.06em;color:var(--ink-strong);margin:2px 2px 11px}
 .ie-pv-blank{width:100%;height:100%;background:linear-gradient(140deg,#20262f,#14181f)}
 .ie-pv-idx{position:absolute;left:11px;bottom:11px;font-family:var(--serif);font-weight:700;font-size:16px;color:var(--ink-strong);padding:4px 11px;border-radius:9px;background:rgba(8,10,14,.6);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.12)}
