@@ -2207,6 +2207,7 @@ export default function App() {
   const [frameEdit, setFrameEdit] = useState(null); // 構図調整: {kitId, ref} | null
   const [imgEdit, setImgEdit] = useState(null); // 画像編集ウィンドウ対象 kitId | null
   const [planConfirm, setPlanConfirm] = useState(null); // 予定取消確認 kit
+  const [quickKit, setQuickKit] = useState(null); // リスト文字長押しの予定/入手クイックメニュー対象
   const [ownConfirm, setOwnConfirm] = useState(null); // 入手取消確認 kit
   const [loaded, setLoaded] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -3753,16 +3754,16 @@ export default function App() {
       );
     }
     if (settings.view === "list") {
-      const closeSwipe = (e) => { const sc = e.currentTarget.closest(".kz-rowscroll"); if (sc) sc.scrollTo({ left: 0, behavior: "smooth" }); };
+      const textLP = makeLongPress(() => { hapticStrong(); setQuickKit(kit); }); // 文字長押し→クイックメニュー
       return (
         <div key={kit.id} className="kz-rowscroll">
-          <button className={`kz-row ${dim ? "dim" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""} ${rec.buildDate ? "built" : ""}`} onClick={onCardClick} {...longPress}>
+          <button className={`kz-row ${dim ? "dim" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""} ${rec.buildDate ? "built" : ""}`} onClick={onCardClick}>
             <div className="kz-rframe" {...imgPress(kit.id)}>
               {img
                 ? <KitImage kit={kit} img={img} owned={rec.owned} built={!!rec.buildDate} size={88} cls="sm" frame={thumbFrameStyle(kit.id)} />
                 : <SeriesWatermark kit={kit} variant="list" />}
             </div>
-            <div className="kz-rmain">
+            <div className="kz-rmain" {...textLP}>
               <div className="kz-rno">{[
                 settings.listGrade !== false ? kit.grade : null,
                 settings.listNo && kit.no && kit.no !== "—" ? `No.${kit.no}` : null,
@@ -3782,14 +3783,6 @@ export default function App() {
             </div>
             {rec.buildDate ? <span className="kz-rseal">済</span> : rec.plan ? <span className="kz-rplan">予</span> : null}
           </button>
-          <div className="kz-ract">
-            <button className={"kz-actbtn own" + (rec.owned ? " on" : "")}
-              onClick={(e) => { e.stopPropagation(); haptic(); toggleOwned(kit.id); closeSwipe(e); }}>
-              <span className="kz-actico">{rec.owned ? "✓" : "◎"}</span>{rec.owned ? "入手済" : "入手"}</button>
-            <button className={"kz-actbtn plan" + (rec.plan ? " on" : "")}
-              onClick={(e) => { e.stopPropagation(); haptic(); togglePlan(kit.id); closeSwipe(e); }}>
-              <span className="kz-actico">{rec.plan ? "✓" : "◆"}</span>{rec.plan ? "予定中" : "予定"}</button>
-          </div>
         </div>
       );
     }
@@ -4523,6 +4516,25 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {quickKit && (() => {
+        const qr = getRec(quickKit.id);
+        return (
+          <div className="modal-bg qm-bg" onClick={() => setQuickKit(null)} style={{ zIndex: 92 }}>
+            <div className="qm-card" onClick={(e) => e.stopPropagation()}>
+              <div className="qm-name"><KitName name={quickKit.name} /></div>
+              <div className="qm-btns">
+                <button className={"qm-btn own" + (qr.owned ? " on" : "")}
+                  onClick={() => { haptic(); toggleOwned(quickKit.id); setQuickKit(null); }}>
+                  <span className="qm-ico">{qr.owned ? "✓" : "◎"}</span>{qr.owned ? "入手済" : "入手"}</button>
+                <button className={"qm-btn plan" + (qr.plan ? " on" : "")}
+                  onClick={() => { haptic(); togglePlan(quickKit.id); setQuickKit(null); }}>
+                  <span className="qm-ico">{qr.plan ? "✓" : "◆"}</span>{qr.plan ? "予定中" : "予定"}</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {ownConfirm && (
         <div className="modal-bg confirm-bg" onClick={() => setOwnConfirm(null)} style={{ zIndex: 90 }}>
@@ -5343,6 +5355,15 @@ input,textarea{font-family:var(--sans)}
 .confirm-name{font-size:12.5px;color:var(--ink-mid);margin-bottom:20px;line-height:1.6}
 .confirm-btns{display:flex;gap:10px}
 .confirm-btns .btn{flex:1}
+.qm-card{width:calc(100% - 56px);max-width:320px;margin:auto;background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:20px 18px;text-align:center;animation:up .24s cubic-bezier(.2,.9,.3,1.1);align-self:center}
+.qm-name{font-size:13px;color:var(--ink-mid);margin-bottom:16px;line-height:1.55}
+.qm-btns{display:flex;gap:10px}
+.qm-btn{flex:1;appearance:none;-webkit-appearance:none;border:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;height:64px;font-family:var(--sans);font-size:13px;font-weight:700;letter-spacing:.04em;color:#fff;border-radius:10px;cursor:pointer}
+.qm-ico{font-size:18px;line-height:1}
+.qm-btn.own{background:linear-gradient(150deg,#2f7d63,#235a47)}
+.qm-btn.plan{background:linear-gradient(150deg,#b58a32,#8a661f)}
+.qm-btn.on{filter:brightness(1.16) saturate(1.1)}
+.qm-btn:active{transform:scale(.96)}
 .adv-hint{font-size:10.5px;color:var(--ink-dim);letter-spacing:.05em}
 .adv-clear{font-size:11.5px;color:var(--shu);border-bottom:1px dashed var(--shu);padding-bottom:1px}
 .adv-close{font-size:11.5px;color:var(--ink-mid);padding:4px 10px;border:1px solid var(--line);border-radius:6px}
@@ -6768,18 +6789,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .kz-plan{position:absolute;top:9px;right:9px;z-index:3;font-family:ui-monospace,monospace;font-size:11px;font-weight:700;color:var(--gold);border:1px dashed var(--gold);background:rgba(217,179,106,.05);border-radius:2px;padding:4px 5px;writing-mode:vertical-rl;letter-spacing:.06em}
 /* リスト */
 /* 左スワイプで「入手」「予定」アクションを表示(CSSスクロールスナップ) */
-.kz-rowscroll{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-ms-overflow-style:none}
-.kz-rowscroll::-webkit-scrollbar{display:none}
-.kz-rowscroll > .kz-row{flex:0 0 100%;scroll-snap-align:start}
-.kz-ract{flex:0 0 auto;display:flex;align-items:stretch;scroll-snap-align:end;padding-left:8px}
-.kz-actbtn{appearance:none;-webkit-appearance:none;border:none;width:72px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
-  font-family:var(--sans);font-size:12.5px;font-weight:700;letter-spacing:.04em;color:#fff;border-radius:7px;cursor:pointer;padding:0}
-.kz-actbtn+.kz-actbtn{margin-left:6px}
-.kz-actico{font-size:15px;line-height:1}
-.kz-actbtn.own{background:linear-gradient(150deg,#2f7d63,#235a47)}
-.kz-actbtn.plan{background:linear-gradient(150deg,#b58a32,#8a661f)}
-.kz-actbtn.on{filter:brightness(1.14) saturate(1.1)}
-.kz-actbtn:active{transform:scale(.95)}
+.kz-rowscroll{display:block}
 .kz-row{position:relative;display:flex;gap:15px;align-items:center;width:100%;background:none;border:none;border-bottom:1px solid var(--line);padding:15px 2px;text-align:left;transition:background .12s}
 .kz-row:active{background:rgba(217,179,106,.03)}
 .kz-row.dim{opacity:.5}
