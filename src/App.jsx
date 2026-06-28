@@ -790,7 +790,7 @@ function careerStr(since) {
 }
 
 /* ── 圖像壓縮(上傳用) ── */
-async function fileToCompressedDataURL(file, maxW = 440, quality = 0.74) {
+async function fileToCompressedDataURL(file, maxW = 1080, quality = 0.78) {
   const dataURL = await new Promise((res, rej) => {
     const r = new FileReader();
     r.onload = () => res(r.result); r.onerror = rej;
@@ -1085,7 +1085,7 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach,
   const runIdentify = async (file) => {
     setErr(""); setPhase("loading");
     try {
-      const storeData = await fileToCompressedDataURL(file, 480, 0.74);
+      const storeData = await fileToCompressedDataURL(file, 1080, 0.8);
       const aiData = await fileToCompressedDataURL(file, 1024, 0.82);
       setStoreImg(storeData);
       const m = /^data:([^;]+);base64,(.*)$/.exec(aiData);
@@ -1367,7 +1367,7 @@ function AIRestyleModal({ src, geminiKey, openaiKey, model, prompts, lastStyle, 
     const out = await new Promise((res) => {
       const im = new Image();
       im.onload = () => {
-        const sc = Math.min(1, 480 / im.width);
+        const sc = Math.min(1, 1280 / im.width);
         const c = document.createElement("canvas");
         c.width = Math.round(im.width * sc); c.height = Math.round(im.height * sc);
         c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
@@ -1633,12 +1633,13 @@ function AppDialogHost() {
   );
 }
 
-function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onAddImage, onRemoveImage, onSetRole, onFrame, onReorder, onSetLoc, onClose }) {
+function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, initialCols, onCols, onAddImage, onRemoveImage, onSetRole, onFrame, onReorder, onSetLoc, onClose }) {
   const kitId = kit.id;
   const baseRefs = albumRefs(kitId, images, extras, albumMeta);
   const baseKey = baseRefs.join("|");
   const [order, setOrder] = useState(baseRefs);
-  const [cols, setCols] = useState(2); // 工房グリッドの列数(2 / 3)
+  const [cols, setColsState] = useState(initialCols === 3 ? 3 : 2); // 工房グリッドの列数(2 / 3)
+  const setCols = (n) => { setColsState(n); if (onCols) onCols(n); }; // 設定に保存し次回も維持
   const [srcFilter, setSrcFilter] = useState("all"); // 由来フィルタ: all / photo / ai
   const orderRef = useRef(order);
   const dragRef = useRef(null);
@@ -1767,7 +1768,7 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
     const f = e.target.files && e.target.files[0]; if (e.target) e.target.value = "";
     if (!f) return;
     setBusy(true);
-    try { const url = await fileToCompressedDataURL(f, 900, 0.82); onAddImage(url, { src: "photo" }); }
+    try { const url = await fileToCompressedDataURL(f, 1280, 0.82); onAddImage(url, { src: "photo" }); }
     catch (err) { notify("画像の読み込みに失敗しました", { kind: "err" }); }
     setBusy(false); setAddOpen(false);
   };
@@ -1826,12 +1827,18 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, onA
         {/* 追加メニュー */}
         {addOpen ? (
           <div className="ie-dim" onClick={() => setAddOpen(false)}>
-            <div className="ie-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="ie-sheet add" onClick={(e) => e.stopPropagation()}>
               <div className="ie-grip" />
-              <div className="ie-sh-h">画像を追加</div>
+              <div className="ie-sh-title">画像を追加</div>
               <div className="ie-addbtns">
-                <button className="ie-abtn" onClick={() => camRef.current && camRef.current.click()}><span className="ic">📷</span>カメラ</button>
-                <button className="ie-abtn" onClick={() => albRef.current && albRef.current.click()}><span className="ic">🖼</span>アルバム</button>
+                <button className="ie-abtn" onClick={() => camRef.current && camRef.current.click()}>
+                  <svg className="ie-abi" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 8h2.6l1.3-2.1a1 1 0 0 1 .85-.47h6.5a1 1 0 0 1 .85.47L17.4 8H20a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z" /><circle cx="12" cy="13" r="3.3" /></svg>
+                  <span>カメラ</span>
+                </button>
+                <button className="ie-abtn" onClick={() => albRef.current && albRef.current.click()}>
+                  <svg className="ie-abi" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="13.5" height="13.5" rx="2" /><circle cx="7.6" cy="8.6" r="1.5" /><path d="M3.4 14.5l3.6-3.1 2.8 2.3 3.2-2.9 3.5 3" /><path d="M20.5 8v9.5a3 3 0 0 1-3 3H8" /></svg>
+                  <span>アルバム</span>
+                </button>
               </div>
               <div className="ie-urlrow"><input value={urlVal} placeholder="画像URL" onChange={(e) => setUrlVal(e.target.value)} /><button onClick={addUrl}>追加</button></div>
             </div>
@@ -3082,7 +3089,7 @@ export default function App() {
       const lead = base.split(/[ _\-(（\[]/)[0]; // 「b001_ガンダム.jpg」等にも対応(先頭トークン)
       const id = valid.get(base.toLowerCase()) || valid.get(lead.toLowerCase());
       if (!id) { bad.push(f.name); continue; }
-      try { next[id] = await fileToCompressedDataURL(f, 480, 0.74); ok++; okIds.push(id); }
+      try { next[id] = await fileToCompressedDataURL(f, 1080, 0.8); ok++; okIds.push(id); }
       catch (e) { bad.push(f.name + "(変換失敗)"); }
       if (i % 4 === 0) setImgMsg(`取り込み中… ${i + 1}/${files.length}`);
     }
@@ -4372,14 +4379,6 @@ export default function App() {
                 <span>未入手を淡色表示(共通)</span>
                 <i className={`switch ${settings.dimUnowned ? "on" : ""}`}><b /></i>
               </button>
-              <button className="opt toggle" onClick={() => patchSettings((s) => ({ crtScan: s.crtScan === false ? true : false }))}>
-                <span>未識別プレートのスキャンライン</span>
-                <i className={`switch ${settings.crtScan !== false ? "on" : ""}`}><b /></i>
-              </button>
-              <button className="opt toggle" onClick={() => patchSettings((s) => ({ vfFilter: s.vfFilter === false ? true : false }))}>
-                <span>入手画像のビューファインダー風フィルター</span>
-                <i className={`switch ${settings.vfFilter !== false ? "on" : ""}`}><b /></i>
-              </button>
             </div>
 
             <h2 className="panel-title">AI画像生成<span>IMAGE AI</span></h2>
@@ -4468,9 +4467,6 @@ export default function App() {
               </button>
               <input ref={localImgRef} type="file" accept="image/*" multiple style={{ display: "none" }}
                 onChange={(e) => { importLocalImages(e.target.files); e.target.value = ""; }} />
-              <button className="opt" onClick={() => { setIdentifyCam(false); setIdentifyOpen(true); }}>
-                <span>画像から機体を判別して追加(AI)</span><i>◎</i>
-              </button>
               <button className="opt" disabled={imgBusy} onClick={precacheImages}>
                 <span>オフライン用に画像を保存(プリキャッシュ)</span><i>⤓</i>
               </button>
@@ -4597,6 +4593,7 @@ export default function App() {
         if (!ek) return null;
         return (
           <ImageEditorModal kit={ek} images={images} extras={extras} albumMeta={albumMeta} builderName={settings.builderName}
+            initialCols={settings.ieCols === 3 ? 3 : 2} onCols={(n) => patchSettings({ ieCols: n })}
             ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, model: settings.geminiModel, prompts: settings.aiPrompts, style: settings.aiStyle, onModel: (m) => patchSettings({ geminiModel: m }), onStyle: (st) => patchSettings({ aiStyle: st }) }}
             onAddImage={(src, meta) => addAlbumImage(imgEdit, src, meta)}
             onRemoveImage={(ref) => removeAlbumImage(imgEdit, ref)}
@@ -4642,12 +4639,6 @@ export default function App() {
                     ? <div className="dc-frame" onClick={() => openViewer(detailKit.id)}>
                         <img src={acquireSrc(detailKit.id)} alt={detailKit.name} className="kit-img tc" draggable={false}
                           loading="lazy" decoding="async" style={acqFrameStyle(detailKit.id)} />
-                        <div className="tc-scan" aria-hidden="true">
-                          {settings.crtScan !== false && <>
-                            <span className="crt-beam" style={{ animationDelay: beamDelay[0] + "s" }} />
-                            <span className="crt-beam beam2" style={{ animationDelay: beamDelay[1] + "s" }} />
-                          </>}
-                        </div>
                       </div>
                     : <div className="dc-classified">
                         <span className="dc-tick tl" /><span className="dc-tick tr" /><span className="dc-tick bl" /><span className="dc-tick br" />
@@ -4655,7 +4646,6 @@ export default function App() {
                         <span className="dc-unsub">NO VISUAL ON FILE · 機密</span>
                         <span className="dc-unref">REF · {detailKit.code || (detailKit.no !== "—" ? "No." + detailKit.no : "—")}</span>
                       </div>}
-                  {acquireSrc(detailKit.id) ? <span className="dc-seal">鑑定済</span> : null}
                   <button className="dc-frame-btn" onClick={(e) => { e.stopPropagation(); setImgEdit(detailKit.id); }}>
                     <svg className="bico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M16 3l5 5-9 9-5-5z" /><path d="M7 12l-2.5 2.5a2.1 2.1 0 0 0 3 3L10 15" /></svg>
                     編集
@@ -5465,7 +5455,7 @@ input,textarea{font-family:var(--sans)}
 .ie-open-btn{width:100%;display:flex;align-items:center;justify-content:center;border:1px solid var(--gold);color:var(--gold);background:rgba(217,179,106,.06);border-radius:9px;padding:13px 0;font-size:13px;letter-spacing:.04em;cursor:pointer;font-family:inherit}
 .ie-open-btn:active{background:rgba(217,179,106,.13)}
 .ie-bg{position:fixed;inset:0;background:rgba(5,7,12,.92);z-index:70;display:flex;align-items:center;justify-content:center;padding:max(env(safe-area-inset-top),4vh) 12px max(env(safe-area-inset-bottom),4vh)}
-.ie-panel{position:relative;width:100%;max-width:520px;max-height:92vh;background:var(--bg);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+.ie-panel{position:relative;width:100%;max-width:520px;min-height:min(88vh,624px);max-height:92vh;background:var(--bg);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
 /* ── 編集室 ATELIER ── */
 .ie-head{flex:none;position:relative;padding:15px 16px 11px;background:linear-gradient(180deg,var(--bg2),var(--bg));border-bottom:1px solid var(--line)}
 .ie-head .sm-head{margin-bottom:0}
@@ -5515,7 +5505,7 @@ input,textarea{font-family:var(--sans)}
 /* シート共通 */
 .ie-dim{position:absolute;inset:0;background:rgba(6,8,12,.62);z-index:8;display:flex;align-items:flex-end;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);animation:ie-fade .18s ease}
 @keyframes ie-fade{from{opacity:0}to{opacity:1}}
-.ie-sheet{width:100%;background:linear-gradient(180deg,var(--panel2),var(--panel));border-top:1px solid var(--gold);border-radius:20px 20px 0 0;padding:8px 18px calc(22px + env(safe-area-inset-bottom));box-shadow:0 -16px 44px rgba(0,0,0,.55);animation:ie-rise .26s cubic-bezier(.2,.9,.3,1)}
+.ie-sheet{width:100%;max-height:100%;overflow-y:auto;overscroll-behavior:contain;background:linear-gradient(180deg,var(--panel2),var(--panel));border-top:1px solid var(--gold);border-radius:20px 20px 0 0;padding:8px 18px calc(22px + env(safe-area-inset-bottom));box-shadow:0 -16px 44px rgba(0,0,0,.55);animation:ie-rise .26s cubic-bezier(.2,.9,.3,1)}
 @keyframes ie-rise{from{transform:translateY(16px);opacity:.5}to{transform:translateY(0);opacity:1}}
 .ie-grip{width:40px;height:4px;border-radius:2px;background:var(--line-soft);margin:4px auto 14px}
 .ie-sh-h{font-family:var(--serif);font-weight:600;font-size:14px;margin-bottom:12px;text-align:center}
@@ -5523,13 +5513,15 @@ input,textarea{font-family:var(--sans)}
 .ie-abtn{flex:1;border:1px solid var(--line);background:var(--panel);border-radius:11px;padding:15px 0;color:var(--ink-strong);font-size:13px;display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;transition:transform .12s,border-color .14s,background .14s}
 .ie-abtn:active{transform:scale(.96);border-color:var(--gold);background:var(--panel2)}
 .ie-abtn .ic{font-size:21px}
+.ie-abi{width:30px;height:30px;color:var(--gold)}
+.ie-sheet.add .ie-sh-title{text-align:center}
 .ie-urlrow{display:flex;gap:8px}
 .ie-urlrow input{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:12px;color:var(--ink-strong);font-size:13px}
 .ie-urlrow input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(217,179,106,.14)}
 .ie-urlrow button{flex:none;border:1px solid var(--gold);color:var(--gold);background:rgba(217,179,106,.06);border-radius:9px;padding:0 18px;font-size:13px;cursor:pointer}
 .ie-urlrow button:active{background:rgba(217,179,106,.14)}
 /* 大プレビュー */
-.ie-pv{position:relative;width:100%;height:min(46vh,330px);border-radius:14px;overflow:hidden;background:#0c1016;border:1px solid var(--line);margin-bottom:14px;display:flex;align-items:center;justify-content:center}
+.ie-pv{position:relative;width:100%;height:min(38vh,278px);border-radius:14px;overflow:hidden;background:#0c1016;border:1px solid var(--line);margin-bottom:14px;display:flex;align-items:center;justify-content:center}
 .ie-pv img{width:100%;height:100%;object-fit:cover}
 .ie-pv.full img.ie-pv-img{width:100%;height:100%;object-fit:contain}
 .ie-sh-title{font-family:var(--serif);font-weight:800;font-size:15px;letter-spacing:.06em;color:var(--ink-strong);margin:2px 2px 11px}
@@ -5670,7 +5662,7 @@ input,textarea{font-family:var(--sans)}
 .tc-frame-btn{position:absolute;right:8px;bottom:8px;z-index:5;font-size:11px;font-weight:700;
   color:var(--ink);background:rgba(20,24,32,.82);border:1px solid var(--line);border-radius:8px;
   padding:5px 9px;backdrop-filter:blur(4px)}
-.frm-stage{position:relative;width:100%;aspect-ratio:1;max-height:58vh;margin:0 auto;background:repeating-conic-gradient(#15191f 0% 25%,#0e1217 0% 50%) 50%/18px 18px;border-radius:8px;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+.frm-stage{position:relative;width:min(100%,56vh);aspect-ratio:1;margin:0 auto;background:repeating-conic-gradient(#15191f 0% 25%,#0e1217 0% 50%) 50%/18px 18px;border-radius:8px;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
 .frm-fullimg{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;pointer-events:none}
 .frm-cropbox{position:absolute;box-sizing:border-box;border:1.5px solid var(--gold);box-shadow:0 0 0 9999px rgba(6,8,12,.62);cursor:move;touch-action:none}
 .frm-cg{position:absolute;inset:0;pointer-events:none;display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr}
@@ -6810,7 +6802,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .kz-rplan{flex:none;font-family:ui-monospace,monospace;font-size:11px;font-weight:700;color:var(--gold);border:1px dashed var(--gold);background:rgba(217,179,106,.05);border-radius:2px;padding:4px 5px;writing-mode:vertical-rl;letter-spacing:.06em}
 /* ═══ 入手頁(機密档案) ═══ */
 .dc-head{padding:2px 0 0}
-.dc-modal{position:relative}
+.dc-modal{position:relative;scrollbar-gutter:stable}
 .dc-x{position:absolute;top:11px;right:11px;z-index:8;width:30px;height:30px;display:flex;align-items:center;justify-content:center;color:var(--ink-dim);font-size:15px;line-height:1;border-radius:8px;background:rgba(8,10,14,.5);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);border:1px solid var(--hair)}
 .dc-x:active{background:rgba(255,255,255,.07);color:var(--ink-strong);transform:scale(.92)}
 .dc-eye{font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;color:var(--ink-mid);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
