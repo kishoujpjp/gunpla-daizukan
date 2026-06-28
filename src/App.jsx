@@ -676,7 +676,7 @@ function FramingEditor({ src, initial, onSave, onCancel }) {
           </div>
         </div>
         <div className="crop-actions">
-          <button className="btn primary" onClick={() => onSave(frLive && !isDefaultFraming(frLive) ? clampFraming(frLive) : null)}>保存</button>
+          <button className="btn primary" onClick={() => onSave(frLive && !isDefaultFraming(frLive) ? clampFraming({ ...frLive, a: nat ? nat.w / nat.h : undefined }) : null)}>保存</button>
           <button className="btn" onClick={onCancel}>やめる</button>
         </div>
       </div>
@@ -2904,6 +2904,8 @@ export default function App() {
   }, [albumMeta]);
 
   const thumbFrameStyle = useCallback((id) => framingStyle(framingOf(id, pickRef("thumb", id, images, extras, albumMeta))), [framingOf, images, extras, albumMeta]);
+  // salon(繪測卷)は直式コンテナ。container-aspect を渡して自適応描画(B方式)
+  const salonFrameStyle = useCallback((id) => framingStyle(framingOf(id, pickRef("thumb", id, images, extras, albumMeta)), (settings.salonCols || 2) === 3 ? 3 / 4 : 4 / 5), [framingOf, images, extras, albumMeta, settings.salonCols]);
   const acqFrameStyle = useCallback((id) => framingStyle(framingOf(id, pickRef("acquire", id, images, extras, albumMeta))), [framingOf, images, extras, albumMeta]);
 
   // 鑑賞モードを開く(入手指定の画像から)
@@ -3735,7 +3737,7 @@ export default function App() {
             {settings.showGrade && kit.grade ? <span className="sl-grade">{kit.grade}</span> : null}
             {img
               ? <img className="sl-img" src={img} alt={kit.name} loading="lazy" decoding="async"
-                  style={(settings.salonFit || "cover") === "cover" ? thumbFrameStyle(kit.id) : undefined} />
+                  style={(settings.salonFit || "cover") === "cover" ? salonFrameStyle(kit.id) : undefined} />
               : <SeriesWatermark kit={kit} variant="list" />}
           </div>
           <div className="sl-body">
@@ -5483,7 +5485,7 @@ input,textarea{font-family:var(--sans)}
 .ie-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .ie-grid.c3{grid-template-columns:1fr 1fr 1fr;gap:9px}
 .bico{width:13px;height:13px;display:inline-block;vertical-align:-2px;margin-right:5px;flex:none}
-.ie-tile{position:relative;border-radius:13px;overflow:hidden;border:1px solid var(--line);aspect-ratio:1/1.04;background:linear-gradient(150deg,var(--panel2),#10141a);padding:0;cursor:pointer;user-select:none;-webkit-user-select:none;transition:transform .14s ease,border-color .16s ease,box-shadow .16s ease}
+.ie-tile{position:relative;border-radius:13px;overflow:hidden;border:1px solid var(--line);aspect-ratio:1;background:linear-gradient(150deg,var(--panel2),#10141a);padding:0;cursor:pointer;user-select:none;-webkit-user-select:none;transition:transform .14s ease,border-color .16s ease,box-shadow .16s ease}
 .ie-tile:not(.drag):active{transform:scale(.975);filter:brightness(.96)}
 .ie-tile.drag{border-color:var(--gold);background:rgba(217,179,106,.05)}
 .ie-tile.drag .ie-img,.ie-tile.drag .ie-tfoot,.ie-tile.drag .ie-cover,.ie-tile.drag .ie-drag{opacity:0}

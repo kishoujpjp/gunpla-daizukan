@@ -145,7 +145,10 @@ export function clampFraming(fr) {
   const s = Math.min(3, Math.max(0.2, Number(fr.scale) || 1));
   // 平行移動(%)はelement box基準。letterboxや広い画像の高倍率で大きく振れるため緩い安全域で通す。
   const cl = (v) => Math.max(-520, Math.min(520, Number(v) || 0));
-  return { scale: s, x: cl(fr.x), y: cl(fr.y) };
+  const out = { scale: s, x: cl(fr.x), y: cl(fr.y) };
+  // a=編集時の画像アスペクト(iw/ih)。非正方形容器での自適応描画に用いる(任意・後方互換)。
+  if (fr.a) { const av = Number(fr.a); if (av > 0 && isFinite(av)) out.a = av; }
+  return out;
 }
 export function isDefaultFraming(fr) {
   if (!fr) return true;
@@ -153,10 +156,38 @@ export function isDefaultFraming(fr) {
   const s = Number(fr.scale) || 1;
   return Math.abs(s - 1) < 0.005 && Math.abs(Number(fr.x) || 0) < 0.5 && Math.abs(Number(fr.y) || 0) < 0.5;
 }
-export function framingStyle(fr) {
+// ar=描画先コンテナのアスペクト(cw/ch)。既定1(正方形)。
+// 正方形(ar=1)や a 無しの旧framingは従来transformそのまま(後方互換・正方形は厳密一致)。
+// 非正方形は「正方形エディタで選んだ焦点矩形」を導出し、その矩形を内包する ar-crop を
+// 焦点中心に置いて cover+transform を再計算する(直式salon等でも構図が破綻しない)。
+export function framingStyle(fr, ar = 1) {
   if (isDefaultFraming(fr)) return undefined;
   const c = clampFraming(fr);
-  return { transform: `translate(${c.x}%, ${c.y}%) scale(${c.scale})`, transformOrigin: "center center" };
+  if (!c.a || Math.abs(ar - 1) < 1e-4) {
+    return { transform: `translate(${c.x}%, ${c.y}%) scale(${c.scale})`, transformOrigin: "center center" };
+  }
+  const a = c.a;
+  // 1) 正方形容器での可視領域 = 焦点矩形(image-normalized)
+  const sqWD = a >= 1 ? a : 1, sqHD = a >= 1 ? 1 : 1 / a;
+  const s0 = c.scale, tx0 = c.x / 100, ty0 = c.y / 100;
+  const unAt = (cx) => { const ex = 0.5 + (cx - 0.5 - tx0) / s0; return (ex - (1 - sqWD) / 2) / sqWD; };
+  const vnAt = (cy) => { const ey = 0.5 + (cy - 0.5 - ty0) / s0; return (ey - (1 - sqHD) / 2) / sqHD; };
+  const fx0 = unAt(0), fx1 = unAt(1), fy0v = vnAt(0), fy1v = vnAt(1);
+  const fcx = (fx0 + fx1) / 2, fcy = (fy0v + fy1v) / 2;
+  const fw = fx1 - fx0, fh = fy1v - fy0v;
+  // 2) 焦点矩形を内包する最小 ar-crop を中心配置(pixel基準: ih=1, iw=a)
+  const fpw = fw * a, fph = fh;
+  const cph = Math.max(fph, fpw / ar), cpw = ar * cph;
+  const crw = cpw / a, crh = cph; // normalized
+  const rx0 = fcx - crw / 2, ry0 = fcy - crh / 2, rx1 = fcx + crw / 2, ry1 = fcy + crh / 2;
+  // 3) ar容器の cover 寸法 → crop矩形を埋めるtransform
+  const WD = Math.max(1, a / ar), HD = Math.max(1, ar / a);
+  const s = 1 / ((rx1 - rx0) * WD);
+  const exn0 = (1 - WD) / 2 + rx0 * WD;
+  const eyn0 = (1 - HD) / 2 + ry0 * HD;
+  const txn = -(0.5 + (exn0 - 0.5) * s);
+  const tyn = -(0.5 + (eyn0 - 0.5) * s);
+  return { transform: `translate(${(txn * 100).toFixed(3)}%, ${(tyn * 100).toFixed(3)}%) scale(${s.toFixed(4)})`, transformOrigin: "center center" };
 }
 // 追加画像のID。機体IDを接頭にし、衝突しにくい短い乱数を付す。
 export const newImgId = (kitId) => kitId + "~" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
