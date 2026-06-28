@@ -418,6 +418,14 @@ function KitImage({ kit, img, owned, built, size = 84, cls = "", frame }) {
    Pointer Events で実装(iOS Safari 対応)。touch-action:none で既定のスクロールを抑止。 */
 /* ── 画像鑑賞: 指追従の横スワイプでページング(離すと次へ自然遷移)＋ピンチズーム。
    ボタン/X 無し、タップで閉じる。ズーム中(>1倍)は1本指でパン、等倍時のみページング ── */
+// pointerup 起点で閉じるビューアの「ゴーストクリック」を1回だけ握り潰す(背景への突き抜けタップ防止)。
+function swallowNextClick() {
+  if (typeof document === "undefined") return;
+  const h = (e) => { e.stopPropagation(); e.preventDefault(); document.removeEventListener("click", h, true); clearTimeout(t); };
+  const t = setTimeout(() => document.removeEventListener("click", h, true), 700);
+  document.addEventListener("click", h, true);
+}
+
 function SwipeViewer({ slides, index, onIndex, onClose, resolveSrc, resetKey, serifOf, onSerif, watermarkOf }) {
   const n = slides.length;
   const wrapRef = useRef(null);
@@ -1895,13 +1903,7 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, ini
   // 鑑賞ビューア:この機体のアルバム順だけをスライドにする(他機体へは飛ばない)
   const viewSlides = order.filter((r) => refSrc(r, kitId, images, extras)).map((r) => ({ kitId, ref: r, name: kit.name, series: kit.series, code: kit.code, no: kit.no }));
   const viewIdx = Math.max(0, viewSlides.findIndex((s) => s.ref === viewRef));
-  // ビューアを閉じる際、pointerup 起点のクローズ直後に発火する「ゴーストクリック」を1回だけ握り潰す
-  // (背景のタイル等への突き抜けタップを防止)。
-  const swallowNextClick = () => {
-    const h = (e) => { e.stopPropagation(); e.preventDefault(); document.removeEventListener("click", h, true); clearTimeout(t); };
-    const t = setTimeout(() => document.removeEventListener("click", h, true), 700);
-    document.addEventListener("click", h, true);
-  };
+  // ビューアを閉じる際の突き抜けタップ防止は module の swallowNextClick を使用。
   // 閉じる:from=sheet は sel を維持して画像情報シートへ復帰 / from=grid は sel=null のままグリッドへ
   const closeView = () => setViewRef(null);
 
@@ -4865,7 +4867,7 @@ export default function App() {
               serifOf={(sl) => (sl.ref ? (serifs[sl.ref] || "") : "")}
               onSerif={(sl) => { if (sl.ref) setSerifEdit({ ref: sl.ref, text: serifs[sl.ref] || "" }); }}
               onIndex={(i) => { setViewerDel(false); setSerifEdit(null); setViewer({ kitId: flat[i].kitId, ref: flat[i].ref, from: vfrom }); }}
-              onClose={close} />
+              onClose={() => { swallowNextClick(); close(); }} />
 
             {serifEdit && (
               <div className="serif-edit-bg" onClick={(e) => { e.stopPropagation(); setSerifEdit(null); }}>
