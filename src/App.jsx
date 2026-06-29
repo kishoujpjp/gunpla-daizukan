@@ -426,7 +426,7 @@ function swallowNextClick() {
   document.addEventListener("click", h, true);
 }
 
-function SwipeViewer({ slides, index, onIndex, onClose, resolveSrc, resetKey, serifOf, onSerif, watermarkOf }) {
+function SwipeViewer({ slides, index, onIndex, onClose, resolveSrc, resetKey, serifOf, onSerif, watermarkOf, L = (ja) => ja }) {
   const n = slides.length;
   const wrapRef = useRef(null);
   const [dragX, setDragX] = useState(0);
@@ -527,7 +527,7 @@ function SwipeViewer({ slides, index, onIndex, onClose, resolveSrc, resetKey, se
                 return (
                   <div className="sv-serif" onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => { e.stopPropagation(); if (onSerif) onSerif(sl); }}>
-                    {sf ? <span className="vs-text">{sf}</span> : (isCur && onSerif ? <span className="vs-hint">＋ セリフを追加</span> : null)}
+                    {sf ? <span className="vs-text">{sf}</span> : (isCur && onSerif ? <span className="vs-hint">{L("＋ セリフを追加","＋ Add caption","＋ 新增台詞")}</span> : null)}
                   </div>
                 );
               })() : null}
@@ -538,7 +538,7 @@ function SwipeViewer({ slides, index, onIndex, onClose, resolveSrc, resetKey, se
                   : <div className="dc-classified sv-classified">
                       <span className="dc-tick tl" /><span className="dc-tick tr" /><span className="dc-tick bl" /><span className="dc-tick br" />
                       <span className="dc-unid">UNIDENTIFIED</span>
-                      <span className="dc-unsub">NO VISUAL ON FILE · 機密</span>
+                      <span className="dc-unsub">NO VISUAL ON FILE</span>
                       <span className="dc-unref">REF · {sl.code || (sl.no && sl.no !== "—" ? "No." + sl.no : "—")}</span>
                     </div>}
                 {wm ? <div className="sv-wm">{wm}</div> : null}
@@ -642,7 +642,7 @@ function PinchZoom({ src, alt = "", className = "", imgClassName = "", imgStyle,
 
 /* ── 構図調整モーダル: ドラッグ平移 + ピンチ/ホイール拡大 + 中央リセット ──
    方形ビューポート内で object-fit:cover の画像を pan/zoom。保存値は {scale,x,y}。原画像は無加工。 */
-function FramingEditor({ src, initial, onSave, onCancel }) {
+function FramingEditor({ src, initial, onSave, onCancel, L = (ja) => ja }) {
   /* 全画像を表示し、正方形の枠を自由に移動/サイズ変更して構図を選ぶ。
      枠は既存の cover+transform モデル({scale,x,y})へ変換して保存(全描画箇所と互換)。
      枠が画像より大きい=letterbox(全体表示) / 小さい=拡大トリミング。 */
@@ -720,7 +720,7 @@ function FramingEditor({ src, initial, onSave, onCancel }) {
   return (
     <div className="crop-bg" onClick={onCancel}>
       <div className="crop-panel frm" onClick={(e) => e.stopPropagation()}>
-        <div className="crop-head">構図を選ぶ<span>枠をドラッグ・角でサイズ変更 / 枠外は切り取り</span></div>
+        <div className="crop-head">{L("構図を選ぶ","Choose framing","選擇構圖")}<span>{L("枠をドラッグ・角でサイズ変更 / 枠外は切り取り","Drag the frame · resize from corners / outside is cropped","拖曳框・角落縮放 / 框外裁去")}</span></div>
         <div className="frm-stage" ref={stageRef} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} style={{ touchAction: "none" }}>
           <img src={src} alt="" className="frm-fullimg" draggable={false}
             onLoad={(e) => setNat({ w: e.target.naturalWidth || 1, h: e.target.naturalHeight || 1 })} />
@@ -728,7 +728,7 @@ function FramingEditor({ src, initial, onSave, onCancel }) {
             <div className="frm-cropbox" onPointerDown={onDown("move")}
               style={{ left: box.x * 100 + "%", top: box.y * 100 + "%", width: box.s * 100 + "%", height: box.s * 100 + "%" }}>
               <span className="frm-cg" aria-hidden="true"><i /><i /><i /><i /></span>
-              <button type="button" className="frm-handle" onPointerDown={onDown("resize")} onClick={(e) => e.stopPropagation()} aria-label="サイズ変更" />
+              <button type="button" className="frm-handle" onPointerDown={onDown("resize")} onClick={(e) => e.stopPropagation()} aria-label={L("サイズ変更","Resize","縮放")} />
             </div>
           )}
         </div>
@@ -737,12 +737,12 @@ function FramingEditor({ src, initial, onSave, onCancel }) {
             <img src={src} alt="" draggable={false} style={frLive ? (framingStyle(frLive) || undefined) : undefined} />
           </div>
           <div className="frm-qbtns">
-            <button type="button" className="btn" onClick={setSquare}>中央正方</button>
-            <button type="button" className="btn" onClick={setFull}>全体表示</button>
+            <button type="button" className="btn" onClick={setSquare}>{L("中央正方","Center square","置中正方")}</button>
+            <button type="button" className="btn" onClick={setFull}>{L("全体表示","Show full","完整顯示")}</button>
           </div>
         </div>
         <div className="crop-actions">
-          <button className="btn primary" onClick={() => onSave(frLive && !isDefaultFraming(frLive) ? clampFraming({ ...frLive, a: nat ? nat.w / nat.h : undefined }) : null)}>保存</button>
+          <button className="btn primary" onClick={() => onSave(frLive && !isDefaultFraming(frLive) ? clampFraming({ ...frLive, a: nat ? nat.w / nat.h : undefined }) : null)}>{L("保存","Save","儲存")}</button>
           <button className="btn" onClick={onCancel}>{L("やめる", "Cancel", "取消")}</button>
         </div>
       </div>
@@ -955,7 +955,7 @@ function initStyleOpts(s) {
    送信先: REPORT_API(Cloudflare Worker 等)を設定すれば POST、未設定/失敗時はメールにフォールバック。 */
 const REPORT_API = "";    // 例: "https://gunpla-report.xxxx.workers.dev"(建てたら設定)
 const REPORT_SECRET = ""; // Worker の REPORT_SECRET と同じ値(※フロントに露出・簡易的なbot避けのみ)
-function KitFixModal({ allKits, onClose }) {
+function KitFixModal({ allKits, onClose, L = (ja) => ja }) {
   const [q, setQ] = useState("");
   const [picked, setPicked] = useState(null);
   const [form, setForm] = useState(null);
@@ -996,7 +996,7 @@ function KitFixModal({ allKits, onClose }) {
       const ov = String(oldVal).trim();
       if (nv !== ov) changes[key] = { old: ov, new: nv };
     });
-    if (Object.keys(changes).length === 0) { notify("変更がありません。修正してから送信してください", { kind: "warn" }); return; }
+    if (Object.keys(changes).length === 0) { notify(L("変更がありません。修正してから送信してください","No changes — edit something before sending","沒有變更，請修改後再送出"), { kind: "warn" }); return; }
     const payload = { type: "kit_correction", id: picked.id, no: picked.no, name: picked.name, changes };
 
     // メール送信(フォールバック)
@@ -1024,7 +1024,7 @@ function KitFixModal({ allKits, onClose }) {
           body: JSON.stringify(payload),
         });
         if (!res.ok) throw new Error("HTTP " + res.status);
-        notify("修正提案を送信しました。ありがとうございます", { kind: "ok" });
+        notify(L("修正提案を送信しました。ありがとうございます","Suggestion sent — thank you","已送出修正建議，謝謝"), { kind: "ok" });
         onClose();
         return;
       } catch (e) {
@@ -1039,18 +1039,18 @@ function KitFixModal({ allKits, onClose }) {
     <div className="modal-bg search-modal-bg" onClick={onClose}>
       <div className="modal search-modal" onClick={(e) => e.stopPropagation()}>
         <div className="sm-head">
-          <span className="sm-title">機体情報<em>修正</em> <span className="sm-eyebrow">{picked ? "EDIT" : "SEARCH"}</span></span>
+          <span className="sm-title">{L(<>機体情報<em>修正</em></>,<>Fix Info</>,<>機體資訊<em>修正</em></>)} <span className="sm-eyebrow">{picked ? "EDIT" : "SEARCH"}</span></span>
           <button className="modal-x static" onClick={onClose}>✕</button>
         </div>
         {!picked ? (
           <>
             <div className="toolbar">
-              <input className="search" placeholder="名称・型式・原作で検索" value={q} autoFocus
+              <input className="search" placeholder={L("名称・型式・原作で検索","Search name, code, series","搜尋名稱・型式・原作")} value={q} autoFocus
                 onChange={(e) => setQ(e.target.value)} />
               {q && <button className="search-x" onClick={() => setQ("")}>✕</button>}
             </div>
             <div className="fix-results">
-              {q.trim() && results.length === 0 && <p className="fix-empty">該当する機体がありません。</p>}
+              {q.trim() && results.length === 0 && <p className="fix-empty">{L("該当する機体がありません。","No matching kit.","沒有符合的機體。")}</p>}
               {results.map((k) => (
                 <button key={k.id} className="fix-row" onClick={() => pick(k)}>
                   <span className="fix-row-name">{k.name}</span>
@@ -1061,22 +1061,22 @@ function KitFixModal({ allKits, onClose }) {
           </>
         ) : (
           <div className="fix-form">
-            <div className="fix-target">対象 <b>{picked.name}</b>（{picked.code || "—"}）
-              <button className="fix-back" onClick={() => { setPicked(null); setForm(null); }}>別の機体</button>
+            <div className="fix-target">{L("対象","Target","對象")} <b>{picked.name}</b>（{picked.code || "—"}）
+              <button className="fix-back" onClick={() => { setPicked(null); setForm(null); }}>{L("別の機体","Other kit","其他機體")}</button>
             </div>
-            <label className="fld pad"><span>名称</span><input value={form.name} onChange={set("name")} /></label>
-            <label className="fld pad"><span>型式番号</span><input value={form.code} onChange={set("code")} placeholder="RX-78-2" /></label>
-            <label className="fld pad"><span>原作</span><input value={form.series} onChange={set("series")} /></label>
-            <label className="fld pad"><span>発売年月</span><input type="month" value={form.ym} onChange={set("ym")} /></label>
-            <label className="fld pad"><span>定価(円)</span><input type="number" inputMode="numeric" value={form.price} onChange={set("price")} /></label>
-            <label className="fld pad"><span>グレード</span><input value={form.grade} onChange={set("grade")} placeholder="HG / MG / RG ..." /></label>
-            <label className="fld pad"><span>ブランド</span><input value={form.line} onChange={set("line")} /></label>
-            <div className="fld pad"><span>P-Bandai限定</span>
+            <label className="fld pad"><span>{L("名称","Name","名稱")}</span><input value={form.name} onChange={set("name")} /></label>
+            <label className="fld pad"><span>{L("型式番号","Model code","型式番號")}</span><input value={form.code} onChange={set("code")} placeholder="RX-78-2" /></label>
+            <label className="fld pad"><span>{L("原作","Series","原作")}</span><input value={form.series} onChange={set("series")} /></label>
+            <label className="fld pad"><span>{L("発売年月","Release","發售年月")}</span><input type="month" value={form.ym} onChange={set("ym")} /></label>
+            <label className="fld pad"><span>{L("定価(円)","Price (JPY)","定價(日圓)")}</span><input type="number" inputMode="numeric" value={form.price} onChange={set("price")} /></label>
+            <label className="fld pad"><span>{L("グレード","Grade","等級")}</span><input value={form.grade} onChange={set("grade")} placeholder="HG / MG / RG ..." /></label>
+            <label className="fld pad"><span>{L("ブランド","Brand","品牌")}</span><input value={form.line} onChange={set("line")} /></label>
+            <div className="fld pad"><span>{L("P-Bandai限定","P-Bandai limited","魂商店限定")}</span>
               <button type="button" className={"fix-toggle" + (form.premium ? " on" : "")}
-                onClick={() => setForm((f) => ({ ...f, premium: !f.premium }))}>{form.premium ? "はい" : "いいえ"}</button>
+                onClick={() => setForm((f) => ({ ...f, premium: !f.premium }))}>{form.premium ? L("はい","Yes","是") : L("いいえ","No","否")}</button>
             </div>
-            <button className="btn primary fix-send" onClick={submit}>修正をメールで送信</button>
-            <p className="footnote">変更したフィールドのみ、AIが読み取りやすいJSON形式でメール本文に入ります。送信でメールアプリが開きます。</p>
+            <button className="btn primary fix-send" onClick={submit}>{L("修正をメールで送信","Send fix by email","以郵件送出修正")}</button>
+            <p className="footnote">{L("変更したフィールドのみ、AIが読み取りやすいJSON形式でメール本文に入ります。送信でメールアプリが開きます。","Only changed fields go into the email body as AI-readable JSON. Sending opens your mail app.","僅變更的欄位會以 AI 易讀的 JSON 放入郵件內文。送出會開啟郵件 app。")}</p>
           </div>
         )}
       </div>
@@ -1115,7 +1115,7 @@ const IDF_MODELS = [
   { id: "gpt-4o-mini", label: "GPT-4o mini", note: "標準・速い", p: "openai" },
 ];
 
-function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach, onClose, onManual }) {
+function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach, onClose, onManual, L = (ja) => ja }) {
   const [phase, setPhase] = useState("pick"); // pick | loading | result | error
   const [storeImg, setStoreImg] = useState("");
   const [cands, setCands] = useState([]);
@@ -1232,7 +1232,7 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach,
 
   const attach = (kit) => {
     onAttach(kit.id, storeImg);
-    notify("「" + kit.name + "（" + (kit.grade || "") + "）」に画像を追加しました", { kind: "ok" });
+    notify(L("「","「","「") + kit.name + "（" + (kit.grade || "") + L("）」に画像を追加しました","）added an image","）已新增圖片"), { kind: "ok" });
     onClose();
   };
 
@@ -1240,25 +1240,25 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach,
     <div className="modal-bg search-modal-bg" onClick={onClose}>
       <div className="modal search-modal" onClick={(e) => e.stopPropagation()}>
         <div className="sm-head">
-          <span className="sm-title">機体<em>判別</em> <span className="sm-eyebrow">AI IDENTIFY</span></span>
+          <span className="sm-title">{L(<>機体<em>判別</em></>,<>AI ID</>,<>機體<em>判別</em></>)} <span className="sm-eyebrow">AI IDENTIFY</span></span>
           <button className="modal-x static" onClick={onClose}>✕</button>
         </div>
-        {!hasKey && <p className="idf-note">設定タブで Gemini か OpenAI の APIキーを入力してください(画像はそのAIに送信されます)。</p>}
+        {!hasKey && <p className="idf-note">{L("設定タブで Gemini か OpenAI の APIキーを入力してください(画像はそのAIに送信されます)。","Add a Gemini or OpenAI API key in Settings (the image is sent to that AI).","請在設定填入 Gemini 或 OpenAI 的 API 金鑰(圖片會送往該 AI)。")}</p>}
         {phase === "pick" && hasKey && (
           <div className="idf-pick">
-            <p className="idf-lead">写真を選ぶと、AIが機体(MS)を推定し、図鑑の候補を提示します。グレードは写真で判別できないため、候補からあなたが選びます。</p>
+            <p className="idf-lead">{L("写真を選ぶと、AIが機体(MS)を推定し、図鑑の候補を提示します。グレードは写真で判別できないため、候補からあなたが選びます。","Pick a photo and the AI guesses the unit (MS) and suggests registry matches. Grade can't be read from a photo, so you pick it from the candidates.","選擇照片後，AI 會推測機體(MS)並提供圖鑑候選。等級無法由照片判別，需由你從候選中選擇。")}</p>
             <div className="idf-modelfield">
-              <ModelPicker value={model} options={models.map((mm) => ({ value: mm.id, label: mm.label, note: mm.note }))} onChange={setModel} label="辨識モデル（精度テスト用）" />
+              <ModelPicker value={model} options={models.map((mm) => ({ value: mm.id, label: mm.label, note: mm.note }))} onChange={setModel} label={L("辨識モデル（精度テスト用）","Identify model (accuracy test)","辨識模型(精度測試用)")} />
             </div>
             <div className="idf-ground">
               <label className="idf-switch">
                 <input type="checkbox" checked={grounding && !isOpenAImodel(model)} disabled={isOpenAImodel(model)} onChange={(e) => setGrounding(e.target.checked)} />
-                <span>Google検索でグラウンディング（Gemini限定・精度↑/低速。無料枠超過で課金注意）</span>
+                <span>{L("Google検索でグラウンディング（Gemini限定・精度↑/低速。無料枠超過で課金注意）","Ground with Google Search (Gemini only · higher accuracy / slower. May incur charges beyond free tier)","以 Google 搜尋接地(限 Gemini・精度↑/較慢。超出免費額度可能計費)")}</span>
               </label>
             </div>
             <div className="idf-hints">
               <div className="idf-field">
-                <span>世界観で絞る（任意・1つ。未選択＝上記以外の世界として絞り込み）</span>
+                <span>{L("世界観で絞る（任意・1つ。未選択＝上記以外の世界として絞り込み）","Filter by universe (optional · one. Unselected = treat as other universe)","依世界觀篩選(選填・一個。未選＝視為其他世界觀)")}</span>
                 <div className="idf-unis">
                   {[["UC", "UC"], ["SEED", "SEED"], ["W", "W"], ["G", "G"], ["BF", "BF"]].map(([v, l]) => (
                     <button key={v} type="button" className={"idf-ubtn" + (selUni === v ? " on" : "")}
@@ -1267,35 +1267,35 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach,
                 </div>
               </div>
               <div className="idf-field">
-                <span>グレードで絞る（任意・1つ。該当しないグレードを除外して候補を縮小）</span>
+                <span>{L("グレードで絞る（任意・1つ。該当しないグレードを除外して候補を縮小）","Filter by grade (optional · one. Narrows candidates)","依等級篩選(選填・一個。縮小候選)")}</span>
                 <div className="idf-grades">
                   {gradeOpts.map((g) => <button key={g} type="button" className={"idf-gbtn" + (selGrade === g ? " on" : "")} onClick={() => setSelGrade(selGrade === g ? "" : g)}>{g}</button>)}
                 </div>
               </div>
               <label className="idf-field">
-                <span>ヒント(任意・AIへ送信)</span>
-                <input value={hint} onChange={(e) => setHint(e.target.value)} placeholder="例: ○○の主役機 / 特徴的な配色" />
+                <span>{L("ヒント(任意・AIへ送信)","Hint (optional · sent to AI)","提示(選填・送往 AI)")}</span>
+                <input value={hint} onChange={(e) => setHint(e.target.value)} placeholder={L("例: ○○の主役機 / 特徴的な配色","e.g. lead unit of ○○ / distinctive colors","例: ○○的主角機 / 特徵配色")} />
               </label>
             </div>
-            <button className="btn primary idf-choose" onClick={() => fileRef.current && fileRef.current.click()}>{cameraMode ? "カメラを起動して撮影" : "画像を選ぶ / 撮影"}</button>
+            <button className="btn primary idf-choose" onClick={() => fileRef.current && fileRef.current.click()}>{cameraMode ? L("カメラを起動して撮影","Open camera","開啟相機拍攝") : L("画像を選ぶ / 撮影","Choose / take a photo","選擇圖片 / 拍攝")}</button>
             <input ref={fileRef} type="file" accept="image/*" capture={cameraMode ? "environment" : undefined} style={{ display: "none" }}
               onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) runIdentify(f); }} />
           </div>
         )}
-        {phase === "loading" && <div className="idf-loading">AIが判別中…</div>}
+        {phase === "loading" && <div className="idf-loading">{L("AIが判別中…","AI is identifying…","AI 判別中…")}</div>}
         {phase === "error" && (
           <div className="idf-pick">
-            <p className="idf-note">判別に失敗しました: {err}</p>
-            <button className="btn primary idf-choose" onClick={() => setPhase("pick")}>やり直す</button>
+            <p className="idf-note">{L("判別に失敗しました: ","Identification failed: ","判別失敗: ")}{err}</p>
+            <button className="btn primary idf-choose" onClick={() => setPhase("pick")}>{L("やり直す","Try again","重試")}</button>
           </div>
         )}
         {phase === "result" && (
           <div className="idf-result">
             {storeImg && <div className="idf-preview"><img src={storeImg} alt="" /></div>}
-            <div className="idf-modelnote">判別モデル: {modelLabel}</div>
+            <div className="idf-modelnote">{L("判別モデル: ","Model: ","判別模型: ")}{modelLabel}</div>
             {cands.length > 0 ? (
               <div className="idf-ai">
-                <div className="idf-sub">AIの推定（タップで検索）</div>
+                <div className="idf-sub">{L("AIの推定（タップで検索）","AI guesses (tap to search)","AI 推測(點擊搜尋)")}</div>
                 <div className="idf-chips">
                   {cands.slice(0, 5).map((cd, i) => {
                     const lab = (cd.name || cd.code || "?") + (cd.code && cd.name ? " " + cd.code : "");
@@ -1303,10 +1303,10 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach,
                   })}
                 </div>
               </div>
-            ) : <p className="idf-note">AIは機体を特定できませんでした。箱・説明書が写るように撮ると精度が大きく上がります。下で検索しても選べます。</p>}
+            ) : <p className="idf-note">{L("AIは機体を特定できませんでした。箱・説明書が写るように撮ると精度が大きく上がります。下で検索しても選べます。","The AI couldn't identify the unit. Including the box or manual in the shot improves accuracy a lot. You can also search below.","AI 無法判別機體。讓外盒・說明書入鏡可大幅提升精度。也可在下方搜尋。")}</p>}
             {gradeOpts.length > 0 && (
               <div className="idf-gfilter">
-                <span>グレードで絞る</span>
+                <span>{L("グレードで絞る","Filter by grade","依等級篩選")}</span>
                 <div className="idf-grades">
                   {gradeOpts.map((g) => <button key={g} type="button" className={"idf-gbtn" + (selGrade === g ? " on" : "")} onClick={() => setSelGrade(selGrade === g ? "" : g)}>{g}</button>)}
                 </div>
@@ -1314,7 +1314,7 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach,
             )}
             {shownMatches.length > 0 ? (
               <div className="idf-cands">
-                <div className="idf-sub">候補（グレードを含め選択）</div>
+                <div className="idf-sub">{L("候補（グレードを含め選択）","Candidates (pick incl. grade)","候選(含等級選擇)")}</div>
                 {shownMatches.map(({ kit, conf, reason }) => (
                   <button key={kit.id} className="fix-row" onClick={() => attach(kit)}>
                     <span className="fix-row-name">{kit.name}{conf ? <em className="idf-conf"> {conf}%</em> : null}</span>
@@ -1323,12 +1323,12 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach,
                 ))}
               </div>
             ) : (matches.length > 0 && selGrade
-              ? <p className="idf-note">選択したグレード({selGrade})の候補が見つかりません。グレード選択を解除するか、下で検索してください。</p>
+              ? <p className="idf-note">{L("選択したグレード(","No candidates for the selected grade (","找不到所選等級(")}{selGrade}{L(")の候補が見つかりません。グレード選択を解除するか、下で検索してください。","). Clear the grade filter or search below.",")的候選。請取消等級篩選或於下方搜尋。")}</p>
               : null)}
             <div className="idf-manual" ref={manualRef}>
-              <div className="idf-sub">手動で検索</div>
+              <div className="idf-sub">{L("手動で検索","Search manually","手動搜尋")}</div>
               <div className="toolbar">
-                <input className="search" placeholder="名称・型式・原作で検索" value={q} onChange={(e) => setQ(e.target.value)} />
+                <input className="search" placeholder={L("名称・型式・原作で検索","Search name, code, series","搜尋名稱・型式・原作")} value={q} onChange={(e) => setQ(e.target.value)} />
                 {q && <button className="search-x" onClick={() => setQ("")}>✕</button>}
               </div>
               <div className="fix-results">
@@ -1343,7 +1343,7 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach,
           </div>
         )}
         {onManual && (
-          <button type="button" className="idf-manual-add" onClick={onManual}>自分で入力</button>
+          <button type="button" className="idf-manual-add" onClick={onManual}>{L("自分で入力","Enter manually","自行輸入")}</button>
         )}
       </div>
     </div>
@@ -1635,7 +1635,7 @@ function Roll({ value, resetKey }) {
   return <>{disp}</>;
 }
 
-function TagField({ tags, onCommit, enterOnLongPress = false, onTagTap = null }) {
+function TagField({ tags, onCommit, enterOnLongPress = false, onTagTap = null, L = (ja) => ja }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const lp = useRef({ timer: null, fired: false });
@@ -1659,7 +1659,7 @@ function TagField({ tags, onCommit, enterOnLongPress = false, onTagTap = null })
           if (e.key === "Enter") { e.preventDefault(); commit(); }
           else if (e.key === "Escape") { e.preventDefault(); setEditing(false); }
         }}
-        placeholder="タグを半角「;」区切りで入力" />
+        placeholder={L("タグを半角「;」区切りで入力","Enter tags separated by ;","以半形「;」分隔輸入標籤")} />
     );
   }
   // 長按=編集モード(タグ自体は短タップで onTagTap へ。鉛筆/空欄タップでも編集へ)
@@ -1687,13 +1687,13 @@ function TagField({ tags, onCommit, enterOnLongPress = false, onTagTap = null })
             <span key={t} className={"dc-tag" + (enterOnLongPress && onTagTap ? " tap" : "")}
               {...(enterOnLongPress && onTagTap ? { role: "button", onClick: tapTag(t) } : {})}>{t}</span>
           ))
-        : <span className="kt-empty" onClick={enterOnLongPress ? start : undefined}>タグを追加…</span>}
+        : <span className="kt-empty" onClick={enterOnLongPress ? start : undefined}>{L("タグを追加…","Add tag…","新增標籤…")}</span>}
       <i className="kt-pen" aria-hidden="true" onClick={enterOnLongPress ? start : undefined}>✎</i>
     </span>
   );
 }
 
-function NoteField({ note, onCommit, enterOnLongPress = false }) {
+function NoteField({ note, onCommit, enterOnLongPress = false, L = (ja) => ja }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const lp = useRef({ timer: null, fired: false });
@@ -1706,7 +1706,7 @@ function NoteField({ note, onCommit, enterOnLongPress = false }) {
         onBlur={commit}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); setEditing(false); } }}
-        placeholder="改修予定、塗装レシピ、保管場所など" />
+        placeholder={L("改修予定、塗装レシピ、保管場所など","build plans, paint recipe, storage…","改修計畫、塗裝配方、保管位置等")} />
     );
   }
   const beginLong = (e) => {
@@ -1723,7 +1723,7 @@ function NoteField({ note, onCommit, enterOnLongPress = false }) {
         onKeyDown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); start(); } } };
   return (
     <span {...props}>
-      {note ? note : <span className="kt-empty">メモを追加…</span>}
+      {note ? note : <span className="kt-empty">{L("メモを追加…","Add memo…","新增備註…")}</span>}
     </span>
   );
 }
@@ -1964,7 +1964,7 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, ini
       <div className="ie-panel" onClick={(e) => e.stopPropagation()}>
         <div className="ie-head">
           <div className="sm-head">
-            <span className="sm-title">{L(<>画像<em>編集</em></>,<>Image<em> Edit</em></>,<>圖片<em>編輯</em></>)} <span className="sm-eyebrow">atelier</span></span>
+            <span className="sm-title">{L(<>画像<em>編集</em></>,<>Image Edit</>,<>圖片<em>編輯</em></>)} <span className="sm-eyebrow">atelier</span></span>
             <button className="modal-x static" onClick={onClose}>✕</button>
           </div>
           {[kit.code || kit.name, kit.grade].filter(Boolean).length ? <div className="ie-subcode">{[kit.code || kit.name, kit.grade].filter(Boolean).join(" · ")}</div> : null}
@@ -2215,7 +2215,7 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
       </div>
       <label className="fld"><span>{L("メモ", "Memo", "備註")}</span><textarea rows={2} value={f.note} onChange={set("note")} placeholder={L("改修予定、塗装レシピ、保管場所など", "build plans, paint recipe, storage…", "改修計畫、塗裝配方、保管位置等")} /></label>
       <div className="fld"><span>{L("タグ", "Tags", "標籤")}</span>
-        <div className="form-tagfield"><TagField tags={tagsLocal} onCommit={commitTags} /></div>
+        <div className="form-tagfield"><TagField tags={tagsLocal} onCommit={commitTags} L={L} /></div>
       </div>
 
       <div className="form-actions">
@@ -2291,7 +2291,7 @@ function LineChart({ years, series }) {
 const YEARS = Array.from({ length: 2027 - 1990 + 1 }, (_, i) => 2027 - i);
 
 /* 作品ピッカー:検索付きの一覧から選ぶ。Appの外で定義し再生成を防ぐ(入力フォーカスが飛ばない) */
-function SeriesPicker({ open, value, options, onPick, onClose }) {
+function SeriesPicker({ open, value, options, onPick, onClose, L = (ja) => ja }) {
   const [q, setQ] = useState("");
   useEffect(() => { if (open) setQ(""); }, [open]);
   if (!open) return null;
@@ -2301,16 +2301,16 @@ function SeriesPicker({ open, value, options, onPick, onClose }) {
     <div className="modal-bg sp-bg" onClick={onClose}>
       <div className="sp-modal" onClick={(e) => e.stopPropagation()}>
         <div className="sp-head">
-          <input className="sp-search" autoFocus placeholder="作品名で絞り込み" value={q}
+          <input className="sp-search" autoFocus placeholder={L("作品名で絞り込み","Filter by series","以作品名篩選")} value={q}
             onChange={(e) => setQ(e.target.value)} />
           <button className="modal-x static" onClick={onClose}>✕</button>
         </div>
         <div className="sp-list">
-          <button className={"sp-item" + (value === "" ? " on" : "")} onClick={() => onPick("")}>すべての作品</button>
+          <button className={"sp-item" + (value === "" ? " on" : "")} onClick={() => onPick("")}>{L("すべての作品","All series","所有作品")}</button>
           {filtered.map((s) => (
             <button key={s} className={"sp-item" + (value === s ? " on" : "")} onClick={() => onPick(s)}>{s}</button>
           ))}
-          {filtered.length === 0 && <div className="sp-empty">該当する作品がありません</div>}
+          {filtered.length === 0 && <div className="sp-empty">{L("該当する作品がありません","No matching series","沒有符合的作品")}</div>}
         </div>
       </div>
     </div>
@@ -2318,17 +2318,17 @@ function SeriesPicker({ open, value, options, onPick, onClose }) {
 }
 
 /* 世界観ピッカー(数が少ないため検索欄なし・純リスト直選)。options は [value,label] の配列。 */
-function UniPicker({ open, value, options, onPick, onClose }) {
+function UniPicker({ open, value, options, onPick, onClose, L = (ja) => ja }) {
   if (!open) return null;
   return (
     <div className="modal-bg sp-bg" onClick={onClose}>
       <div className="sp-modal" onClick={(e) => e.stopPropagation()}>
         <div className="sp-head sp-head-plain">
-          <span className="sp-title">世界観</span>
+          <span className="sp-title">{L("世界観","Universe","世界觀")}</span>
           <button className="modal-x static" onClick={onClose}>✕</button>
         </div>
         <div className="sp-list">
-          <button className={"sp-item" + (value === "" ? " on" : "")} onClick={() => onPick("")}>すべての世界観</button>
+          <button className={"sp-item" + (value === "" ? " on" : "")} onClick={() => onPick("")}>{L("すべての世界観","All universes","所有世界觀")}</button>
           {options.map(([u, l]) => (
             <button key={u} className={"sp-item" + (value === u ? " on" : "")} onClick={() => onPick(u)}>{l}</button>
           ))}
@@ -2423,6 +2423,13 @@ export default function App() {
   const [quickKit, setQuickKit] = useState(null); // リスト文字長押しの予定/入手クイックメニュー対象
   const [ownConfirm, setOwnConfirm] = useState(null); // 入手取消確認 kit
   const [loaded, setLoaded] = useState(false);
+  // 初回起動のみ:ブラウザ言語から日/英/中を自動選択(以後はユーザー設定を尊重)
+  useEffect(() => {
+    if (!loaded || settings._langInit) return;
+    const nl = (navigator.language || "ja").toLowerCase();
+    const detected = nl.startsWith("zh") ? "zh" : nl.startsWith("en") ? "en" : "ja";
+    patchSettings(detected !== (settings.lang || "ja") ? { lang: detected, _langInit: true } : { _langInit: true });
+  }, [loaded, settings._langInit]);
   const [confirmReset, setConfirmReset] = useState(false);
   const [dispTarget, setDispTarget] = useState("list");
   // 設定頁:折りたたみ区画の開閉。既定でプロフィール/外観/表示のみ展開。
@@ -2600,7 +2607,7 @@ export default function App() {
       if (su && sk) {
         pullCloud({ url: su, key: sk })
           .then((nn) => {
-            if (nn) setSyncMsg("起動時同期:受信 " + nn + " 件 " + new Date().toLocaleTimeString());
+            if (nn) setSyncMsg(L("起動時同期:受信 ","Synced on launch: ","啟動同步:收到 ") + nn + L(" 件 "," items "," 筆 ") + new Date().toLocaleTimeString());
             else if (metaEmpty) setSetupOpen(true);
           })
           .catch(() => { if (metaEmpty) setSetupOpen(true); });
@@ -2622,7 +2629,7 @@ export default function App() {
       return true;
     } catch (e) {
       console.error("storage error", e);
-      setStorageErr("⚠ 端末への保存に失敗しました(空き容量不足の可能性)。クラウド同期またはバックアップ書き出しで保全してください。");
+      setStorageErr(L("⚠ 端末への保存に失敗しました(空き容量不足の可能性)。クラウド同期またはバックアップ書き出しで保全してください。","⚠ Failed to save to this device (storage may be full). Use cloud sync or export a backup to keep your data safe.","⚠ 儲存到此裝置失敗(可能空間不足)。請以雲端同步或匯出備份保全資料。"));
       return false;
     }
   }, []);
@@ -2670,8 +2677,8 @@ export default function App() {
       try { bytes = new Blob([pushVal]).size; } catch (e) { bytes = pushVal.length; }
       if (bytes > MAX_SYNC_BYTES) {
         unmarkDirty(k);
-        setSyncMsg("画像が大きすぎてクラウド同期できません(" + Math.round(bytes / 1048576) +
-          "MB)。設定→「画像を最適化(容量削減)」で圧縮してください(本地には保存済み)。");
+        setSyncMsg(L("画像が大きすぎてクラウド同期できません(","Image too large for cloud sync (","圖片過大無法雲端同步(") + Math.round(bytes / 1048576) +
+          L("MB)。設定→「画像を最適化(容量削減)」で圧縮してください(本地には保存済み)。","MB). Compress it via Settings → Optimize images (saved locally).","MB)。請至 設定→最佳化圖片 壓縮(已存於本機)。"));
         return true; // 取りこぼし扱いで queue を進める
       }
     }
@@ -2682,13 +2689,13 @@ export default function App() {
         headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates" },
         body: JSON.stringify([{ key: k, value: pushVal, updated_at }]),
       });
-      if (res.ok) { unmarkDirty(k); setSyncMsg("クラウド同期済み " + new Date().toLocaleTimeString()); return true; }
+      if (res.ok) { unmarkDirty(k); setSyncMsg(L("クラウド同期済み ","Cloud-synced ","已雲端同步 ") + new Date().toLocaleTimeString()); return true; }
       let detail = "";
       try { const j = await res.json(); detail = j.message || ""; } catch (e2) {}
-      setSyncMsg("同期エラー HTTP " + res.status + (detail ? " — " + detail : "") + "(後で再送します)");
+      setSyncMsg(L("同期エラー HTTP ","Sync error HTTP ","同步錯誤 HTTP ") + res.status + (detail ? " — " + detail : "") + L("(後で再送します)"," (will retry later)","(稍後重送)"));
       return false;
     } catch (e) {
-      setSyncMsg("オフライン — 接続回復後に再送します");
+      setSyncMsg(L("オフライン — 接続回復後に再送します","Offline — will retry when reconnected","離線 — 連線恢復後重送"));
       return false;
     }
   }, [unmarkDirty]);
@@ -2762,8 +2769,8 @@ export default function App() {
         if (s && s.estimate) {
           const { usage, quota } = await s.estimate();
           if (quota && usage / quota > 0.8) {
-            setStorageErr("⚠ 端末の保存容量が残りわずかです(使用 " + Math.round(usage / 1048576) +
-              "MB / " + Math.round(quota / 1048576) + "MB)。設定→画像を最適化、またはバックアップ書き出しをおすすめします。");
+            setStorageErr(L("⚠ 端末の保存容量が残りわずかです(使用 ","⚠ This device is low on storage (using ","⚠ 裝置儲存空間所剩無幾(已用 ") + Math.round(usage / 1048576) +
+              "MB / " + Math.round(quota / 1048576) + L("MB)。設定→画像を最適化、またはバックアップ書き出しをおすすめします。","MB). Consider Settings → Optimize images, or export a backup.","MB)。建議至 設定→最佳化圖片，或匯出備份。"));
           }
         }
       } catch (e) { /* 非対応環境は黙ってスキップ */ }
@@ -2968,8 +2975,8 @@ export default function App() {
 
   const syncNow = async () => {
     const cfg = supaRef.current;
-    if (!cfg.url || !cfg.key) { notify("Supabase URL と anon キーを入力してください", { kind: "warn" }); return; }
-    setSyncMsg("同期中…");
+    if (!cfg.url || !cfg.key) { notify(L("Supabase URL と anon キーを入力してください","Enter the Supabase URL and anon key","請輸入 Supabase URL 與 anon 金鑰"), { kind: "warn" }); return; }
+    setSyncMsg(L("同期中…","Syncing…","同步中…"));
     try {
       // 1) 雲端を取り込む(LWW で state へマージ)
       const nn = await pullCloud(cfg);
@@ -2978,26 +2985,26 @@ export default function App() {
       //    取り込んだばかりの雲端データ(特に時戳保護の無い settings/albumMeta/serifs)を
       //    上書きして消す競合があった。dirty キューは正しい時戳を保持するため安全。
       await flushDirty();
-      setSyncMsg(`同期完了(受信 ${nn} 件)` + new Date().toLocaleTimeString());
-    } catch (e) { setSyncMsg("同期エラー:" + ((e && e.message) || e)); }
+      setSyncMsg(L("同期完了(受信 ","Synced (","同步完成(收到 ") + nn + L(" 件)"," items)"," 筆)") + new Date().toLocaleTimeString());
+    } catch (e) { setSyncMsg(L("同期エラー:","Sync error: ","同步錯誤:") + ((e && e.message) || e)); }
   };
 
   /* ── 初期復元:憑證輸入後僅拉取(不推送) ── */
   const setupSync = async () => {
     const url = (settings.supaUrl || "").trim().replace(/\/+$/, "");
     const key = (settings.supaKey || "").trim();
-    if (!url || !key) { setSetupMsg("URL と anon キーを入力してください"); return; }
+    if (!url || !key) { setSetupMsg(L("URL と anon キーを入力してください","Enter the URL and anon key","請輸入 URL 與 anon 金鑰")); return; }
     setSetupBusy(true);
-    setSetupMsg("同期中…");
+    setSetupMsg(L("同期中…","Syncing…","同步中…"));
     try {
       const nn = await pullCloud({ url, key }, true);
       if (nn) {
         setSetupMsg(`受信 ${nn} 件 — 復元完了`);
         setTimeout(() => setSetupOpen(false), 900);
       } else {
-        setSetupMsg("クラウドにデータが見つかりませんでした(新規の場合はこのまま閉じてOK)");
+        setSetupMsg(L("クラウドにデータが見つかりませんでした(新規の場合はこのまま閉じてOK)","No data found in the cloud (if you're new, just close this).","雲端找不到資料(新使用者可直接關閉)。"));
       }
-    } catch (e) { setSetupMsg("エラー:" + ((e && e.message) || e)); }
+    } catch (e) { setSetupMsg(L("エラー:","Error: ","錯誤:") + ((e && e.message) || e)); }
     setSetupBusy(false);
   };
 
@@ -3203,7 +3210,7 @@ export default function App() {
         }
       }
       const total = changed + changedX;
-      notify(total ? `${total} 枚の画像を再圧縮しました` : "再圧縮が必要な画像はありませんでした", { kind: total ? "ok" : "info" });
+      notify(total ? (total + L(" 枚の画像を再圧縮しました"," images recompressed"," 張圖片已重新壓縮")) : L("再圧縮が必要な画像はありませんでした","No images needed recompressing","沒有需要重新壓縮的圖片"), { kind: total ? "ok" : "info" });
     } finally { setOptimizing(false); }
   };
 
@@ -3212,8 +3219,8 @@ export default function App() {
      8 シャードを各1回だけ保存+推送(値は短いURLなので同期は軽量)。 */
   const importManifest = async () => {
     const u = (manifestUrl || "").trim();
-    if (!u) { setImgMsg("manifest の URL を入力してください"); return; }
-    setImgBusy(true); setImgMsg("取得中…");
+    if (!u) { setImgMsg(L("manifest の URL を入力してください","Enter the manifest URL","請輸入 manifest 的 URL")); return; }
+    setImgBusy(true); setImgMsg(L("取得中…","Fetching…","取得中…"));
     try {
       const res = await fetch(u, { cache: "no-store" });
       if (!res.ok) throw new Error("HTTP " + res.status);
@@ -3228,16 +3235,16 @@ export default function App() {
         if (next[id] === url) continue;
         next[id] = url; n++;
       }
-      if (!n) { setImgMsg(`差分なし(取り込み 0 / 対象外 ${skip})`); setImgBusy(false); return; }
+      if (!n) { setImgMsg(L("差分なし(取り込み 0 / 対象外 ","No changes (imported 0 / skipped ","無差異(匯入 0 / 略過 ") + skip + L(")",")",")")); setImgBusy(false); return; }
       setImages(next);
       for (let i = 0; i < IMG_SHARDS; i++) {
         const m = {};
         for (const [k, v] of Object.entries(next)) if (hashId(k) % IMG_SHARDS === i) m[k] = v;
         await saveKey("mg_imgs_" + i, JSON.stringify(m));
       }
-      setImgMsg(`取り込み完了: ${n} 件更新` + (skip ? ` / 対象外 ${skip}` : ""));
+      setImgMsg(L("取り込み完了: ","Imported: ","匯入完成: ") + n + L(" 件更新"," updated"," 筆更新") + (skip ? (L(" / 対象外 "," / skipped "," / 略過 ") + skip) : ""));
     } catch (e) {
-      setImgMsg("失敗: " + ((e && e.message) || e));
+      setImgMsg(L("失敗: ","Failed: ","失敗: ") + ((e && e.message) || e));
     }
     setImgBusy(false);
   };
@@ -3246,15 +3253,15 @@ export default function App() {
      SW が制御中なら postMessage で一括(並列制御つき)。未制御なら Cache API へ直接(分割実行)。 */
   const precacheImages = async () => {
     const urls = Object.values(images).filter((v) => typeof v === "string" && /^https?:\/\//.test(v));
-    if (!urls.length) { setImgMsg("オフライン保存できる URL 画像がありません"); return; }
+    if (!urls.length) { setImgMsg(L("オフライン保存できる URL 画像がありません","No URL images available to cache offline","沒有可離線快取的 URL 圖片")); return; }
     const ctrl = navigator.serviceWorker && navigator.serviceWorker.controller;
     if (ctrl) {
-      setImgMsg(`オフライン保存中… (${urls.length} 件)`);
+      setImgMsg(L("オフライン保存中… (","Caching offline… (","離線快取中… (") + urls.length + L(" 件)"," items)"," 筆)"));
       ctrl.postMessage({ type: "precache-images", urls });
       return; // 完了は message リスナーで受信
     }
-    if (!("caches" in window)) { setImgMsg("この端末は Cache API 非対応です"); return; }
-    setImgBusy(true); setImgMsg(`オフライン保存中… (${urls.length} 件)`);
+    if (!("caches" in window)) { setImgMsg(L("この端末は Cache API 非対応です","This device doesn't support the Cache API","此裝置不支援 Cache API")); return; }
+    setImgBusy(true); setImgMsg(L("オフライン保存中… (","Caching offline… (","離線快取中… (") + urls.length + L(" 件)"," items)"," 筆)"));
     try {
       const cache = await caches.open("mg-kit-img-v1");
       let done = 0, fail = 0, idx = 0;
@@ -3269,8 +3276,8 @@ export default function App() {
         }
       };
       await Promise.all([worker(), worker(), worker(), worker(), worker(), worker()]);
-      setImgMsg(`オフライン保存完了: ${done} 件` + (fail ? ` / 失敗 ${fail}` : ""));
-    } catch (e) { setImgMsg("失敗: " + ((e && e.message) || e)); }
+      setImgMsg(L("オフライン保存完了: ","Cached offline: ","離線快取完成: ") + done + L(" 件"," items"," 筆") + (fail ? (L(" / 失敗 "," / failed "," / 失敗 ") + fail) : ""));
+    } catch (e) { setImgMsg(L("失敗: ","Failed: ","失敗: ") + ((e && e.message) || e)); }
     setImgBusy(false);
   };
 
@@ -3327,7 +3334,7 @@ export default function App() {
       }
     }
     setImgBusy(false);
-    setImgMsg(`取り込み完了: ${ok} 件` +
+    setImgMsg(L("取り込み完了: ","Imported: ","匯入完成: ") + ok + L(" 件"," items"," 筆") +
       (bad.length ? ` / 未対応 ${bad.length}件: ${bad.slice(0, 3).join(", ")}${bad.length > 3 ? " …" : ""}` : ""));
   };
 
@@ -3339,7 +3346,7 @@ export default function App() {
       const d = (e && e.data) || {};
       if (d.type === "precache-done") {
         setImgBusy(false);
-        setImgMsg(`オフライン保存完了: ${d.done} 件` + (d.fail ? ` / 失敗 ${d.fail}` : ""));
+        setImgMsg(L("オフライン保存完了: ","Cached offline: ","離線快取完成: ") + d.done + L(" 件"," items"," 筆") + (d.fail ? (L(" / 失敗 "," / failed "," / 失敗 ") + d.fail) : ""));
       }
     };
     navigator.serviceWorker.addEventListener("message", onMsg);
@@ -3355,7 +3362,7 @@ export default function App() {
     const name = `mg_zukan_backup_${new Date().toISOString().slice(0, 10)}.json`;
     const file = new File([json], name, { type: "application/json" });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ files: [file], title: "MG図鑑バックアップ" }); return; }
+      try { await navigator.share({ files: [file], title: L("MG図鑑バックアップ","Gunpla Daizukan backup","鋼彈大圖鑑備份") }); return; }
       catch (e) { if (e && e.name === "AbortError") return; }
     }
     const blob = new Blob([json], { type: "application/json" });
@@ -3376,7 +3383,7 @@ export default function App() {
     try {
       const raw = JSON.parse(await f.text());
       const verr = validateBackup(raw);
-      if (verr) { notify("読み込みに失敗しました:" + verr, { kind: "err", dur: 3200 }); e.target.value = ""; return; }
+      if (verr) { notify(L("読み込みに失敗しました:","Import failed: ","載入失敗:") + verr, { kind: "err", dur: 3200 }); e.target.value = ""; return; }
       const d = migrateMeta(raw);
       const now = new Date().toISOString();
       // 復元は全フィールドを now で時戳付けして確実に勝たせる(フィールド級マージ)
@@ -3406,8 +3413,8 @@ export default function App() {
       }
       if (d.albumMeta && isPlainObj(d.albumMeta)) setAlbumMeta(d.albumMeta);
       if (d.serifs && isPlainObj(d.serifs)) setSerifs(d.serifs);
-      notify("バックアップの読み込みが完了しました", { kind: "ok" });
-    } catch (err) { console.error(err); notify("読み込みに失敗しました(ファイル形式を確認してください)", { kind: "err", dur: 3200 }); }
+      notify(L("バックアップの読み込みが完了しました","Backup imported","已匯入備份"), { kind: "ok" });
+    } catch (err) { console.error(err); notify(L("読み込みに失敗しました(ファイル形式を確認してください)","Import failed (check the file format)","載入失敗(請確認檔案格式)"), { kind: "err", dur: 3200 }); }
     e.target.value = "";
   };
 
@@ -3719,7 +3726,7 @@ export default function App() {
     return [...m.entries()];
   }, [visible, sortKey]);
 
-  const sortLabel = { year: "発売年月", name: "名称(五十音)", purchase: "購入日", build: "制作完了日", price: "定価" };
+  const sortLabel = { year: L("発売年月","Release","發售年月"), name: L("名称(五十音)","Name","名稱"), purchase: L("購入日","Purchase","購入日"), build: L("制作完了日","Completion","完成日"), price: L("定価","Price","定價") };
 
   const GF_OPTS = [["", "全部"], ["MG", "MG"], ["HG", "HG"], ["RG", "RG"], ["PG", "PG"], ["HIRM", "HIRM"], ["RE", "RE"], ["FM", "FM"], ["EXTRA", "EXTRA"]];
   const GfRow = ({ skey }) => {
@@ -3802,20 +3809,20 @@ export default function App() {
 
   const ViewToggle = () => (
     <div className="view-toggle">
-      <button className={settings.view === "grid" ? "on" : ""} onClick={() => patchSettings({ view: "grid" })}>▦ カード</button>
-      <button className={settings.view === "list" ? "on" : ""} onClick={() => patchSettings({ view: "list" })}>☰ リスト</button>
+      <button className={settings.view === "grid" ? "on" : ""} onClick={() => patchSettings({ view: "grid" })}>{L("▦ カード","▦ Card","▦ 卡片")}</button>
+      <button className={settings.view === "list" ? "on" : ""} onClick={() => patchSettings({ view: "list" })}>{L("☰ リスト","☰ List","☰ 列表")}</button>
     </div>
   );
 
   const SalonControls = () => (
     <div className="salon-ctrl">
       <div className="view-toggle salon-seg">
-        <button className={(settings.salonCols || 2) === 2 ? "on" : ""} onClick={() => { haptic(); patchSettings({ salonCols: 2 }); }}>２列</button>
-        <button className={(settings.salonCols || 2) === 3 ? "on" : ""} onClick={() => { haptic(); patchSettings({ salonCols: 3 }); }}>３列</button>
+        <button className={(settings.salonCols || 2) === 2 ? "on" : ""} onClick={() => { haptic(); patchSettings({ salonCols: 2 }); }}>{L("２列","2 col","2 欄")}</button>
+        <button className={(settings.salonCols || 2) === 3 ? "on" : ""} onClick={() => { haptic(); patchSettings({ salonCols: 3 }); }}>{L("３列","3 col","3 欄")}</button>
       </div>
       <div className="view-toggle salon-seg">
-        <button className={(settings.salonFit || "cover") === "cover" ? "on" : ""} onClick={() => { haptic(); patchSettings({ salonFit: "cover" }); }}>切抜</button>
-        <button className={(settings.salonFit || "cover") === "contain" ? "on" : ""} onClick={() => { haptic(); patchSettings({ salonFit: "contain" }); }}>全体</button>
+        <button className={(settings.salonFit || "cover") === "cover" ? "on" : ""} onClick={() => { haptic(); patchSettings({ salonFit: "cover" }); }}>{L("切抜","Crop","裁切")}</button>
+        <button className={(settings.salonFit || "cover") === "contain" ? "on" : ""} onClick={() => { haptic(); patchSettings({ salonFit: "contain" }); }}>{L("全体","Fit","完整")}</button>
       </div>
     </div>
   );
@@ -3861,7 +3868,7 @@ export default function App() {
           <input className="search" placeholder={placeholder} value={searchDraft} autoFocus
             onChange={(e) => setSearchDraft(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); commitSearch(); } }} />
-          <button className="search-go" aria-label="確認" onClick={commitSearch}>
+          <button className="search-go" aria-label={L("確認","Confirm","確認")} onClick={commitSearch}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4 4L19 6.5" /></svg>
           </button>
         </div>
@@ -3872,7 +3879,7 @@ export default function App() {
                 <span className="sm-hit-name"><KitName name={k.name} /></span>
                 <span className="sm-hit-sub">{[k.code, k.grade, k.series].filter(Boolean).join(" · ")}</span>
               </button>
-            )) : <div className="sm-empty">該当する機体がありません</div>}
+            )) : <div className="sm-empty">{L("該当する機体がありません","No matching kit","沒有符合的機體")}</div>}
           </div>
         ) : null}
       </div>
@@ -3900,10 +3907,10 @@ export default function App() {
         <span className="sb-head-r">
           <span className="sb-count">{countNode}</span>
           <div className="sb-sort">
-            <button type="button" className="sb-sort-key" onClick={() => { haptic(); setSortMenuOpen(true); }} aria-label="並び替えの基準">{SORT_ICON[sortKey] || "販"}</button>
-            <button type="button" className="sb-sort-dir" onClick={() => { haptic(); setSortDir((d) => (d === "asc" ? "desc" : "asc")); }} aria-label="昇順・降順">{sortDir === "asc" ? "↑" : "↓"}</button>
+            <button type="button" className="sb-sort-key" onClick={() => { haptic(); setSortMenuOpen(true); }} aria-label={L("並び替えの基準","Sort by","排序依據")}>{SORT_ICON[sortKey] || "販"}</button>
+            <button type="button" className="sb-sort-dir" onClick={() => { haptic(); setSortDir((d) => (d === "asc" ? "desc" : "asc")); }} aria-label={L("昇順・降順","Ascending / descending","升冪・降冪")}>{sortDir === "asc" ? "↑" : "↓"}</button>
           </div>
-          <button type="button" className={"sb-icon" + ((advActive || !!queries[advTab]) ? " on" : "")} aria-label="絞り込み・検索(長押しで解除)"
+          <button type="button" className={"sb-icon" + ((advActive || !!queries[advTab]) ? " on" : "")} aria-label={L("絞り込み・検索(長押しで解除)","Filter & search (long-press to clear)","篩選・搜尋(長按解除)")}
             {...longPress(openFilter, () => { clearAllConds(); notify(L("絞り込みを解除しました", "Filters cleared", "已清除篩選"), { kind: "ok" }); })}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 5h18M6 12h12M10 19h4" />
@@ -3922,61 +3929,61 @@ export default function App() {
         <span className="adv-lbl">検索</span>
         <div className="adv-search">
           <input className="adv-search-input" value={queries[advTab] || ""}
-            placeholder="機体名・型式・原作で検索"
+            placeholder={L("機体名・型式・原作で検索","Search name, code, series","搜尋機體名・型式・原作")}
             onChange={(e) => setQueries((s) => ({ ...s, [advTab]: e.target.value }))} />
-          {queries[advTab] ? <button type="button" className="adv-search-x" aria-label="検索をクリア"
+          {queries[advTab] ? <button type="button" className="adv-search-x" aria-label={L("検索をクリア","Clear search","清除搜尋")}
             onClick={() => setQueries((s) => ({ ...s, [advTab]: "" }))}>✕</button> : null}
         </div>
       </div>
       <div className="adv-row">
-        <span className="adv-lbl">作品</span>
+        <span className="adv-lbl">{L("作品","Series","作品")}</span>
         <button className="adv-sel adv-series-btn" onClick={() => setSeriesPickerOpen(true)}>
-          <span className={adv.series ? "" : "ph"}>{adv.series || "すべての作品"}</span>
+          <span className={adv.series ? "" : "ph"}>{adv.series || L("すべての作品","All series","所有作品")}</span>
           <span className="adv-series-caret">▾</span>
         </button>
       </div>
       <div className="adv-row">
-        <span className="adv-lbl">世界</span>
+        <span className="adv-lbl">{L("世界","Universe","世界")}</span>
         <button className="adv-sel adv-series-btn" onClick={() => setUniPickerOpen(true)}>
-          <span className={adv.uni ? "" : "ph"}>{adv.uni ? ((UNI_PICK.find(([u]) => u === adv.uni) || [null, "すべての世界観"])[1]) : "すべての世界観"}</span>
+          <span className={adv.uni ? "" : "ph"}>{adv.uni ? ((UNI_PICK.find(([u]) => u === adv.uni) || [null, L("すべての世界観","All universes","所有世界觀")])[1]) : L("すべての世界観","All universes","所有世界觀")}</span>
           <span className="adv-series-caret">▾</span>
         </button>
       </div>
       <div className="adv-row">
-        <span className="adv-lbl">区分</span>
+        <span className="adv-lbl">{L("区分","Type","區分")}</span>
         <div className="adv-seg">
-          {[["", "全"], ["pb", "プレバン"], ["base", "ベース"], ["normal", "一般"]].map(([v, l]) => (
+          {[["", L("全","All","全")], ["pb", L("プレバン","PB","魂商店")], ["base", L("ベース","Base","基地")], ["normal", L("一般","Retail","一般")]].map(([v, l]) => (
             <button key={v || "all"} className={"adv-seg-btn" + (adv.prem === v ? " on" : "")}
               onClick={() => setAdv((a) => ({ ...a, prem: v }))}>{l}</button>
           ))}
         </div>
       </div>
       <div className="adv-row">
-        <span className="adv-lbl">状態</span>
+        <span className="adv-lbl">{L("状態","Status","狀態")}</span>
         <div className="adv-seg">
-          {[["", "全"], ["owned", "入手"], ["plan", "予定"], ["none", "未"]].map(([v, l]) => (
+          {[["", L("全","All","全")], ["owned", L("入手","Owned","入手")], ["plan", L("予定","Plan","規劃")], ["none", L("未","None","未")]].map(([v, l]) => (
             <button key={v || "all"} className={"adv-seg-btn" + (adv.stat === v ? " on" : "")}
               onClick={() => setAdv((a) => ({ ...a, stat: v }))}>{l}</button>
           ))}
         </div>
       </div>
       <div className="adv-row">
-        <span className="adv-lbl">年代</span>
+        <span className="adv-lbl">{L("年代","Years","年代")}</span>
         <div className="adv-years">
           <select className="adv-sel adv-year-sel" value={adv.yFrom} onChange={(e) => setAdv((a) => ({ ...a, yFrom: e.target.value }))}>
-            <option value="">最古</option>
+            <option value="">{L("最古","Earliest","最早")}</option>
             {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
           <span className="adv-tilde">〜</span>
           <select className="adv-sel adv-year-sel" value={adv.yTo} onChange={(e) => setAdv((a) => ({ ...a, yTo: e.target.value }))}>
-            <option value="">最新</option>
+            <option value="">{L("最新","Latest","最新")}</option>
             {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
       </div>
       <div className="adv-foot">
-        {(advActive || query || gfList.length) ? <button className="adv-clear" onClick={clearAllConds}>全条件をクリア</button> : <span className="adv-hint">作品・区分・状態・年代で絞り込み</span>}
-        <button className="adv-close" onClick={closeFilter}>閉じる</button>
+        {(advActive || query || gfList.length) ? <button className="adv-clear" onClick={clearAllConds}>{L("全条件をクリア","Clear all","清除全部")}</button> : <span className="adv-hint">{L("作品・区分・状態・年代で絞り込み","Filter by series, type, status, years","依作品・區分・狀態・年代篩選")}</span>}
+        <button className="adv-close" onClick={closeFilter}>{L("閉じる","Close","關閉")}</button>
       </div>
     </div>
   );
@@ -4049,8 +4056,8 @@ export default function App() {
     <>
       {k.line === "Ver.Ka" && <span className="line-chip ka">Ver.Ka</span>}
       {k.line === "MGEX" && <span className="line-chip ex">MGEX</span>}
-      {k.line === "CUSTOM" && <span className="line-chip cu">追加</span>}
-      {showPb && k.premium && <span className="line-chip pb">プレバン</span>}
+      {k.line === "CUSTOM" && <span className="line-chip cu">{L("追加","Added","新增")}</span>}
+      {showPb && k.premium && <span className="line-chip pb">{L("プレバン","P-Bandai","魂商店")}</span>}
     </>
   );
 
@@ -4105,10 +4112,10 @@ export default function App() {
               <div className="kz-rmeta">
                 <span className="kz-year">{kit.ym ? kit.ym.replace("-", ".") : "—"}</span>
                 {settings.listPrice && kit.price ? <span className="kz-price">{fmtYen(kit.price)}</span> : null}
-                {settings.listPurchase && rec.purchaseDate && <span className="kz-date">購入 {fmtDate(rec.purchaseDate)}</span>}
-                {settings.listBuild && rec.buildDate && <span className="kz-date done">完成 {fmtDate(rec.buildDate)}</span>}
-                {kit.premium && <span className="line-chip pb">プレバン</span>}
-                {kit.base && <span className="line-chip base">ベース</span>}
+                {settings.listPurchase && rec.purchaseDate && <span className="kz-date">{L("購入","Bought","購入")} {fmtDate(rec.purchaseDate)}</span>}
+                {settings.listBuild && rec.buildDate && <span className="kz-date done">{L("完成","Done","完成")} {fmtDate(rec.buildDate)}</span>}
+                {kit.premium && <span className="line-chip pb">{L("プレバン","P-Bandai","魂商店")}</span>}
+                {kit.base && <span className="line-chip base">{L("ベース","Base","基地")}</span>}
                 {lineBadge(kit, false)}
               </div>
             </div>
@@ -4128,8 +4135,8 @@ export default function App() {
         {rec.buildDate ? <span className="kz-seal">済</span> : rec.plan ? <span className="kz-plan">予</span> : null}
         <div className="kz-frame" {...imgPress(kit.id)}>
           <KitImage kit={kit} img={img} owned={rec.owned} built={!!rec.buildDate} size={settings.compact ? 56 : 78} frame={thumbFrameStyle(kit.id)} />
-          {kit.premium && <span className="line-chip pb corner-pb">プレバン</span>}
-          {kit.base && <span className="line-chip base corner-base">ベース</span>}
+          {kit.premium && <span className="line-chip pb corner-pb">{L("プレバン","P-Bandai","魂商店")}</span>}
+          {kit.base && <span className="line-chip base corner-base">{L("ベース","Base","基地")}</span>}
         </div>
         <div className="kz-name"><KitName name={kit.name} /></div>
         <div className="kz-hair" />
@@ -4236,13 +4243,13 @@ export default function App() {
   }, [overlayCount, loaded]);
 
   if (!loaded) return (
-    <div className={"app " + (settings.theme === "light" ? "light" : "")}><style>{CSS}</style>
+    <div className={"app lang-" + lang + " " + (settings.theme === "light" ? "light" : "")}><style>{CSS}</style>
       <div className="empty" style={{ paddingTop: 120 }}><MechSketch seedKey="loading" owned={false} built={false} size={70} /><p>{L("図鑑を準備中…", "Preparing the registry…", "圖鑑準備中…")}</p></div>
     </div>
   );
 
   return (
-    <div className={"app " + (settings.theme === "light" ? "light" : "") + (detailKit || adding || promptEdit || profileOpen || setupOpen || titleDetail || searchOpen || filterOpen || fixOpen || quizOpen || identifyOpen || sortMenuOpen || imgEdit ? " lock" : "")}>
+    <div className={"app lang-" + lang + " " + (settings.theme === "light" ? "light" : "") + (detailKit || adding || promptEdit || profileOpen || setupOpen || titleDetail || searchOpen || filterOpen || fixOpen || quizOpen || identifyOpen || sortMenuOpen || imgEdit ? " lock" : "")}>
       <style>{CSS}</style>
       <AppDialogHost />
 
@@ -4268,7 +4275,7 @@ export default function App() {
         <button className={"av-toast" + (toastOut ? " out" : "")} onClick={() => { setToastOut(true); setTimeout(() => { setToast(null); setAchvPop(null); }, 360); }}>
           <span className="av-toast-medal"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="avGoldT" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#f2dca0" /><stop offset="1" stopColor="#9c7838" /></linearGradient></defs><polygon points="32,7 49,16 49,40 32,57 15,40 15,16" fill="none" stroke="url(#avGoldT)" strokeWidth="2" /><polygon points="32,12 44,19 44,38 32,50 20,38 20,19" fill="rgba(217,179,106,.12)" stroke="url(#avGoldT)" strokeWidth="2.4" /><text x="32" y="39" textAnchor="middle" fontFamily="Shippori Mincho,serif" fontWeight="800" fontSize="20" fill="url(#avGoldT)">章</text></svg></span>
           <div className="av-toast-body">
-            <div className="av-toast-kick">DECORATED · 叙勲</div>
+            <div className="av-toast-kick">{L("DECORATED · 叙勲","DECORATED","DECORATED · 敘勳")}</div>
             <div className="av-toast-name">{toast.name}</div>
           </div>
           {toastQueue.length > 0 && <span className="av-toast-more">+{toastQueue.length}</span>}
@@ -4305,30 +4312,30 @@ export default function App() {
                   </div>
                   <div className="hf-rule" />
                   <div className="hf-stats">
-                    <button className="hf-seal" aria-label="カメラで機体を判別" onClick={(e) => { e.stopPropagation(); haptic(); setIdentifyCam(true); setIdentifyOpen(true); }}>鑑</button>
+                    <button className="hf-seal" aria-label={L("カメラで機体を判別","Identify kit by camera","以相機判別機體")} onClick={(e) => { e.stopPropagation(); haptic(); setIdentifyCam(true); setIdentifyOpen(true); }}>鑑</button>
                     {isDecor ? (
                       <>
-                        <div className="s"><b><Roll value={titles.length} resetKey={arc.jp} /></b><span>称号</span></div>
+                        <div className="s"><b><Roll value={titles.length} resetKey={arc.jp} /></b><span>{L("称号","Titles","稱號")}</span></div>
                         <div className="hf-div" />
-                        <div className="s"><b className="kin"><Roll value={titlesGot} resetKey={arc.jp} /></b><span>叙勲</span></div>
+                        <div className="s"><b className="kin"><Roll value={titlesGot} resetKey={arc.jp} /></b><span>{L("叙勲","Awarded","敘勳")}</span></div>
                         <div className="hf-div" />
-                        <div className="s"><b className="kin"><Roll value={titlesPct} resetKey={arc.jp} />%</b><span>完成率</span></div>
+                        <div className="s"><b className="kin"><Roll value={titlesPct} resetKey={arc.jp} />%</b><span>{L("完成率","Complete","完成率")}</span></div>
                       </>
                     ) : isSalon ? (
                       <>
-                        <div className="s"><b><Roll value={allKits.length} resetKey={arc.jp} /></b><span>収録</span></div>
+                        <div className="s"><b><Roll value={allKits.length} resetKey={arc.jp} /></b><span>{L("収録","Listed","收錄")}</span></div>
                         <div className="hf-div" />
-                        <div className="s"><b className="kin"><Roll value={imgStats.total} resetKey={arc.jp} /></b><span>撮影数</span></div>
+                        <div className="s"><b className="kin"><Roll value={imgStats.total} resetKey={arc.jp} /></b><span>{L("撮影数","Photos","拍攝數")}</span></div>
                         <div className="hf-div" />
-                        <div className="s"><b className="kin"><Roll value={imgStats.pct} resetKey={arc.jp} />%</b><span>撮影率</span></div>
+                        <div className="s"><b className="kin"><Roll value={imgStats.pct} resetKey={arc.jp} />%</b><span>{L("撮影率","Shot %","拍攝率")}</span></div>
                       </>
                     ) : (
                       <>
-                        <div className="s"><b><Roll value={allKits.length} resetKey={arc.jp} /></b><span>収録</span></div>
+                        <div className="s"><b><Roll value={allKits.length} resetKey={arc.jp} /></b><span>{L("収録","Listed","收錄")}</span></div>
                         <div className="hf-div" />
-                        <div className="s"><b><Roll value={ownedAll} resetKey={arc.jp} /></b><span>入手</span></div>
+                        <div className="s"><b><Roll value={ownedAll} resetKey={arc.jp} /></b><span>{L("入手","Owned","入手")}</span></div>
                         <div className="hf-div" />
-                        <div className="s"><b><Roll value={collectPct} resetKey={arc.jp} />%</b><span>収集率</span></div>
+                        <div className="s"><b><Roll value={collectPct} resetKey={arc.jp} />%</b><span>{L("収集率","Collected","收集率")}</span></div>
                       </>
                     )}
                   </div>
@@ -4346,10 +4353,10 @@ export default function App() {
           <>
             {LedgerHead({
               variant: salonView ? "salon" : "registry",
-              eyebrow: salonView ? "GALLERY · 画廊" : "REGISTRY · 図鑑",
+              eyebrow: salonView ? L("GALLERY · 画廊", "GALLERY", "GALLERY · 畫廊") : L("REGISTRY · 図鑑", "REGISTRY", "REGISTRY · 圖鑑"),
               title: salonView
-                ? <>絵<em>測</em>巻</>
-                : <><span>博</span><em>物</em><span>誌</span></>,
+                ? L(<>絵<em>測</em>巻</>, <>Gallery</>, <>繪<em>測</em>卷</>)
+                : L(<><span>博</span><em>物</em><span>誌</span></>, <>Registry</>, <><span>博</span><em>物</em><span>誌</span></>),
               scheme: "slide",
               akey: salonView ? "salon" : "registry",
               dir: salonView ? 1 : -1,
@@ -4357,18 +4364,18 @@ export default function App() {
               onClearSearch: () => setQueries((s) => ({ ...s, [advTab]: "" })),
               active: !!queries[advTab] || advActive,
               countNode: salonView
-                ? <><b>{sorted.length}</b> / {imgStats.kitsWith} 目撃</>
-                : <><b>{sorted.length}</b> / {allKits.length} 収録</>,
+                ? <><b>{sorted.length}</b> / {imgStats.kitsWith} {L("目撃", "shot", "目擊")}</>
+                : <><b>{sorted.length}</b> / {allKits.length} {L("収録", "listed", "收錄")}</>,
             })}
             {searchOpen && renderSearchModal({
-              placeholder: "機体名・型式・原作で検索",
-              title: salonView ? <>絵<em>測</em>巻</> : <>博<em>物</em>誌</>,
+              placeholder: L("機体名・型式・原作で検索", "Search name, code, series", "搜尋機體名・型式・原作"),
+              title: salonView ? L(<>絵<em>測</em>巻</>,<>Gallery</>,<>繪<em>測</em>卷</>) : L(<>博<em>物</em>誌</>,<>Registry</>,<>博<em>物</em>誌</>),
             })}
             {filterOpen && (
               <div className="modal-bg search-modal-bg" onClick={closeFilter}>
                 <div className="modal search-modal" onClick={(e) => e.stopPropagation()}>
                   <div className="sm-head">
-                    <span className="sm-title">{salonView ? <>絵<em>測</em>巻</> : <>博<em>物</em>誌</>} <span className="sm-eyebrow">FILTER</span></span>
+                    <span className="sm-title">{salonView ? L(<>絵<em>測</em>巻</>, <>Gallery</>, <>繪<em>測</em>卷</>) : L(<>博<em>物</em>誌</>, <>Registry</>, <>博<em>物</em>誌</>)} <span className="sm-eyebrow">FILTER</span></span>
                     <button className="modal-x static" onClick={closeFilter}>✕</button>
                   </div>
                   {AdvPanel()}
@@ -4378,7 +4385,7 @@ export default function App() {
                   <div className="drawer-tools">
                     <SortBar />
                     {salonView ? <SalonControls /> : <ViewToggle />}
-                    {!salonView && <button className="add-btn" onClick={() => { closeFilter(); setAdding("zukan"); }}>＋ 追加</button>}
+                    {!salonView && <button className="add-btn" onClick={() => { closeFilter(); setAdding("zukan"); }}>{L("＋ 追加","＋ Add","＋ 新增")}</button>}
                   </div>
                 </div>
               </div>
@@ -4416,7 +4423,7 @@ export default function App() {
                 )}
               </>
             )}
-            {!salonView && <p className="footnote">※ 収録データはGUNPLA ROOM等の公開型録情報を整理(一般販売:MG No.001–223+プレバン207 / Ver.Ka 01–30+プレバン20 / MGEX、HG 統一ナンバリング 全収録 No.001–268+プレバン205、HG SEED系 全86(01–59/R01–17/MSV-01–07+プレバン3)、HG 00系 全収録 No.01–72+プレバン12、HG ビルドファイターズ系 全収録 No.1–69(支援機含む。23/30/32/41欠番)+プレバン25、HG 鉄血のオルフェンズ系 全収録 No.1–47+O-1~9+プレバン23、HG ガンダムブレイカー バトローグ系 全10(うちプレバン4)、HG ククルス・ドアンの島 全11、HG THE ORIGIN系 全収録 No.001–026+プレバン001–026、HG Gのレコンギスタ系 全収録 No.001–017+プレバン4、HG AGE系 全収録 No.001–034+プレバン7、HG サンダーボルト系 全収録 No.001–013+プレバン1、HG ビルドダイバーズ系 全収録 No.001–083+プレバン6、HG ビルドメタバース系 全8、HG GQuuuuuuX系 No.1–15+プレバン4(続刊)、HG 水星の魔女系 全収録 No.01–26+プレバン12、RG 全43+プレバン74、PG 全26+プレバン5(早期プレバン数点は確認中)、HIRM 01–05(06以降確認中)、RE/100 01–06+プレバン4(他確認中)、ベース限定MG 全39・RG 01–29(以降確認中)・HG 主線分(系列網羅は順次)、MGSD 全5。ホビーオンライン/プレバン限定は「プレバン」表記で収録、イベント限定は未収録、ガンダムベース限定は「ベース限定」タグで順次収録中(現在MG分))。各欄位は詳細画面の「編集」で随時修正可能。</p>}
+            {!salonView && <p className="footnote">{L('※ 収録データはGUNPLA ROOM等の公開型録情報を整理(一般販売:MG No.001–223+プレバン207 / Ver.Ka 01–30+プレバン20 / MGEX、HG 統一ナンバリング 全収録 No.001–268+プレバン205、HG SEED系 全86(01–59/R01–17/MSV-01–07+プレバン3)、HG 00系 全収録 No.01–72+プレバン12、HG ビルドファイターズ系 全収録 No.1–69(支援機含む。23/30/32/41欠番)+プレバン25、HG 鉄血のオルフェンズ系 全収録 No.1–47+O-1~9+プレバン23、HG ガンダムブレイカー バトローグ系 全10(うちプレバン4)、HG ククルス・ドアンの島 全11、HG THE ORIGIN系 全収録 No.001–026+プレバン001–026、HG Gのレコンギスタ系 全収録 No.001–017+プレバン4、HG AGE系 全収録 No.001–034+プレバン7、HG サンダーボルト系 全収録 No.001–013+プレバン1、HG ビルドダイバーズ系 全収録 No.001–083+プレバン6、HG ビルドメタバース系 全8、HG GQuuuuuuX系 No.1–15+プレバン4(続刊)、HG 水星の魔女系 全収録 No.01–26+プレバン12、RG 全43+プレバン74、PG 全26+プレバン5(早期プレバン数点は確認中)、HIRM 01–05(06以降確認中)、RE/100 01–06+プレバン4(他確認中)、ベース限定MG 全39・RG 01–29(以降確認中)・HG 主線分(系列網羅は順次)、MGSD 全5。ホビーオンライン/プレバン限定は「プレバン」表記で収録、イベント限定は未収録、ガンダムベース限定は「ベース限定」タグで順次収録中(現在MG分))。各欄位は詳細画面の「編集」で随時修正可能。','* Catalog data is compiled from public sources such as GUNPLA ROOM. Coverage spans MG / HG / RG / PG / RE/100 / MGSD / MGEX and P-Bandai lines; event-only items are excluded, Gundam Base-limited items are tagged and added progressively. Every field is editable from a kit’s detail screen.','* 收錄資料整理自 GUNPLA ROOM 等公開型錄資訊，涵蓋 MG／HG／RG／PG／RE/100／MGSD／MGEX 及魂商店限定等系列；活動限定未收錄，Gundam Base 限定以標籤逐步補入。各欄位皆可於詳細頁「編輯」隨時修正。')}</p>}
           </>
         )}
 
@@ -4499,15 +4506,15 @@ export default function App() {
                     </defs></svg>
                     <div className="av-head">
                       <button type="button" className="sb-switch" onClick={() => { hapticStrong(); setAnaMode("analysis"); }}
-                        aria-label="「解題書」へ切り替え">
-                        <span className="av-eyebrow">{(curUni && curUni[0] !== "all" ? (UNI_PREFIX[curUni[0]] || curUni[1]) + " " : "") + "DECORATIONS · 称号"}</span>
+                        aria-label={L("「解題書」へ切り替え","Switch to Analysis","切換至解題書")}>
+                        <span className="av-eyebrow">{(curUni && curUni[0] !== "all" ? (UNI_PREFIX[curUni[0]] || curUni[1]) + " " : "") + L("DECORATIONS · 称号","DECORATIONS","DECORATIONS · 稱號")}</span>
                         <span className="sb-titlewrap">
-                          <LedgerTitle scheme="slide" akey="record" dir={-1} title={<>叙<em>勲</em>録</>} alt="解題書" />
+                          <LedgerTitle scheme="slide" akey="record" dir={-1} title={L(<>叙<em>勲</em>録</>,<>Honors</>,<>敘<em>勳</em>錄</>)} alt={L("解題書","Analysis","解題書")} />
                         </span>
                       </button>
                       <span className="av-head-r">
-                        <span className="av-count"><b>{got}</b> / {pool.length} 叙勲{newN > 0 ? ` · NEW ${newN}` : ""}</span>
-                        <button type="button" className={"sb-icon" + (segOpen || titleUniverse !== "all" ? " on" : "")} aria-label="世界観で絞り込み(長押しで解除)"
+                        <span className="av-count"><b>{got}</b> / {pool.length} {L("叙勲","awarded","敘勳")}{newN > 0 ? ` · NEW ${newN}` : ""}</span>
+                        <button type="button" className={"sb-icon" + (segOpen || titleUniverse !== "all" ? " on" : "")} aria-label={L("世界観で絞り込み(長押しで解除)","Filter by universe (long-press to clear)","依世界觀篩選(長按解除)")}
                           {...longPress(() => { haptic(); setSegOpen((o) => !o); }, () => { setTitleUniverse("all"); setSegOpen(false); notify(L("世界観の絞り込みを解除しました", "Universe filter cleared", "已清除世界觀篩選"), { kind: "ok" }); })}>
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M3 5h18M6 12h12M10 19h4" />
@@ -4543,17 +4550,17 @@ export default function App() {
                               <span className="av-ename">{hiddenLocked ? "？？？" : t.name}</span>
                               {t.tier >= 1 && <span className="av-ehair" />}
                               {t.tier >= 1 && <span className="av-eflavor">{t.sub}</span>}
-                              {t.tier === 1 && <span className="av-etag silver">あと {Math.max(0, (t.builtNeed || 1) - (t.builtCur || 0))} 体完成で金章</span>}
+                              {t.tier === 1 && <span className="av-etag silver">{L("あと ","","還差 ")}{Math.max(0, (t.builtNeed || 1) - (t.builtCur || 0))}{L(" 体完成で金章"," builds to gold"," 體完成得金章")}</span>}
                               {t.tier === 0 && t.need > 1 && (
-                                <span className="av-eprog"><span className="av-ebar"><i style={{ width: `${Math.round(t.cur / t.need * 100)}%` }} /></span><span className="av-erem">あと {remain}</span></span>
+                                <span className="av-eprog"><span className="av-ebar"><i style={{ width: `${Math.round(t.cur / t.need * 100)}%` }} /></span><span className="av-erem">{L("あと ","","還差 ")}{remain}{L("","  left","")}</span></span>
                               )}
-                              {t.tier === 0 && t.need === 1 && <span className="av-etag locked">未叙勲</span>}
+                              {t.tier === 0 && t.need === 1 && <span className="av-etag locked">{L("未叙勲","Locked","未敘勳")}</span>}
                             </span>
                             {isNew && <i className="av-dot" />}
                           </button>
                         );
                       })}
-                      {list.length === 0 && <div className="av-empty">この世界の称号は準備中…</div>}
+                      {list.length === 0 && <div className="av-empty">{L("この世界の称号は準備中…","Titles for this universe are coming soon…","此世界觀的稱號準備中…")}</div>}
                     </div>
                   </section>
                 );
@@ -4564,14 +4571,14 @@ export default function App() {
               <div className="sb-band">
                 <div className="sb-head">
                   <button type="button" className="sb-switch" onClick={() => { hapticStrong(); setAnaMode("record"); }}
-                    aria-label="「叙勲録」へ切り替え">
-                    <span className="sb-eyebrow">ANALYSIS · 紀録</span>
+                    aria-label={L("「叙勲録」へ切り替え","Switch to Honors","切換至叙勲録")}>
+                    <span className="sb-eyebrow">{L("ANALYSIS · 紀録","ANALYSIS","ANALYSIS · 紀錄")}</span>
                     <span className="sb-titlewrap">
-                      <LedgerTitle scheme="slide" akey="analysis" dir={1} title={<>解<em>題</em>書</>} alt="叙勲録" />
+                      <LedgerTitle scheme="slide" akey="analysis" dir={1} title={L(<>解<em>題</em>書</>,<>Analysis</>,<>解<em>題</em>書</>)} alt={L("叙勲録","Honors","叙勲録")} />
                     </span>
                   </button>
                   <span className="sb-head-r">
-                    <button type="button" className="quiz-entry" onClick={(e) => { e.stopPropagation(); setQuizOpen(true); }}>知識試験<i>◇</i></button>
+                    <button type="button" className="quiz-entry" onClick={(e) => { e.stopPropagation(); setQuizOpen(true); }}>{L("知識試験","Quiz","知識測驗")}<i>◇</i></button>
                   </span>
                 </div>
                 <div className="sb-rule" />
@@ -4599,9 +4606,9 @@ export default function App() {
                 </div>
               </section>
               <section className="ana-sec">
-                <div className="year-head"><span className="year-num">構成比</span><span className="year-rule" /><span className="year-count">作品別・Grade別</span></div>
+                <div className="year-head"><span className="year-num">{L("構成比","Breakdown","構成比")}</span><span className="year-rule" /><span className="year-count">{L("作品別・Grade別","By series · grade","依作品・等級")}</span></div>
                 <div className="pie-wrap">
-                  <Pie data={seriesData} center="作品別" />
+                  <Pie data={seriesData} center={L("作品別","Series","作品")} />
                   <div className="legend">
                     {seriesData.map((d) => (
                       <div className="legend-item" key={d.label}>
@@ -4612,7 +4619,7 @@ export default function App() {
                   </div>
                 </div>
                 <div className="pie-wrap" style={{ marginTop: 20 }}>
-                  <Pie data={gradeData} center="Grade別" />
+                  <Pie data={gradeData} center={L("Grade別","Grade","等級")} />
                   <div className="legend">
                     {gradeData.map((d) => (
                       <div className="legend-item" key={d.label}>
@@ -4625,9 +4632,9 @@ export default function App() {
               </section>
 
               <section className="ana-sec">
-                <div className="year-head"><span className="year-num">購入年別</span><span className="year-rule" /><span className="year-count">購入数推移</span></div>
+                <div className="year-head"><span className="year-num">{L("購入年別","By purchase year","依購入年")}</span><span className="year-rule" /><span className="year-count">{L("購入数推移","Purchases over time","購入數推移")}</span></div>
                 {yearData.length === 0
-                  ? <p className="ana-note">購入日が記録された機体がまだありません。</p>
+                  ? <p className="ana-note">{L("購入日が記録された機体がまだありません。","No kits with a purchase date yet.","尚無記錄購入日的機體。")}</p>
                   : (
                     <div className="bars">
                       {yearData.map((d) => (
@@ -4641,9 +4648,9 @@ export default function App() {
                   )}
               </section>
               <section className="ana-sec">
-                <div className="year-head"><span className="year-num">完成年別</span><span className="year-rule" /><span className="year-count">完成数推移</span></div>
+                <div className="year-head"><span className="year-num">{L("完成年別","By completion year","依完成年")}</span><span className="year-rule" /><span className="year-count">{L("完成数推移","Completions over time","完成數推移")}</span></div>
                 {buildYearData.length === 0
-                  ? <p className="ana-note">完成日が記録された機体がまだありません。</p>
+                  ? <p className="ana-note">{L("完成日が記録された機体がまだありません。","No kits with a completion date yet.","尚無記錄完成日的機體。")}</p>
                   : (
                     <div className="bars">
                       {buildYearData.map((d) => (
@@ -4657,7 +4664,7 @@ export default function App() {
                   )}
               </section>
               <section className="ana-sec">
-                <div className="year-head"><span className="year-num">発売数推移</span><span className="year-rule" /><span className="year-count">Grade別・年間発売数</span></div>
+                <div className="year-head"><span className="year-num">{L("発売数推移","Releases over time","發售數推移")}</span><span className="year-rule" /><span className="year-count">{L("Grade別・年間発売数","By grade · per year","依等級・年發售數")}</span></div>
                 <LineChart years={lineYears} series={lineSeries} />
                 <div className="legend horizontal">
                   {lineSeries.map((s) => (
@@ -4665,7 +4672,7 @@ export default function App() {
                   ))}
                 </div>
               </section>
-              <p className="footnote">※ 金額は税込定価ベースの集計です(実購入額ではありません)。発売数推移のみ図鑑収録データ全体、その他は「入手済み」記録のみから算出。</p>
+              <p className="footnote">{L("※ 金額は税込定価ベースの集計です(実購入額ではありません)。発売数推移のみ図鑑収録データ全体、その他は「入手済み」記録のみから算出。","* Amounts are tallied from tax-included list prices (not actual paid amounts). Only the release trend uses the full registry; everything else is computed from owned records.","* 金額以含稅定價統計(非實際購入額)。僅發售數趨勢採用全圖鑑資料，其餘均由「已入手」紀錄計算。")}</p>
               </>
               )}
             </>
@@ -4746,15 +4753,15 @@ export default function App() {
 
             {secWrap("ai", L("AI画像生成", "AI Imaging", "AI 影像生成"), "IMAGE AI",
               <div className="opt-group">
-                <label className="fld pad"><span>Gemini APIキー(この端末にのみ保存)</span>
+                <label className="fld pad"><span>{L("Gemini APIキー(この端末にのみ保存)","Gemini API key (stored on this device only)","Gemini API 金鑰(僅存於此裝置)")}</span>
                   <input type="password" value={settings.geminiKey || ""} placeholder="AIza..."
                     onChange={(e) => patchSettings({ geminiKey: e.target.value })} />
                 </label>
-                <label className="fld pad"><span>OpenAI APIキー(この端末にのみ保存)</span>
+                <label className="fld pad"><span>{L("OpenAI APIキー(この端末にのみ保存)","OpenAI API key (stored on this device only)","OpenAI API 金鑰(僅存於此裝置)")}</span>
                   <input type="password" value={settings.openaiKey || ""} placeholder="sk-..."
                     onChange={(e) => patchSettings({ openaiKey: e.target.value })} />
                 </label>
-                <label className="fld pad"><span>画像生成モデル(選択した提供元のキーを使用)</span>
+                <label className="fld pad"><span>{L("画像生成モデル(選択した提供元のキーを使用)","Image model (uses the selected provider's key)","影像生成模型(使用所選供應商金鑰)")}</span>
                   <select value={settings.geminiModel || "gemini-3-pro-image"}
                     onChange={(e) => patchSettings({ geminiModel: e.target.value })}>
                     {AI_MODELS.map((g) => (
@@ -4764,7 +4771,7 @@ export default function App() {
                     ))}
                   </select>
                 </label>
-                <div className="fld pad"><span>スタイル別プロンプト(タップで編集・点灯=カスタム済み)</span>
+                <div className="fld pad"><span>{L("スタイル別プロンプト(タップで編集・点灯=カスタム済み)","Per-style prompts (tap to edit · lit = customized)","各風格提示詞(點擊編輯・亮起=已自訂)")}</span>
                   <div className="prompt-chips">
                     {AI_STYLES.map((s) => (
                       <button key={s.id} className={`opt ${settings.aiPrompts && settings.aiPrompts[s.id] ? "on" : ""}`}
@@ -4781,31 +4788,31 @@ export default function App() {
                   <input value={settings.supaUrl || ""} placeholder="https://xxxx.supabase.co"
                     onChange={(e) => patchSettings({ supaUrl: e.target.value })} />
                 </label>
-                <label className="fld pad"><span>anon キー(この端末にのみ保存)</span>
+                <label className="fld pad"><span>{L("anon キー(この端末にのみ保存)","anon key (stored on this device only)","anon 金鑰(僅存於此裝置)")}</span>
                   <input type="password" value={settings.supaKey || ""} placeholder="eyJhbGciOi..."
                     onChange={(e) => patchSettings({ supaKey: e.target.value })} />
                 </label>
-                <button className="opt" onClick={syncNow}><span>今すぐ同期</span><i>⇅</i></button>
+                <button className="opt" onClick={syncNow}><span>{L("今すぐ同期","Sync now","立即同步")}</span><i>⇅</i></button>
                 <button className="opt" onClick={async () => {
                   const cfg = supaRef.current;
-                  if (!cfg.url || !cfg.key) { notify("Supabase URL と anon キーを入力してください", { kind: "warn" }); return; }
+                  if (!cfg.url || !cfg.key) { notify(L("Supabase URL と anon キーを入力してください","Enter the Supabase URL and anon key","請輸入 Supabase URL 與 anon 金鑰"), { kind: "warn" }); return; }
                   if (!(await appConfirm(L("クラウドのデータでこの端末を上書き復元します。この端末だけの未同期の変更は失われます。", "Restore from the cloud, overwriting this device. Unsynced changes on this device only will be lost.", "以雲端資料覆寫還原此裝置。此裝置上尚未同步的變更將遺失。"), { title: L("クラウドから復元", "Restore from cloud", "從雲端還原"), okText: L("上書き復元", "Overwrite", "覆寫還原"), cancelText: L("やめる", "Cancel", "取消"), danger: true }))) return;
-                  setSyncMsg("復元中…");
+                  setSyncMsg(L("復元中…","Restoring…","還原中…"));
                   try {
                     const nn = await pullCloud(cfg, true);
-                    setSyncMsg(`復元完了(受信 ${nn} 件)`);
-                  } catch (e) { setSyncMsg("復元エラー:" + ((e && e.message) || e)); }
-                }}><span>クラウドから復元(上書き)</span><i>⬇</i></button>
+                    setSyncMsg(L("復元完了(受信 ","Restored (",`還原完成(收到 `) + nn + L(" 件)"," items)"," 筆)"));
+                  } catch (e) { setSyncMsg(L("復元エラー:","Restore error: ","還原錯誤:") + ((e && e.message) || e)); }
+                }}><span>{L("クラウドから復元(上書き)","Restore from cloud (overwrite)","從雲端還原(覆寫)")}</span><i>⬇</i></button>
                 {syncMsg && <p className="ana-note">{syncMsg}</p>}
               </div>
             )}
 
             {secWrap("data", L("データ管理", "Data", "資料管理"), "DATA",
               <>
-                <div className="set-sublabel">画像</div>
+                <div className="set-sublabel">{L("画像","Images","圖片")}</div>
                 <div className="opt-group">
                   <button className="opt" onClick={optimizeImages}>
-                    <span>{optimizing ? "画像を再圧縮中…" : "画像を最適化(容量削減)"}</span><i>▣</i>
+                    <span>{optimizing ? L("画像を再圧縮中…","Recompressing…","重新壓縮中…") : L("画像を最適化(容量削減)","Optimize images (reduce size)","最佳化圖片(減少容量)")}</span><i>▣</i>
                   </button>
                   <label className="fld" style={{ padding: "0 2px 4px" }}>
                     <span>manifest URL(kit_id → 画像URL の JSON)</span>
@@ -4813,25 +4820,25 @@ export default function App() {
                       onChange={(e) => setManifestUrl(e.target.value)} />
                   </label>
                   <button className="opt" disabled={imgBusy} onClick={importManifest}>
-                    <span>{imgBusy ? "処理中…" : "画像を一括インポート(URL参照)"}</span><i>⬇</i>
+                    <span>{imgBusy ? L("処理中…","Processing…","處理中…") : L("画像を一括インポート(URL参照)","Bulk import images (by URL)","批次匯入圖片(URL 參照)")}</span><i>⬇</i>
                   </button>
                   <button className="opt" disabled={imgBusy} onClick={() => localImgRef.current && localImgRef.current.click()}>
-                    <span>ローカル画像を一括取り込み(ファイル名=kit_id)</span><i>⊞</i>
+                    <span>{L("ローカル画像を一括取り込み(ファイル名=kit_id)","Bulk import local images (filename = kit_id)","批次匯入本機圖片(檔名=kit_id)")}</span><i>⊞</i>
                   </button>
                   <input ref={localImgRef} type="file" accept="image/*" multiple style={{ display: "none" }}
                     onChange={(e) => { importLocalImages(e.target.files); e.target.value = ""; }} />
                   <button className="opt" disabled={imgBusy} onClick={precacheImages}>
-                    <span>オフライン用に画像を保存(プリキャッシュ)</span><i>⤓</i>
+                    <span>{L("オフライン用に画像を保存(プリキャッシュ)","Cache images for offline","快取圖片供離線使用")}</span><i>⤓</i>
                   </button>
                   {imgMsg && <p className="setup-note" style={{ padding: "2px 2px 0" }}>{imgMsg}</p>}
                 </div>
-                <div className="set-sublabel" style={{ marginTop: 12 }}>バックアップ</div>
+                <div className="set-sublabel" style={{ marginTop: 12 }}>{L("バックアップ","Backup","備份")}</div>
                 <div className="opt-group">
-                  <button className="opt" onClick={exportData}><span>データを書き出す(JSON)</span><i>↓</i></button>
-                  <button className="opt" onClick={() => importRef.current && importRef.current.click()}><span>バックアップを読み込む</span><i>↑</i></button>
+                  <button className="opt" onClick={exportData}><span>{L("データを書き出す(JSON)","Export data (JSON)","匯出資料(JSON)")}</span><i>↓</i></button>
+                  <button className="opt" onClick={() => importRef.current && importRef.current.click()}><span>{L("バックアップを読み込む","Import backup","匯入備份")}</span><i>↑</i></button>
                   <input ref={importRef} type="file" accept="application/json,.json" style={{ display: "none" }} onChange={importData} />
                 </div>
-                <p className="footnote">記録・編集・追加機体・画像はすべて自動保存され、次回起動時に復元されます。アップロード画像は自動圧縮(横440px・JPEG)で保存。</p>
+                <p className="footnote">{L("記録・編集・追加機体・画像はすべて自動保存され、次回起動時に復元されます。アップロード画像は自動圧縮(横440px・JPEG)で保存。","Records, edits, added kits and images are auto-saved and restored next launch. Uploaded images are auto-compressed (440px wide, JPEG).","紀錄・編輯・新增機體・圖片皆自動儲存，下次啟動時還原。上傳圖片自動壓縮(寬 440px・JPEG)。")}</p>
               </>
             )}
 
@@ -4855,8 +4862,8 @@ export default function App() {
               <>
                 <div className="opt-group">
                   {[
-                    ["バグ報告", "⚠", "不具合・バグを報告する"],
-                    ["改善提案", "✎", "改善のご提案を送る"],
+                    [L("バグ報告","Bug report","錯誤回報"), "⚠", L("不具合・バグを報告する","Report a bug or issue","回報問題或錯誤")],
+                    [L("改善提案","Suggestion","改善建議"), "✎", L("改善のご提案を送る","Send a suggestion","提出改善建議")],
                   ].map(([label, icon, desc]) => (
                     <button key={label} className="opt" onClick={() => {
                       const subject = encodeURIComponent("【" + label + "】ガンプラ大図鑑");
@@ -4866,10 +4873,10 @@ export default function App() {
                     </button>
                   ))}
                   <button className="opt" onClick={() => setFixOpen(true)}>
-                    <span>機体情報の修正を提案する</span><i>✑</i>
+                    <span>{L("機体情報の修正を提案する","Suggest a kit-info fix","提議修正機體資訊")}</span><i>✑</i>
                   </button>
                 </div>
-                <p className="footnote">タップするとメールアプリが開きます。件名のタグはそのままで、本文にご記入のうえ送信してください。</p>
+                <p className="footnote">{L("タップするとメールアプリが開きます。件名のタグはそのままで、本文にご記入のうえ送信してください。","Tapping opens your mail app. Keep the subject tag and write your message in the body before sending.","點擊會開啟郵件 app。請保留主旨標籤，於內文填寫後寄出。")}</p>
               </>
             )}
           </div>
@@ -4877,9 +4884,9 @@ export default function App() {
         </div>
       </main>
 
-      {fixOpen && <KitFixModal allKits={allKits} onClose={() => setFixOpen(false)} />}
+      {fixOpen && <KitFixModal allKits={allKits} onClose={() => setFixOpen(false)} L={L} />}
       {quizOpen && <QuizModal allKits={allKits} getRec={getRec} images={images} extras={extras} albumMeta={albumMeta} builderName={settings.builderName} onClose={() => setQuizOpen(false)} />}
-      {identifyOpen && <KitIdentifyModal allKits={allKits} geminiKey={settings.geminiKey} openaiKey={settings.openaiKey} cameraMode={identifyCam} onAttach={attachPhoto} onClose={() => setIdentifyOpen(false)} onManual={() => { setIdentifyOpen(false); setAdding("zukan"); }} />}
+      {identifyOpen && <KitIdentifyModal allKits={allKits} geminiKey={settings.geminiKey} openaiKey={settings.openaiKey} cameraMode={identifyCam} onAttach={attachPhoto} onClose={() => setIdentifyOpen(false)} onManual={() => { setIdentifyOpen(false); setAdding("zukan"); }} L={L} />}
 
       {sortMenuOpen && (
         <div className="modal-bg" onClick={() => setSortMenuOpen(false)} style={{ zIndex: 94 }}>
@@ -4965,17 +4972,17 @@ export default function App() {
               serifOf={(sl) => (sl.ref ? (serifs[sl.ref] || "") : "")}
               onSerif={(sl) => { if (sl.ref) setSerifEdit({ ref: sl.ref, text: serifs[sl.ref] || "" }); }}
               onIndex={(i) => { setViewerDel(false); setSerifEdit(null); setViewer({ kitId: flat[i].kitId, ref: flat[i].ref, from: vfrom }); }}
-              onClose={() => { swallowNextClick(); close(); }} />
+              L={L} onClose={() => { swallowNextClick(); close(); }} />
 
             {serifEdit && (
               <div className="serif-edit-bg" onClick={(e) => { e.stopPropagation(); setSerifEdit(null); }}>
                 <div className="serif-edit" onClick={(e) => e.stopPropagation()}>
                   <textarea className="se-input" autoFocus value={serifEdit.text} maxLength={120} rows={3}
                     onChange={(e) => setSerifEdit((s) => ({ ...s, text: e.target.value }))}
-                    placeholder="台詞を入力(改行・空白・記号もそのまま反映)" />
+                    placeholder={L("台詞を入力(改行・空白・記号もそのまま反映)","Enter caption (line breaks & symbols kept as-is)","輸入台詞(換行・空白・符號原樣保留)")} />
                   <div className="se-btns">
-                    <button className="btn" onClick={() => setSerifEdit(null)}>取消</button>
-                    <button className="btn solid" onClick={saveSerif}>保存</button>
+                    <button className="btn" onClick={() => setSerifEdit(null)}>{L("取消","Cancel","取消")}</button>
+                    <button className="btn solid" onClick={saveSerif}>{L("保存","Save","儲存")}</button>
                   </div>
                 </div>
               </div>
@@ -5006,7 +5013,7 @@ export default function App() {
         const src = refSrc(frameEdit.ref, frameEdit.kitId, images, extras);
         if (!src) { setTimeout(() => setFrameEdit(null), 0); return null; }
         return (
-          <FramingEditor src={src} initial={framingOf(frameEdit.kitId, frameEdit.ref)}
+          <FramingEditor src={src} initial={framingOf(frameEdit.kitId, frameEdit.ref)} L={L}
             onCancel={() => setFrameEdit(null)}
             onSave={(fr) => { setFraming(frameEdit.kitId, frameEdit.ref, fr); setFrameEdit(null); }} />
         );
@@ -5014,11 +5021,11 @@ export default function App() {
 
       <SeriesPicker open={seriesPickerOpen} value={adv.series} options={seriesList}
         onPick={(v) => { setAdv((a) => ({ ...a, series: v })); setSeriesPickerOpen(false); }}
-        onClose={() => setSeriesPickerOpen(false)} />
+        onClose={() => setSeriesPickerOpen(false)} L={L} />
 
       <UniPicker open={uniPickerOpen} value={adv.uni} options={UNI_PICK}
         onPick={(v) => { setAdv((a) => ({ ...a, uni: v })); setUniPickerOpen(false); }}
-        onClose={() => setUniPickerOpen(false)} />
+        onClose={() => setUniPickerOpen(false)} L={L} />
 
       {detailKit && (
         <div className="modal-bg" onClick={() => { if (!editing) closeDetail(); }}>
@@ -5040,12 +5047,12 @@ export default function App() {
                     : <div className="dc-classified">
                         <span className="dc-tick tl" /><span className="dc-tick tr" /><span className="dc-tick bl" /><span className="dc-tick br" />
                         <span className="dc-unid">UNIDENTIFIED</span>
-                        <span className="dc-unsub">NO VISUAL ON FILE · 機密</span>
+                        <span className="dc-unsub">NO VISUAL ON FILE</span>
                         <span className="dc-unref">REF · {detailKit.code || (detailKit.no !== "—" ? "No." + detailKit.no : "—")}</span>
                       </div>}
                   <button className="dc-frame-btn" onClick={(e) => { e.stopPropagation(); setImgEdit(detailKit.id); }}>
                     <svg className="bico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M16 3l5 5-9 9-5-5z" /><path d="M7 12l-2.5 2.5a2.1 2.1 0 0 0 3 3L10 15" /></svg>
-                    編集
+                    {L("編集","Edit","編輯")}
                   </button>
                 </div>
                 <div className="dc-spec">
@@ -5054,23 +5061,23 @@ export default function App() {
                       ? <button className="dc-link" onClick={() => jumpToSeries(detailKit.series)}>{detailKit.series}</button>
                       : "—"}
                   </span></div>
-                  <div className="dc-srow"><span className="dc-k">分類</span><span className="dc-v dc-tags">
+                  <div className="dc-srow"><span className="dc-k">{L("分類","Category","分類")}</span><span className="dc-v dc-tags">
                     <GradeChip grade={detailKit.grade} />
-                    {detailKit.base && <span className="line-chip base">ベース</span>}
+                    {detailKit.base && <span className="line-chip base">{L("ベース","Base","基地")}</span>}
                     {lineBadge(detailKit)}
                   </span></div>
                   <div className="dc-srow"><span className="dc-k">{L("発売·定価", "Release·Price", "發售·定價")}</span><span className="dc-v">{detailKit.ym
                     ? <button className="dc-link dc-gold" onClick={() => jumpToYear(detailKit.ym.slice(0, 4))}>{detailKit.ym.replace("-", ".")}</button>
                     : <span className="dc-gold">—</span>}{detailKit.price ? <> · <span className="dc-mono">{fmtYen(detailKit.price)}</span></> : ""}</span></div>
                   {detailRec.owned && (detailRec.purchaseDate || detailRec.buildDate) && (
-                    <div className="dc-srow"><span className="dc-k">記録</span><span className="dc-v">
-                      {detailRec.purchaseDate && <span className="dc-mono">購入 {fmtDate(detailRec.purchaseDate)}</span>}
+                    <div className="dc-srow"><span className="dc-k">{L("記録","Records","紀錄")}</span><span className="dc-v">
+                      {detailRec.purchaseDate && <span className="dc-mono">{L("購入","Bought","購入")} {fmtDate(detailRec.purchaseDate)}</span>}
                       {detailRec.purchaseDate && detailRec.buildDate ? " · " : ""}
-                      {detailRec.buildDate && <span className="dc-mono done">完成 {fmtDate(detailRec.buildDate)}</span>}
+                      {detailRec.buildDate && <span className="dc-mono done">{L("完成","Done","完成")} {fmtDate(detailRec.buildDate)}</span>}
                     </span></div>
                   )}
-                  <div className="dc-srow dc-srow-memo"><span className="dc-k">{L("メモ", "Memo", "備註")}</span><span className="dc-v"><NoteField note={detailKit.note} onCommit={(v) => setNote(detailKit, v)} enterOnLongPress /></span></div>
-                  <div className="dc-srow dc-srow-tag"><span className="dc-k">{L("タグ", "Tags", "標籤")}</span><span className="dc-v"><TagField tags={getTags(detailKit.id)} onCommit={(next) => setTags(detailKit.id, next)} enterOnLongPress onTagTap={jumpToTag} /></span></div>
+                  <div className="dc-srow dc-srow-memo"><span className="dc-k">{L("メモ", "Memo", "備註")}</span><span className="dc-v"><NoteField note={detailKit.note} onCommit={(v) => setNote(detailKit, v)} enterOnLongPress L={L} /></span></div>
+                  <div className="dc-srow dc-srow-tag"><span className="dc-k">{L("タグ", "Tags", "標籤")}</span><span className="dc-v"><TagField tags={getTags(detailKit.id)} onCommit={(next) => setTags(detailKit.id, next)} enterOnLongPress onTagTap={jumpToTag} L={L} /></span></div>
                 </div>
 
                 <button className="edit-link" onClick={() => setEditing(true)}>{L("✎ 機体情報・画像を編集", "✎ Edit kit info & images", "✎ 編輯機體資訊・圖片")}</button>
@@ -5134,23 +5141,23 @@ export default function App() {
         <div className="modal-bg">
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-form-head">
-              <span>クラウドから復元</span>
+              <span>{L("クラウドから復元","Restore from cloud","從雲端還原")}</span>
               <button className="modal-x static" onClick={() => setSetupOpen(false)}>✕</button>
             </div>
-            <p className="setup-note">この端末の図鑑データは空です。Supabase の接続情報を入力すると、クラウドに保存済みのコレクション(記録・編集・画像)を復元できます。初めて使う場合は「新規ではじめる」を選んでください。</p>
+            <p className="setup-note">{L("この端末の図鑑データは空です。Supabase の接続情報を入力すると、クラウドに保存済みのコレクション(記録・編集・画像)を復元できます。初めて使う場合は「新規ではじめる」を選んでください。","This device has no registry data yet. Enter your Supabase connection to restore a collection saved in the cloud (records, edits, images). First time? Choose “Start fresh”.","此裝置尚無圖鑑資料。填入 Supabase 連線資訊可還原雲端已存的收藏(紀錄・編輯・圖片)。初次使用請選「全新開始」。")}</p>
             <label className="fld pad"><span>Supabase URL</span>
               <input value={settings.supaUrl || ""} placeholder="https://xxxx.supabase.co"
                 onChange={(e) => patchSettings({ supaUrl: e.target.value })} />
             </label>
             <div style={{ height: 8 }} />
-            <label className="fld pad"><span>anon キー</span>
+            <label className="fld pad"><span>{L("anon キー","anon key","anon 金鑰")}</span>
               <input type="password" value={settings.supaKey || ""} placeholder="eyJhbGciOi..."
                 onChange={(e) => patchSettings({ supaKey: e.target.value })} />
             </label>
             {setupMsg && <p className="ana-note">{setupMsg}</p>}
             <div className="form-actions" style={{ marginTop: 12 }}>
-              <button className="btn primary" disabled={setupBusy} onClick={setupSync}>{setupBusy ? "同期中…" : "同期して復元"}</button>
-              <button className="btn" disabled={setupBusy} onClick={() => setSetupOpen(false)}>新規ではじめる</button>
+              <button className="btn primary" disabled={setupBusy} onClick={setupSync}>{setupBusy ? L("同期中…","Syncing…","同步中…") : L("同期して復元","Sync & restore","同步並還原")}</button>
+              <button className="btn" disabled={setupBusy} onClick={() => setSetupOpen(false)}>{L("新規ではじめる","Start fresh","全新開始")}</button>
             </div>
           </div>
         </div>
@@ -5161,22 +5168,22 @@ export default function App() {
         <div className="modal-bg">
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-form-head">
-              <span>プロフィール編集</span>
+              <span>{L("プロフィール編集","Edit profile","編輯個人檔案")}</span>
               <button className="modal-x static" onClick={() => setProfileOpen(false)}>✕</button>
             </div>
-            <label className="fld pad"><span>Builder名</span>
-              <input value={settings.builderName || ""} placeholder="あなたの名前 / ID"
+            <label className="fld pad"><span>{L("Builder名","Builder name","Builder 名稱")}</span>
+              <input value={settings.builderName || ""} placeholder={L("あなたの名前 / ID","Your name / ID","你的名字 / ID")}
                 onChange={(e) => patchSettings({ builderName: e.target.value })} />
             </label>
             <div style={{ height: 8 }} />
-            <label className="fld pad"><span>ガンプラ歴 開始日</span>
+            <label className="fld pad"><span>{L("ガンプラ歴 開始日","Building since","模型資歷起始日")}</span>
               <input type="date" value={settings.builderSince || ""}
                 onChange={(e) => patchSettings({ builderSince: e.target.value })} />
             </label>
             <div className="form-actions" style={{ marginTop: 12 }}>
-              <button className="btn primary" onClick={() => setProfileOpen(false)}>保存して閉じる</button>
+              <button className="btn primary" onClick={() => setProfileOpen(false)}>{L("保存して閉じる","Save & close","儲存並關閉")}</button>
             </div>
-            <p className="ai-note">変更は自動保存されます。</p>
+            <p className="ai-note">{L("変更は自動保存されます。","Changes save automatically.","變更會自動儲存。")}</p>
           </div>
         </div>
       )}
@@ -5186,7 +5193,7 @@ export default function App() {
         <div className="modal-bg" onClick={() => setPromptEdit(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-form-head">
-              <span>プロンプト編集:{AI_STYLES.find((s) => s.id === promptEdit).label}</span>
+              <span>{L("プロンプト編集:","Edit prompt: ","編輯提示詞:")}{AI_STYLES.find((s) => s.id === promptEdit).label}</span>
               <button className="modal-x static" onClick={() => setPromptEdit(null)}>✕</button>
             </div>
             <textarea className="prompt-ta" rows={9}
@@ -5195,14 +5202,14 @@ export default function App() {
                 : AI_STYLES.find((s) => s.id === promptEdit).prompt}
               onChange={(e) => patchSettings((s) => ({ aiPrompts: { ...(s.aiPrompts || {}), [promptEdit]: e.target.value } }))} />
             <div className="form-actions">
-              <button className="btn primary" onClick={() => setPromptEdit(null)}>保存して閉じる</button>
+              <button className="btn primary" onClick={() => setPromptEdit(null)}>{L("保存して閉じる","Save & close","儲存並關閉")}</button>
               <button className="btn" onClick={() => patchSettings((s) => {
                 const ap = { ...(s.aiPrompts || {}) };
                 delete ap[promptEdit];
                 return { aiPrompts: ap };
-              })}>初期値に戻す</button>
+              })}>{L("初期値に戻す","Reset to default","回復預設")}</button>
             </div>
-            <p className="ai-note">変更は自動保存されます。「初期値に戻す」で標準プロンプトに復帰。</p>
+            <p className="ai-note">{L("変更は自動保存されます。「初期値に戻す」で標準プロンプトに復帰。","Changes save automatically. “Reset to default” restores the standard prompt.","變更會自動儲存。「回復預設」可還原標準提示詞。")}</p>
           </div>
         </div>
       )}
@@ -5217,7 +5224,7 @@ export default function App() {
           <div className="modal-bg" onClick={() => setTitleDetail(null)}>
             <div className="modal title-modal" onClick={(e) => e.stopPropagation()}>
               <div className="modal-form-head">
-                <span>{t.tier === 2 ? "金章 — 全入手・全完成" : t.tier === 1 ? "銀章 — 全入手" : "称号の条件"}</span>
+                <span>{t.tier === 2 ? L("金章 — 全入手・全完成","Gold — all owned & built","金章 — 全入手・全完成") : t.tier === 1 ? L("銀章 — 全入手","Silver — all owned","銀章 — 全入手") : L("称号の条件","Title requirements","稱號條件")}</span>
                 <button className="modal-x static" onClick={() => setTitleDetail(null)}>✕</button>
               </div>
               <div className="tm-head">
@@ -5240,22 +5247,22 @@ export default function App() {
                     <div key={i} className={"tm-piece" + (p.satisfied ? " ok" : "")}>
                       <i className="tm-mark">{p.satisfied ? "✓" : "✗"}</i>
                       {p.satisfied
-                        ? <button className="tm-pname own-link" onClick={() => jump(p.owned.id)}><span className="tm-cn">{p.owned.name}</span><b className="tm-tag own">所持</b></button>
+                        ? <button className="tm-pname own-link" onClick={() => jump(p.owned.id)}><span className="tm-cn">{p.owned.name}</span><b className="tm-tag own">{L("所持","Owned","持有")}</b></button>
                         : <div className="tm-cands">
                             {p.candidates.slice(0, 4).map((c) => (
                               <button key={c.id} className="tm-cand" onClick={() => jump(c.id)}>
                                 <span className="tm-cn">{c.name}</span>
-                                {c.owned ? <b className="tm-tag own">所持</b> : <b className="tm-tag">未所持</b>}
+                                {c.owned ? <b className="tm-tag own">{L("所持","Owned","持有")}</b> : <b className="tm-tag">{L("未所持","Not owned","未持有")}</b>}
                               </button>
                             ))}
-                            {p.candidates.length > 4 && <span className="tm-more2">ほか{p.candidates.length - 4}機が該当</span>}
+                            {p.candidates.length > 4 && <span className="tm-more2">{L("ほか","+","其他 ")}{p.candidates.length - 4}{L("機が該当"," more match"," 機符合")}</span>}
                           </div>}
                     </div>
                   ))}
                   {ex.countPieces.map((cp, i) => (
                     <div key={"cp" + i} className={"tm-piece" + (cp.have.length >= cp.need ? " ok" : "")}>
                       <i className="tm-mark">{cp.have.length >= cp.need ? "✓" : "✗"}</i>
-                      <span className="tm-pname">ミッションパック等 <b className="tm-cnt">{cp.have.length}/{cp.need}</b></span>
+                      <span className="tm-pname">{L("ミッションパック等","Mission packs etc.","任務包等")} <b className="tm-cnt">{cp.have.length}/{cp.need}</b></span>
                     </div>
                   ))}
                 </div>
@@ -5266,7 +5273,7 @@ export default function App() {
                 const more = ex.candidates.filter((c) => !c.owned).slice(0, 8);
                 return (
                   <div className="tm-cond">
-                    <div className="tm-countbar"><b>{ex.have.length}</b> / {ex.need}{remain > 0 ? `\u3000あと${remain}` : "\u3000達成"}</div>
+                    <div className="tm-countbar"><b>{ex.have.length}</b> / {ex.need}{remain > 0 ? L("\u3000あと" + remain, "\u2003" + remain + " left", "\u3000還差" + remain) : L("\u3000達成", "\u2003Done", "\u3000達成")}</div>
                     {ex.have.slice(0, 30).map((c) => (
                       <button key={c.id} className="tm-cand row ok" onClick={() => jump(c.id)}>
                         <i className="tm-mark">✓</i><span className="tm-cn">{c.name}</span>
@@ -5738,7 +5745,9 @@ input,textarea{font-family:var(--sans)}
 .adv-search-x:active{color:var(--gold)}
 .adv-search:focus-within{border-color:var(--gold)}
 .adv-seg-btn{flex:1;padding:7px 4px;font-size:11.5px;font-weight:700;border:1px solid var(--line);
-  border-radius:7px;color:var(--ink-mid);background:var(--bg2);white-space:nowrap}
+  border-radius:7px;color:var(--ink-mid);background:var(--bg2);white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.app.lang-en{--serif:'Iowan Old Style','Palatino Linotype','Palatino','Georgia','Hiragino Mincho ProN','Yu Mincho','Noto Serif JP',serif}
+.opt-group.horizontal .opt{justify-content:center}
 .adv-seg-btn.on{border-color:rgba(217,179,106,.5);color:var(--gold);background:rgba(217,179,106,.1);box-shadow:inset 0 -2px 0 -1px var(--gold)}
 .adv-foot{display:flex;align-items:center;justify-content:space-between;margin-top:1px}
 .adv-years{flex:1;min-width:0;display:flex;align-items:center;gap:8px}
