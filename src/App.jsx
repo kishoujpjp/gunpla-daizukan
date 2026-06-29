@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from "react";
 import { mergeRec, mergeRecMap, mergeArrStamped, stampRec, stampRecAll } from "./merge.js";
 import { ACHIEVEMENTS } from "./achievements-rules.js";
+import { ACH_I18N } from "./achievements-i18n.js";
 import { evaluateAchievements, explainAchievement } from "./achievements-engine.js";
 import { ALL_BASE } from "./kits-data.js";
 import { QuizModal } from "./quiz.jsx";
@@ -2393,6 +2394,9 @@ export default function App() {
   }, [settings.geminiModel, settings._mdef3]);
   const lang = settings.lang || "ja";
   const L = (ja, en, zh) => (lang === "en" ? (en ?? ja) : lang === "zh" ? (zh ?? ja) : ja);
+  // 称号の名称・説明を言語別オーバーレイから取得(未訳は原文へフォールバック)
+  const achName = (t) => { const o = t && ACH_I18N[t.id]; return (o && o[lang] && o[lang].name) || (t && t.name); };
+  const achSub = (t) => { const o = t && ACH_I18N[t.id]; return (o && o[lang] && o[lang].sub) || (t && t.sub); };
   const [sortKey, setSortKey] = useState("year");
   const [sortDir, setSortDir] = useState("asc");
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
@@ -4547,9 +4551,9 @@ export default function App() {
                             <span className={"av-medal " + cls}><Emblem universe={t.universe || "UC"} tier={t.tier} /></span>
                             <span className="av-ebody">
                               <span className="av-eno">{(UNI_PREFIX[t.universe] || t.universe || "U.C.")} · No.{String(t.no || 0).padStart(3, "0")}</span>
-                              <span className="av-ename">{hiddenLocked ? "？？？" : t.name}</span>
+                              <span className="av-ename">{hiddenLocked ? "？？？" : achName(t)}</span>
                               {t.tier >= 1 && <span className="av-ehair" />}
-                              {t.tier >= 1 && <span className="av-eflavor">{t.sub}</span>}
+                              {t.tier >= 1 && <span className="av-eflavor">{achSub(t)}</span>}
                               {t.tier === 1 && <span className="av-etag silver">{L("あと ","","還差 ")}{Math.max(0, (t.builtNeed || 1) - (t.builtCur || 0))}{L(" 体完成で金章"," builds to gold"," 體完成得金章")}</span>}
                               {t.tier === 0 && t.need > 1 && (
                                 <span className="av-eprog"><span className="av-ebar"><i style={{ width: `${Math.round(t.cur / t.need * 100)}%` }} /></span><span className="av-erem">{L("あと ","","還差 ")}{remain}{L("","  left","")}</span></span>
@@ -5230,8 +5234,8 @@ export default function App() {
               <div className="tm-head">
                 <span className={"av-medal big " + (t.tier === 2 ? "gold" : t.tier === 1 ? "silver" : "locked")}><Emblem universe={t.universe || "UC"} tier={t.tier} /></span>
                 <div className="tm-headbody">
-                  <div className="tm-name">{t.name}</div>
-                  <div className="tm-sub">{t.sub}</div>
+                  <div className="tm-name">{achName(t)}</div>
+                  <div className="tm-sub">{achSub(t)}</div>
                   {!t.unlocked && t.need > 1 && (
                     <div className="title-foot" style={{ marginTop: 8 }}>
                       <div className="hp-track"><i style={{ width: `${Math.round(t.cur / t.need * 100)}%` }} /></div>
