@@ -2303,7 +2303,7 @@ function SeriesPicker({ open, value, options, onPick, onClose }) {
         <div className="sp-head">
           <input className="sp-search" autoFocus placeholder="作品名で絞り込み" value={q}
             onChange={(e) => setQ(e.target.value)} />
-          <button className="sp-close" onClick={onClose}>✕</button>
+          <button className="modal-x static" onClick={onClose}>✕</button>
         </div>
         <div className="sp-list">
           <button className={"sp-item" + (value === "" ? " on" : "")} onClick={() => onPick("")}>すべての作品</button>
@@ -2325,7 +2325,7 @@ function UniPicker({ open, value, options, onPick, onClose }) {
       <div className="sp-modal" onClick={(e) => e.stopPropagation()}>
         <div className="sp-head sp-head-plain">
           <span className="sp-title">世界観</span>
-          <button className="sp-close" onClick={onClose}>✕</button>
+          <button className="modal-x static" onClick={onClose}>✕</button>
         </div>
         <div className="sp-list">
           <button className={"sp-item" + (value === "" ? " on" : "")} onClick={() => onPick("")}>すべての世界観</button>
@@ -2416,6 +2416,9 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [dispTarget, setDispTarget] = useState("list");
+  // 設定頁:折りたたみ区画の開閉。既定でプロフィール/外観/表示のみ展開。
+  const [openSec, setOpenSec] = useState({ profile: true, look: true, disp: true, ai: false, cloud: false, data: false, danger: false, feedback: false });
+  const toggleSec = (k) => { haptic(); setOpenSec((s) => ({ ...s, [k]: !s[k] })); };
   const [promptEdit, setPromptEdit] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -3769,6 +3772,18 @@ export default function App() {
     );
   };
 
+  /* 設定頁の折りたたみ区画。関数で <section> を返す(コンポーネント化しないことで
+     入力欄が毎レンダーで remount されずフォーカスを失わないようにする)。 */
+  const secWrap = (id, jp, en, body, danger) => (
+    <section className={"set-sec" + (danger ? " set-sec-danger" : "") + (openSec[id] ? " open" : "")}>
+      <button type="button" className="set-sec-head" onClick={() => toggleSec(id)} aria-expanded={!!openSec[id]}>
+        <h2 className="panel-title">{jp}<span>{en}</span></h2>
+        <i className="set-chev" aria-hidden="true">▾</i>
+      </button>
+      {openSec[id] && <div className="set-sec-body">{body}</div>}
+    </section>
+  );
+
   const SortBar = () => (
     <div className="sort-bar">
       <select value={sortKey} onChange={(e) => setSortKey(e.target.value)}>
@@ -4701,180 +4716,198 @@ export default function App() {
 
         {tab === "settings" && (
           <div className="panel-wrap">
-            <div className="panel-head-row">
-              <h2 className="panel-title">プロフィール<span>BUILDER</span></h2>
-              <button className="panel-edit-btn" onClick={() => setProfileOpen(true)}>編集 ✎</button>
-            </div>
-            <button className="builder-line builder-tap" onClick={() => setProfileOpen(true)}>
-              <span>BUILDER<b>{settings.builderName || "—"}</b></span>
-              <span>ガンプラ歴<b>{careerStr(settings.builderSince)}</b></span>
-            </button>
-            <h2 className="panel-title">テーマ<span>THEME</span></h2>
-            <div className="opt-group horizontal">
-              <button className={`opt ${settings.theme !== "light" ? "on" : ""}`} onClick={() => patchSettings({ theme: "dark" })}>ダーク(漆黒)</button>
-              <button className={`opt ${settings.theme === "light" ? "on" : ""}`} onClick={() => patchSettings({ theme: "light" })}>ライト(生成り)</button>
-            </div>
-            <h2 className="panel-title">触覚フィードバック<span>HAPTICS</span></h2>
-            <div className="opt-group horizontal">
-              <button className={`opt ${settings.haptic !== false ? "on" : ""}`} onClick={() => { patchSettings({ haptic: true }); setHapticEnabled(true); haptic(); }}>オン</button>
-              <button className={`opt ${settings.haptic === false ? "on" : ""}`} onClick={() => patchSettings({ haptic: false })}>オフ</button>
-            </div>
-            <h2 className="panel-title">表示<span>DISPLAY</span></h2>
-            <div className="opt-group horizontal">
-              <button className={`opt ${dispTarget === "card" ? "on" : ""}`} onClick={() => setDispTarget("card")}>カード表示</button>
-              <button className={`opt ${dispTarget === "list" ? "on" : ""}`} onClick={() => setDispTarget("list")}>リスト表示</button>
-            </div>
-            <div className="opt-group" style={{ marginTop: 8 }}>
-              {(dispTarget === "card"
-                ? [
-                    ["compact", "コンパクト表示"],
-                    ["showGrade", "グレードを表示"],
-                    ["showYm", "発売年月を表示"],
-                    ["showNo", "No.番号を表示"],
-                    ["showCode", "型式番号を表示"],
-                    ["showPrice", "定価を表示"],
-                    ["showSeries", "作品名を表示"],
-                  ]
-                : [
-                    ["listGrade", "グレードを表示"],
-                    ["listSeries", "作品名を表示"],
-                    ["listNo", "No.番号を表示"],
-                    ["listCode", "型式番号を表示"],
-                    ["listPrice", "定価を表示"],
-                    ["listPurchase", "購入日を表示"],
-                    ["listBuild", "完成日を表示"],
-                  ]
-              ).map(([key, label]) => (
-                <button key={key} className="opt toggle" onClick={() => patchSettings((s) => ({ [key]: !s[key] }))}>
-                  <span>{label}</span>
-                  <i className={`switch ${settings[key] ? "on" : ""}`}><b /></i>
-                </button>
-              ))}
-            </div>
-            <div className="opt-group" style={{ marginTop: 8 }}>
-              <button className="opt toggle" onClick={() => patchSettings((s) => ({ dimUnowned: !s.dimUnowned }))}>
-                <span>未入手を淡色表示(共通)</span>
-                <i className={`switch ${settings.dimUnowned ? "on" : ""}`}><b /></i>
+            {secWrap("profile", "プロフィール", "BUILDER",
+              <button className="builder-line builder-tap" onClick={() => setProfileOpen(true)}>
+                <span>BUILDER<b>{settings.builderName || "—"}</b></span>
+                <span>ガンプラ歴<b>{careerStr(settings.builderSince)}</b></span>
               </button>
-            </div>
+            )}
 
-            <h2 className="panel-title">AI画像生成<span>IMAGE AI</span></h2>
-            <div className="opt-group">
-              <label className="fld pad"><span>Gemini APIキー(この端末にのみ保存)</span>
-                <input type="password" value={settings.geminiKey || ""} placeholder="AIza..."
-                  onChange={(e) => patchSettings({ geminiKey: e.target.value })} />
-              </label>
-              <label className="fld pad"><span>OpenAI APIキー(この端末にのみ保存)</span>
-                <input type="password" value={settings.openaiKey || ""} placeholder="sk-..."
-                  onChange={(e) => patchSettings({ openaiKey: e.target.value })} />
-              </label>
-              <label className="fld pad"><span>画像生成モデル(選択した提供元のキーを使用)</span>
-                <select value={settings.geminiModel || "gemini-3-pro-image"}
-                  onChange={(e) => patchSettings({ geminiModel: e.target.value })}>
-                  {AI_MODELS.map((g) => (
-                    <optgroup key={g.group} label={g.group}>
-                      {g.items.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
-                    </optgroup>
-                  ))}
-                </select>
-              </label>
-              <div className="fld pad"><span>スタイル別プロンプト(タップで編集・点灯=カスタム済み)</span>
-                <div className="prompt-chips">
-                  {AI_STYLES.map((s) => (
-                    <button key={s.id} className={`opt ${settings.aiPrompts && settings.aiPrompts[s.id] ? "on" : ""}`}
-                      onClick={() => setPromptEdit(s.id)}>{s.label}</button>
+            {secWrap("look", "外観", "APPEARANCE",
+              <>
+                <div className="set-sublabel">テーマ</div>
+                <div className="opt-group horizontal">
+                  <button className={`opt ${settings.theme !== "light" ? "on" : ""}`} onClick={() => patchSettings({ theme: "dark" })}>ダーク(漆黒)</button>
+                  <button className={`opt ${settings.theme === "light" ? "on" : ""}`} onClick={() => patchSettings({ theme: "light" })}>ライト(生成り)</button>
+                </div>
+                <div className="set-sublabel" style={{ marginTop: 12 }}>触覚フィードバック</div>
+                <div className="opt-group horizontal">
+                  <button className={`opt ${settings.haptic !== false ? "on" : ""}`} onClick={() => { patchSettings({ haptic: true }); setHapticEnabled(true); haptic(); }}>オン</button>
+                  <button className={`opt ${settings.haptic === false ? "on" : ""}`} onClick={() => patchSettings({ haptic: false })}>オフ</button>
+                </div>
+              </>
+            )}
+
+            {secWrap("disp", "表示", "DISPLAY",
+              <>
+                <div className="opt-group horizontal">
+                  <button className={`opt ${dispTarget === "card" ? "on" : ""}`} onClick={() => setDispTarget("card")}>カード表示</button>
+                  <button className={`opt ${dispTarget === "list" ? "on" : ""}`} onClick={() => setDispTarget("list")}>リスト表示</button>
+                </div>
+                <div className="opt-group" style={{ marginTop: 8 }}>
+                  {(dispTarget === "card"
+                    ? [
+                        ["compact", "コンパクト表示"],
+                        ["showGrade", "グレードを表示"],
+                        ["showYm", "発売年月を表示"],
+                        ["showNo", "No.番号を表示"],
+                        ["showCode", "型式番号を表示"],
+                        ["showPrice", "定価を表示"],
+                        ["showSeries", "作品名を表示"],
+                      ]
+                    : [
+                        ["listGrade", "グレードを表示"],
+                        ["listSeries", "作品名を表示"],
+                        ["listNo", "No.番号を表示"],
+                        ["listCode", "型式番号を表示"],
+                        ["listPrice", "定価を表示"],
+                        ["listPurchase", "購入日を表示"],
+                        ["listBuild", "完成日を表示"],
+                      ]
+                  ).map(([key, label]) => (
+                    <button key={key} className="opt toggle" onClick={() => patchSettings((s) => ({ [key]: !s[key] }))}>
+                      <span>{label}</span>
+                      <i className={`switch ${settings[key] ? "on" : ""}`}><b /></i>
+                    </button>
                   ))}
                 </div>
-              </div>
-            </div>
+                <div className="opt-group" style={{ marginTop: 8 }}>
+                  <button className="opt toggle" onClick={() => patchSettings((s) => ({ dimUnowned: !s.dimUnowned }))}>
+                    <span>未入手を淡色表示(共通)</span>
+                    <i className={`switch ${settings.dimUnowned ? "on" : ""}`}><b /></i>
+                  </button>
+                </div>
+              </>
+            )}
 
-            <h2 className="panel-title">クラウド同期<span>SUPABASE</span></h2>
-            <div className="opt-group">
-              <label className="fld pad"><span>Supabase URL</span>
-                <input value={settings.supaUrl || ""} placeholder="https://xxxx.supabase.co"
-                  onChange={(e) => patchSettings({ supaUrl: e.target.value })} />
-              </label>
-              <label className="fld pad"><span>anon キー(この端末にのみ保存)</span>
-                <input type="password" value={settings.supaKey || ""} placeholder="eyJhbGciOi..."
-                  onChange={(e) => patchSettings({ supaKey: e.target.value })} />
-              </label>
-              <button className="opt" onClick={syncNow}><span>今すぐ同期</span><i>⇅</i></button>
-              <button className="opt" onClick={async () => {
-                const cfg = supaRef.current;
-                if (!cfg.url || !cfg.key) { notify("Supabase URL と anon キーを入力してください", { kind: "warn" }); return; }
-                if (!(await appConfirm("クラウドのデータでこの端末を上書き復元します。この端末だけの未同期の変更は失われます。", { title: "クラウドから復元", okText: "上書き復元", danger: true }))) return;
-                setSyncMsg("復元中…");
-                try {
-                  const nn = await pullCloud(cfg, true);
-                  setSyncMsg(`復元完了(受信 ${nn} 件)`);
-                } catch (e) { setSyncMsg("復元エラー:" + ((e && e.message) || e)); }
-              }}><span>クラウドから復元(上書き)</span><i>⬇</i></button>
-              {syncMsg && <p className="ana-note">{syncMsg}</p>}
-            </div>
-
-            <h2 className="panel-title">データ<span>DATA</span></h2>
-            <div className="opt-group">
-              <button className="opt" onClick={optimizeImages}>
-                <span>{optimizing ? "画像を再圧縮中…" : "画像を最適化(容量削減)"}</span><i>▣</i>
-              </button>
-              {!confirmReset ? (
-                <button className="opt danger" onClick={() => setConfirmReset(true)}>収蔵記録をすべて消去…</button>
-              ) : (
-                <div className="confirm-box">
-                  <span>収蔵記録(入手・購入日・完成日)を消去します。編集内容・追加機体・画像は残ります。よろしいですか?</span>
-                  <div>
-                    <button className="opt danger solid" onClick={async () => { if (await appConfirm("収蔵記録(入手・購入日・完成日)を完全に消去します。元に戻せません。", { title: "収蔵記録を消去", okText: "消去する", danger: true })) setRecords({}); setConfirmReset(false); }}>消去する</button>
-                    <button className="opt" onClick={() => setConfirmReset(false)}>やめる</button>
+            {secWrap("ai", "AI画像生成", "IMAGE AI",
+              <div className="opt-group">
+                <label className="fld pad"><span>Gemini APIキー(この端末にのみ保存)</span>
+                  <input type="password" value={settings.geminiKey || ""} placeholder="AIza..."
+                    onChange={(e) => patchSettings({ geminiKey: e.target.value })} />
+                </label>
+                <label className="fld pad"><span>OpenAI APIキー(この端末にのみ保存)</span>
+                  <input type="password" value={settings.openaiKey || ""} placeholder="sk-..."
+                    onChange={(e) => patchSettings({ openaiKey: e.target.value })} />
+                </label>
+                <label className="fld pad"><span>画像生成モデル(選択した提供元のキーを使用)</span>
+                  <select value={settings.geminiModel || "gemini-3-pro-image"}
+                    onChange={(e) => patchSettings({ geminiModel: e.target.value })}>
+                    {AI_MODELS.map((g) => (
+                      <optgroup key={g.group} label={g.group}>
+                        {g.items.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+                      </optgroup>
+                    ))}
+                  </select>
+                </label>
+                <div className="fld pad"><span>スタイル別プロンプト(タップで編集・点灯=カスタム済み)</span>
+                  <div className="prompt-chips">
+                    {AI_STYLES.map((s) => (
+                      <button key={s.id} className={`opt ${settings.aiPrompts && settings.aiPrompts[s.id] ? "on" : ""}`}
+                        onClick={() => setPromptEdit(s.id)}>{s.label}</button>
+                    ))}
                   </div>
                 </div>
-              )}
-            </div>
-            <h2 className="panel-title">箱絵の一括取り込み<span>IMAGES</span></h2>
-            <div className="opt-group">
-              <label className="fld" style={{ padding: "0 2px 4px" }}>
-                <span>manifest URL(kit_id → 画像URL の JSON)</span>
-                <input value={manifestUrl} placeholder="https://xxxx.supabase.co/storage/v1/object/public/kit-images/mg_images_manifest.json"
-                  onChange={(e) => setManifestUrl(e.target.value)} />
-              </label>
-              <button className="opt" disabled={imgBusy} onClick={importManifest}>
-                <span>{imgBusy ? "処理中…" : "画像を一括インポート(URL参照)"}</span><i>⬇</i>
-              </button>
-              <button className="opt" disabled={imgBusy} onClick={() => localImgRef.current && localImgRef.current.click()}>
-                <span>ローカル画像を一括取り込み(ファイル名=kit_id)</span><i>⊞</i>
-              </button>
-              <input ref={localImgRef} type="file" accept="image/*" multiple style={{ display: "none" }}
-                onChange={(e) => { importLocalImages(e.target.files); e.target.value = ""; }} />
-              <button className="opt" disabled={imgBusy} onClick={precacheImages}>
-                <span>オフライン用に画像を保存(プリキャッシュ)</span><i>⤓</i>
-              </button>
-              {imgMsg && <p className="setup-note" style={{ padding: "2px 2px 0" }}>{imgMsg}</p>}
-            </div>
-            <h2 className="panel-title">バックアップ<span>BACKUP</span></h2>
-            <div className="opt-group">
-              <button className="opt" onClick={exportData}><span>データを書き出す(JSON)</span><i>↓</i></button>
-              <button className="opt" onClick={() => importRef.current && importRef.current.click()}><span>バックアップを読み込む</span><i>↑</i></button>
-              <input ref={importRef} type="file" accept="application/json,.json" style={{ display: "none" }} onChange={importData} />
-            </div>
-            <p className="footnote">記録・編集・追加機体・画像はすべて自動保存され、次回起動時に復元されます。アップロード画像は自動圧縮(横440px・JPEG)で保存。</p>
+              </div>
+            )}
 
-            <h2 className="panel-title">問題報告・ご要望<span>FEEDBACK</span></h2>
-            <div className="opt-group">
-              {[
-                ["バグ報告", "⚠", "不具合・バグを報告する"],
-                ["改善提案", "✎", "改善のご提案を送る"],
-              ].map(([label, icon, desc]) => (
-                <button key={label} className="opt" onClick={() => {
-                  const subject = encodeURIComponent("【" + label + "】ガンプラ大図鑑");
-                  window.location.href = "mailto:kishoujpjp@gmail.com?subject=" + subject;
-                }}>
-                  <span>{desc}</span><i>{icon}</i>
-                </button>
-              ))}
-              <button className="opt" onClick={() => setFixOpen(true)}>
-                <span>機体情報の修正を提案する</span><i>✑</i>
-              </button>
-            </div>
-            <p className="footnote">タップするとメールアプリが開きます。件名のタグはそのままで、本文にご記入のうえ送信してください。</p>
+            {secWrap("cloud", "クラウド同期", "SUPABASE",
+              <div className="opt-group">
+                <label className="fld pad"><span>Supabase URL</span>
+                  <input value={settings.supaUrl || ""} placeholder="https://xxxx.supabase.co"
+                    onChange={(e) => patchSettings({ supaUrl: e.target.value })} />
+                </label>
+                <label className="fld pad"><span>anon キー(この端末にのみ保存)</span>
+                  <input type="password" value={settings.supaKey || ""} placeholder="eyJhbGciOi..."
+                    onChange={(e) => patchSettings({ supaKey: e.target.value })} />
+                </label>
+                <button className="opt" onClick={syncNow}><span>今すぐ同期</span><i>⇅</i></button>
+                <button className="opt" onClick={async () => {
+                  const cfg = supaRef.current;
+                  if (!cfg.url || !cfg.key) { notify("Supabase URL と anon キーを入力してください", { kind: "warn" }); return; }
+                  if (!(await appConfirm("クラウドのデータでこの端末を上書き復元します。この端末だけの未同期の変更は失われます。", { title: "クラウドから復元", okText: "上書き復元", danger: true }))) return;
+                  setSyncMsg("復元中…");
+                  try {
+                    const nn = await pullCloud(cfg, true);
+                    setSyncMsg(`復元完了(受信 ${nn} 件)`);
+                  } catch (e) { setSyncMsg("復元エラー:" + ((e && e.message) || e)); }
+                }}><span>クラウドから復元(上書き)</span><i>⬇</i></button>
+                {syncMsg && <p className="ana-note">{syncMsg}</p>}
+              </div>
+            )}
+
+            {secWrap("data", "データ管理", "DATA",
+              <>
+                <div className="set-sublabel">画像</div>
+                <div className="opt-group">
+                  <button className="opt" onClick={optimizeImages}>
+                    <span>{optimizing ? "画像を再圧縮中…" : "画像を最適化(容量削減)"}</span><i>▣</i>
+                  </button>
+                  <label className="fld" style={{ padding: "0 2px 4px" }}>
+                    <span>manifest URL(kit_id → 画像URL の JSON)</span>
+                    <input value={manifestUrl} placeholder="https://xxxx.supabase.co/storage/v1/object/public/kit-images/mg_images_manifest.json"
+                      onChange={(e) => setManifestUrl(e.target.value)} />
+                  </label>
+                  <button className="opt" disabled={imgBusy} onClick={importManifest}>
+                    <span>{imgBusy ? "処理中…" : "画像を一括インポート(URL参照)"}</span><i>⬇</i>
+                  </button>
+                  <button className="opt" disabled={imgBusy} onClick={() => localImgRef.current && localImgRef.current.click()}>
+                    <span>ローカル画像を一括取り込み(ファイル名=kit_id)</span><i>⊞</i>
+                  </button>
+                  <input ref={localImgRef} type="file" accept="image/*" multiple style={{ display: "none" }}
+                    onChange={(e) => { importLocalImages(e.target.files); e.target.value = ""; }} />
+                  <button className="opt" disabled={imgBusy} onClick={precacheImages}>
+                    <span>オフライン用に画像を保存(プリキャッシュ)</span><i>⤓</i>
+                  </button>
+                  {imgMsg && <p className="setup-note" style={{ padding: "2px 2px 0" }}>{imgMsg}</p>}
+                </div>
+                <div className="set-sublabel" style={{ marginTop: 12 }}>バックアップ</div>
+                <div className="opt-group">
+                  <button className="opt" onClick={exportData}><span>データを書き出す(JSON)</span><i>↓</i></button>
+                  <button className="opt" onClick={() => importRef.current && importRef.current.click()}><span>バックアップを読み込む</span><i>↑</i></button>
+                  <input ref={importRef} type="file" accept="application/json,.json" style={{ display: "none" }} onChange={importData} />
+                </div>
+                <p className="footnote">記録・編集・追加機体・画像はすべて自動保存され、次回起動時に復元されます。アップロード画像は自動圧縮(横440px・JPEG)で保存。</p>
+              </>
+            )}
+
+            {secWrap("danger", "危険区域", "DANGER",
+              <div className="opt-group">
+                {!confirmReset ? (
+                  <button className="opt danger" onClick={() => setConfirmReset(true)}>収蔵記録をすべて消去…</button>
+                ) : (
+                  <div className="confirm-box">
+                    <span>収蔵記録(入手・購入日・完成日)を消去します。編集内容・追加機体・画像は残ります。よろしいですか?</span>
+                    <div>
+                      <button className="opt danger solid" onClick={async () => { if (await appConfirm("収蔵記録(入手・購入日・完成日)を完全に消去します。元に戻せません。", { title: "収蔵記録を消去", okText: "消去する", danger: true })) setRecords({}); setConfirmReset(false); }}>消去する</button>
+                      <button className="opt" onClick={() => setConfirmReset(false)}>やめる</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            , true)}
+
+            {secWrap("feedback", "問題報告・ご要望", "FEEDBACK",
+              <>
+                <div className="opt-group">
+                  {[
+                    ["バグ報告", "⚠", "不具合・バグを報告する"],
+                    ["改善提案", "✎", "改善のご提案を送る"],
+                  ].map(([label, icon, desc]) => (
+                    <button key={label} className="opt" onClick={() => {
+                      const subject = encodeURIComponent("【" + label + "】ガンプラ大図鑑");
+                      window.location.href = "mailto:kishoujpjp@gmail.com?subject=" + subject;
+                    }}>
+                      <span>{desc}</span><i>{icon}</i>
+                    </button>
+                  ))}
+                  <button className="opt" onClick={() => setFixOpen(true)}>
+                    <span>機体情報の修正を提案する</span><i>✑</i>
+                  </button>
+                </div>
+                <p className="footnote">タップするとメールアプリが開きます。件名のタグはそのままで、本文にご記入のうえ送信してください。</p>
+              </>
+            )}
           </div>
         )}
         </div>
@@ -5008,7 +5041,7 @@ export default function App() {
         onClose={() => setUniPickerOpen(false)} />
 
       {detailKit && (
-        <div className="modal-bg" onClick={closeDetail}>
+        <div className="modal-bg" onClick={() => { if (!editing) closeDetail(); }}>
           <div className="modal dc-modal" onClick={(e) => e.stopPropagation()}>
             {!editing && <button className="dc-x" onClick={(e) => { e.stopPropagation(); closeDetail(); }} aria-label="閉じる">✕</button>}
             {!editing ? (
@@ -5103,7 +5136,7 @@ export default function App() {
 
       {/* ── 新增機體彈窗 ── */}
       {adding && (
-        <div className="modal-bg" onClick={() => setAdding(false)}>
+        <div className="modal-bg">
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-form-head">
               <span>機体を追加</span>
@@ -5144,7 +5177,7 @@ export default function App() {
 
       {/* ── プロフィール編集彈窗 ── */}
       {profileOpen && (
-        <div className="modal-bg" onClick={() => setProfileOpen(false)}>
+        <div className="modal-bg">
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-form-head">
               <span>プロフィール編集</span>
@@ -5509,6 +5542,19 @@ input,textarea{font-family:var(--sans)}
 .panel-title{font-family:var(--serif);font-size:15px;font-weight:700;color:var(--ink-strong);
   margin:18px 2px 10px;display:flex;align-items:baseline;gap:8px}
 .panel-title span{font-size:9px;letter-spacing:.3em;color:var(--ink-dim);font-family:var(--sans)}
+.set-sec{border-top:1px solid var(--line-soft)}
+.set-sec:first-of-type{border-top:none}
+.set-sec-head{display:flex;align-items:center;justify-content:space-between;width:100%;text-align:left;gap:10px}
+.set-sec-head .panel-title{margin:15px 2px 13px;flex:1}
+.set-chev{font-style:normal;color:var(--ink-dim);font-size:13px;line-height:1;transition:transform .22s ease;transform:rotate(-90deg)}
+.set-sec.open .set-chev{transform:rotate(0)}
+.set-sec.open .set-sec-head .panel-title{margin-bottom:9px}
+.set-sec-body{padding-bottom:14px}
+.set-sublabel{font-size:10.5px;color:var(--ink-mid);letter-spacing:.12em;margin:2px 2px 7px;font-weight:700}
+.set-sec-danger .panel-title{color:var(--shu)}
+.set-sec-danger .panel-title span{color:rgba(232,85,61,.55)}
+.set-sec-danger.open .set-sec-body{border-left:2px solid rgba(232,85,61,.45);padding-left:10px;margin-left:1px}
+.app.light .set-sec-danger .panel-title{color:var(--shu-deep)}
 .opt-group{display:flex;flex-direction:column;gap:7px}
 .opt-group.horizontal{flex-direction:row}
 .opt{flex:1;display:flex;justify-content:space-between;align-items:center;
