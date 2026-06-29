@@ -2098,7 +2098,7 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, ini
 }
 
 function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, seriesOptions = [], ai, recInitial = null, onSaveRec,
-  album, onAddImage, onRemoveImage, onSetRole, onFrame, onEditImages, thumbRef, acqRef, maxImgs = 6, tags = [], onTags = null }) {
+  album, onAddImage, onRemoveImage, onSetRole, onFrame, onEditImages, thumbRef, acqRef, maxImgs = 6, tags = [], onTags = null, L = (ja) => ja }) {
   const albumMode = typeof onAddImage === "function";
   const [f, setF] = useState({
     name: initial.name || "", code: initial.code || "", ym: initial.ym || "",
@@ -2133,7 +2133,7 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
         r.readAsDataURL(file);
       });
       setCropSrc(raw);
-    } catch (err) { console.error(err); notify("画像の読み込みに失敗しました", { kind: "err" }); }
+    } catch (err) { console.error(err); notify(L("画像の読み込みに失敗しました", "Failed to load the image", "圖片載入失敗"), { kind: "err" }); }
     setBusy(false);
     e.target.value = "";
   };
@@ -2142,7 +2142,7 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
     <div className="form">
       {!albumMode && (
         <>
-          <div className="f-sec">画像<span>IMAGES</span></div>
+          <div className="f-sec">{L("画像", "Image", "圖片")}<span>IMAGES</span></div>
           <div className="form-img-row">
             <div className="form-img-box">
               {previewImg
@@ -2151,19 +2151,19 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
             </div>
             <div className="form-img-btns">
               <button className="mini-btn" onClick={() => fileRef.current && fileRef.current.click()} disabled={busy}>
-                {busy ? "読込中…" : "画像をアップロード"}
+                {busy ? L("読込中…", "Loading…", "載入中…") : L("画像をアップロード", "Upload image", "上傳圖片")}
               </button>
               <div className="url-row">
-                <input placeholder="または画像URLを貼り付け" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} />
-                <button className="mini-btn" onClick={() => { if (urlInput.trim()) { setImgVal(urlInput.trim()); setUrlInput(""); } }}>適用</button>
+                <input placeholder={L("または画像URLを貼り付け", "or paste an image URL", "或貼上圖片網址")} value={urlInput} onChange={(e) => setUrlInput(e.target.value)} />
+                <button className="mini-btn" onClick={() => { if (urlInput.trim()) { setImgVal(urlInput.trim()); setUrlInput(""); } }}>{L("適用", "Apply", "套用")}</button>
               </div>
               <button className="mini-btn ai" onClick={() => {
-                if (!previewImg) { notify("先に画像を設定してください", { kind: "warn" }); return; }
-                if (!aiActiveKey(ai)) { notify(aiProviderLabel(ai && ai.model) + " のAPIキーを設定タブで入力してください", { kind: "warn", dur: 3200 }); return; }
+                if (!previewImg) { notify(L("先に画像を設定してください", "Set an image first", "請先設定圖片"), { kind: "warn" }); return; }
+                if (!aiActiveKey(ai)) { notify(aiProviderLabel(ai && ai.model) + L(" のAPIキーを設定タブで入力してください", " API key is required — add it in Settings", " 的 API 金鑰請至設定填入"), { kind: "warn", dur: 3200 }); return; }
                 setAiOpen(true);
-              }}>✨ AIスタイル変換</button>
-              {previewImg && <button className="mini-btn" onClick={() => setCropSrc(previewImg)}>✂ 切り抜き</button>}
-              {previewImg && <button className="mini-btn ghost" onClick={() => setImgVal(null)}>画像を削除(スケッチに戻す)</button>}
+              }}>{L("✨ AIスタイル変換", "✨ AI restyle", "✨ AI 風格轉換")}</button>
+              {previewImg && <button className="mini-btn" onClick={() => setCropSrc(previewImg)}>{L("✂ 切り抜き", "✂ Crop", "✂ 裁切")}</button>}
+              {previewImg && <button className="mini-btn ghost" onClick={() => setImgVal(null)}>{L("画像を削除(スケッチに戻す)", "Remove image (back to sketch)", "刪除圖片(回到草圖)")}</button>}
               <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={pickFile} />
             </div>
           </div>
@@ -2171,7 +2171,7 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
       )}
 
       <div className="fld-row name-row">
-        <label className="fld grow2"><span>機体名 *</span><input value={f.name} onChange={set("name")} placeholder="例: νガンダム Ver.Ka" /></label>
+        <label className="fld grow2"><span>{L("機体名 *", "Name *", "機體名 *")}</span><input value={f.name} onChange={set("name")} placeholder={L("例: νガンダム Ver.Ka", "e.g. ν Gundam Ver.Ka", "例: ν鋼彈 Ver.Ka")} /></label>
         <label className="fld"><span>Grade</span>
           <select value={f.grade} onChange={set("grade")}>
             <option value="MG">MG</option>
@@ -2182,47 +2182,47 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
           </select>
         </label>
       </div>
-      <label className="fld"><span>原作</span>
-        <input list="series-options" value={f.series} onChange={set("series")} placeholder="入力または一覧から選択" />
+      <label className="fld"><span>{L("原作", "Series", "原作")}</span>
+        <input list="series-options" value={f.series} onChange={set("series")} placeholder={L("入力または一覧から選択", "type or pick from the list", "輸入或從清單選擇")} />
         <datalist id="series-options">{seriesOptions.map((s) => <option key={s} value={s} />)}</datalist>
       </label>
       <div className="fld-row">
-        <label className="fld"><span>型式番号</span><input value={f.code} onChange={set("code")} placeholder="RX-93" /></label>
-        <label className="fld"><span>発売年月</span><input type="month" value={f.ym} onChange={set("ym")} /></label>
+        <label className="fld"><span>{L("型式番号", "Model code", "型式番號")}</span><input value={f.code} onChange={set("code")} placeholder="RX-93" /></label>
+        <label className="fld"><span>{L("発売年月", "Release", "發售年月")}</span><input type="month" value={f.ym} onChange={set("ym")} /></label>
       </div>
       <div className="fld-row">
-        <label className="fld"><span>定価(円・税込)</span><input type="number" value={f.price} onChange={set("price")} placeholder="7700" /></label>
-        <div className="fld"><span>限定</span>
+        <label className="fld"><span>{L("定価(円・税込)", "Price (JPY, incl. tax)", "定價(日圓・含稅)")}</span><input type="number" value={f.price} onChange={set("price")} placeholder="7700" /></label>
+        <div className="fld"><span>{L("限定", "Limited", "限定")}</span>
           <button type="button" className={`prem-toggle ${f.premium ? "on" : ""}`}
             onClick={() => setF((s) => ({ ...s, premium: !s.premium }))}>
-            <i>{f.premium ? "✓" : ""}</i> プレバン限定
+            <i>{f.premium ? "✓" : ""}</i> {L("プレバン限定", "P-Bandai", "魂商店限定")}
           </button>
         </div>
       </div>
       <div className="form-dates">
-        <label className="fld"><span>購入日</span>
+        <label className="fld"><span>{L("購入日", "Purchase date", "購入日")}</span>
           <span className="date-wrap">
             <input type="date" value={dates.purchaseDate} onChange={(e) => setDates((d) => ({ ...d, purchaseDate: e.target.value }))} />
             {dates.purchaseDate && <button type="button" className="date-clear" onClick={() => setDates((d) => ({ ...d, purchaseDate: "" }))}>✕</button>}
           </span>
         </label>
-        <label className="fld"><span>制作完了日</span>
+        <label className="fld"><span>{L("制作完了日", "Completion date", "完成日")}</span>
           <span className="date-wrap">
             <input type="date" value={dates.buildDate} onChange={(e) => setDates((d) => ({ ...d, buildDate: e.target.value }))} />
             {dates.buildDate && <button type="button" className="date-clear" onClick={() => setDates((d) => ({ ...d, buildDate: "" }))}>✕</button>}
           </span>
         </label>
       </div>
-      <label className="fld"><span>メモ</span><textarea rows={2} value={f.note} onChange={set("note")} placeholder="改修予定、塗装レシピ、保管場所など" /></label>
-      <div className="fld"><span>タグ</span>
+      <label className="fld"><span>{L("メモ", "Memo", "備註")}</span><textarea rows={2} value={f.note} onChange={set("note")} placeholder={L("改修予定、塗装レシピ、保管場所など", "build plans, paint recipe, storage…", "改修計畫、塗裝配方、保管位置等")} /></label>
+      <div className="fld"><span>{L("タグ", "Tags", "標籤")}</span>
         <div className="form-tagfield"><TagField tags={tagsLocal} onCommit={commitTags} /></div>
       </div>
 
       <div className="form-actions">
         <button className="btn primary" disabled={!f.name.trim()}
-          onClick={() => { if (onSaveRec) onSaveRec(dates); onSave({ ...f, price: f.price ? Number(f.price) : "" }, imgVal, pendingMeta, tagsLocal); }}>保存</button>
-        <button className="btn" onClick={onCancel}>やめる</button>
-        {isCustom && onDelete && <button className="btn danger" onClick={onDelete}>この機体を削除</button>}
+          onClick={() => { if (onSaveRec) onSaveRec(dates); onSave({ ...f, price: f.price ? Number(f.price) : "" }, imgVal, pendingMeta, tagsLocal); }}>{L("保存", "Save", "儲存")}</button>
+        <button className="btn" onClick={onCancel}>{L("やめる", "Cancel", "取消")}</button>
+        {isCustom && onDelete && <button className="btn danger" onClick={onDelete}>{L("この機体を削除", "Delete this kit", "刪除此機體")}</button>}
       </div>
       {cropSrc && <CropModal src={cropSrc} onCancel={() => setCropSrc(null)}
         onDone={(out) => { applyNewImage(out); setCropSrc(null); }} />}
@@ -5078,7 +5078,7 @@ export default function App() {
             ) : (
               <>
                 <div className="modal-form-head">
-                  <span>機体情報の編集 <span className="sm-eyebrow">EDIT</span></span>
+                  <span>{L("機体情報の編集", "Edit kit", "編輯機體")} <span className="sm-eyebrow">EDIT</span></span>
                   <button className="modal-x static" onClick={() => setEditing(false)}>✕</button>
                 </div>
                 <KitForm
@@ -5107,6 +5107,7 @@ export default function App() {
                   onSave={(v, img) => saveEdit(detailKit, v, img)}
                   onCancel={() => setEditing(false)}
                   onDelete={() => deleteCustom(detailKit.id)}
+                  L={L}
                 />
               </>
             )}
@@ -5119,11 +5120,11 @@ export default function App() {
         <div className="modal-bg">
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-form-head">
-              <span>機体を追加</span>
+              <span>{L("機体を追加", "Add a kit", "新增機體")}</span>
               <button className="modal-x static" onClick={() => setAdding(false)}>✕</button>
             </div>
             <KitForm seriesOptions={seriesOptions} ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, model: settings.geminiModel, prompts: settings.aiPrompts, style: settings.aiStyle, onModel: (m) => patchSettings({ geminiModel: m }), onStyle: (st) => patchSettings({ aiStyle: st }) }} initial={{}} currentImg={null} isCustom={false}
-              onSave={saveNew} onCancel={() => setAdding(false)} />
+              onSave={saveNew} onCancel={() => setAdding(false)} L={L} />
           </div>
         </div>
       )}
