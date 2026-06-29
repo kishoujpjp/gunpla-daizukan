@@ -1776,7 +1776,7 @@ function AppDialogHost() {
   );
 }
 
-function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, initialCols, onCols, onAddImage, onRemoveImage, onSetRole, onFrame, onReorder, onSetLoc, onClose, onBack }) {
+function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, initialCols, onCols, onAddImage, onRemoveImage, onSetRole, onFrame, onReorder, onSetLoc, onClose, onBack, L = (ja) => ja }) {
   const kitId = kit.id;
   const baseRefs = albumRefs(kitId, images, extras, albumMeta);
   const baseKey = baseRefs.join("|");
@@ -1913,7 +1913,7 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, ini
     const ds = d ? (("0" + (d.getMonth() + 1)).slice(-2) + "/" + ("0" + d.getDate()).slice(-2)) : "";
     if (m && m.src === "ai") { const o = AI_MODEL_OPTS.find((x) => x.value === m.model); return { cls: "ai", text: "✦ " + ((o && o.label) || m.model || "AI"), date: ds }; }
     const by = (m && m.by) || builderName || "";
-    return { cls: "pho", text: "◉ " + (by ? "photoed by " + by : "写真"), date: ds };
+    return { cls: "pho", text: "◉ " + (by ? "photoed by " + by : L("写真","Photo","照片")), date: ds };
   };
   const fmtDT = (at) => { if (!at) return "—"; const d = new Date(at); const p = (n) => ("0" + n).slice(-2); return d.getFullYear() + "/" + p(d.getMonth() + 1) + "/" + p(d.getDate()) + " " + p(d.getHours()) + ":" + p(d.getMinutes()); };
 
@@ -1922,11 +1922,11 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, ini
     if (!f) return;
     setBusy(true);
     try { const url = await fileToCompressedDataURL(f, 1280, 0.82); onAddImage(url, { src: "photo" }); }
-    catch (err) { notify("画像の読み込みに失敗しました", { kind: "err" }); }
+    catch (err) { notify(L("画像の読み込みに失敗しました","Failed to load the image","圖片載入失敗"), { kind: "err" }); }
     setBusy(false); setAddOpen(false);
   };
   const addUrl = () => { const u = urlVal.trim(); if (!u) return; onAddImage(u, { src: "photo" }); setUrlVal(""); setAddOpen(false); };
-  const openAI = () => { if (!aiActiveKey(ai)) { notify(aiProviderLabel(ai && ai.model) + " のAPIキーを設定タブで入力してください", { kind: "warn", dur: 3200 }); return; } setAiSrc(selSrc); setAiOpen(true); setSel(null); setLocEditing(false); };
+  const openAI = () => { if (!aiActiveKey(ai)) { notify(aiProviderLabel(ai && ai.model) + L(" のAPIキーを設定タブで入力してください"," API key is required — add it in Settings"," 的 API 金鑰請至設定填入"), { kind: "warn", dur: 3200 }); return; } setAiSrc(selSrc); setAiOpen(true); setSel(null); setLocEditing(false); };
   const closeSheet = () => { setSel(null); setLocEditing(false); };
   // 画像情報シート:前後の画像へ(矢印 / 左右スワイプ)
   const gotoRel = (d) => { const i = order.indexOf(sel); const j = i + d; if (j >= 0 && j < order.length) { setSel(order[j]); setLocEditing(false); } };
@@ -1964,21 +1964,21 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, ini
       <div className="ie-panel" onClick={(e) => e.stopPropagation()}>
         <div className="ie-head">
           <div className="sm-head">
-            <span className="sm-title">画像<em>編集</em> <span className="sm-eyebrow">atelier</span></span>
+            <span className="sm-title">{L(<>画像<em>編集</em></>,<>Image<em> Edit</em></>,<>圖片<em>編輯</em></>)} <span className="sm-eyebrow">atelier</span></span>
             <button className="modal-x static" onClick={onClose}>✕</button>
           </div>
           {[kit.code || kit.name, kit.grade].filter(Boolean).length ? <div className="ie-subcode">{[kit.code || kit.name, kit.grade].filter(Boolean).join(" · ")}</div> : null}
         </div>
         <div className="ie-bar">
-          <span className="ie-cnt">{order.length}<i>枚</i></span>
+          <span className="ie-cnt">{order.length}<i>{L("枚","","張")}</i></span>
           <span className="ie-srcfilter">
-            {[["all", "全"], ["photo", "写真"], ["ai", "AI"]].map(([v, l]) => (
+            {[["all", L("全","All","全")], ["photo", L("写真","Photo","照片")], ["ai", "AI"]].map(([v, l]) => (
               <button key={v} type="button" className={"ie-sfbtn" + (srcFilter === v ? " on" : "")} onClick={() => setSrcFilter(v)}>{l}</button>
             ))}
           </span>
           <span className="ie-cols">
-            <button type="button" className={"ie-colbtn" + (cols === 2 ? " on" : "")} onClick={() => setCols(2)} aria-label="2列">▥</button>
-            <button type="button" className={"ie-colbtn" + (cols === 3 ? " on" : "")} onClick={() => setCols(3)} aria-label="3列">▦</button>
+            <button type="button" className={"ie-colbtn" + (cols === 2 ? " on" : "")} onClick={() => setCols(2)} aria-label={L("2列","2 columns","2 欄")}>▥</button>
+            <button type="button" className={"ie-colbtn" + (cols === 3 ? " on" : "")} onClick={() => setCols(3)} aria-label={L("3列","3 columns","3 欄")}>▦</button>
           </span>
         </div>
         <div className="ie-scroll" onPointerMove={onGridMove} onPointerUp={onGridUp} onPointerCancel={onGridUp} onPointerLeave={onGridUp}>
@@ -1994,13 +1994,13 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, ini
                 <div key={ref} ref={(el) => { if (el) tileEls.current[ref] = el; else delete tileEls.current[ref]; }} data-ref={ref} className={"ie-tile" + (dragId === ref ? " drag" : "")} {...makeLP(() => openView(ref, "grid"))} onClick={() => { if (consumeLP()) return; if (!dragId) setSel(ref); }}>
                   {src ? <img src={src} alt="" className="ie-img" style={fr} draggable={false} /> : <div className="ie-img blank" />}
                   {srcFilter === "all" && <button type="button" className="ie-drag" onPointerDown={onHandleDown(ref)} onTouchStart={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>⠿</button>}
-                  {ref === thumbR ? <span className="ie-cover">封面</span> : null}
+                  {ref === thumbR ? <span className="ie-cover">{L("表紙","Cover","封面")}</span> : null}
                 </div>
               );
             })}
             {srcFilter === "all" && (
             <button data-ref="add" className="ie-tile add" onClick={() => setAddOpen(true)} disabled={busy}>
-              <span className="ie-plus">{busy ? "…" : "＋"}</span><span className="ie-addl">画像を追加</span><span className="ie-addo">カメラ / アルバム / URL</span>
+              <span className="ie-plus">{busy ? "…" : "＋"}</span><span className="ie-addl">{L("画像を追加","Add image","新增圖片")}</span><span className="ie-addo">{L("カメラ / アルバム / URL","Camera / Album / URL","相機 / 相簿 / 網址")}</span>
             </button>
             )}
           </div>
@@ -2010,18 +2010,18 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, ini
         {addOpen ? (
           <div className="ie-dim" onClick={() => setAddOpen(false)}>
             <div className="ie-sheet add" onClick={(e) => e.stopPropagation()}>
-              <div className="ie-sh-title">画像を追加</div>
+              <div className="ie-sh-title">{L("画像を追加","Add image","新增圖片")}</div>
               <div className="ie-addbtns">
                 <button className="ie-abtn" onClick={() => camRef.current && camRef.current.click()}>
                   <svg className="ie-abi" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 8h2.6l1.3-2.1a1 1 0 0 1 .85-.47h6.5a1 1 0 0 1 .85.47L17.4 8H20a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z" /><circle cx="12" cy="13" r="3.3" /></svg>
-                  <span>カメラ</span>
+                  <span>{L("カメラ","Camera","相機")}</span>
                 </button>
                 <button className="ie-abtn" onClick={() => albRef.current && albRef.current.click()}>
                   <svg className="ie-abi" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="13.5" height="13.5" rx="2" /><circle cx="7.6" cy="8.6" r="1.5" /><path d="M3.4 14.5l3.6-3.1 2.8 2.3 3.2-2.9 3.5 3" /><path d="M20.5 8v9.5a3 3 0 0 1-3 3H8" /></svg>
-                  <span>アルバム</span>
+                  <span>{L("アルバム","Album","相簿")}</span>
                 </button>
               </div>
-              <div className="ie-urlrow"><input value={urlVal} placeholder="画像URL" onChange={(e) => setUrlVal(e.target.value)} /><button onClick={addUrl}>追加</button></div>
+              <div className="ie-urlrow"><input value={urlVal} placeholder={L("画像URL","Image URL","圖片網址")} onChange={(e) => setUrlVal(e.target.value)} /><button onClick={addUrl}>{L("追加","Add","新增")}</button></div>
             </div>
           </div>
         ) : null}
@@ -2030,10 +2030,10 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, ini
         {sel ? (
           <div className="ie-dim" onClick={closeSheet}>
             <div className="ie-sheet sel" onClick={(e) => e.stopPropagation()}>
-              <button type="button" className="ie-sheet-x" onClick={closeSheet} aria-label="閉じる">
+              <button type="button" className="ie-sheet-x" onClick={closeSheet} aria-label={L("閉じる","Close","關閉")}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
               </button>
-              <div className="ie-sh-title">画像情報</div>
+              <div className="ie-sh-title">{L("画像情報","Image info","圖片資訊")}</div>
               <div className="ie-pv full"
                 onTouchStart={(e) => { onPvTouchStart(e); lpStart(() => openView(sel, "sheet")); }}
                 onTouchEnd={(e) => { lpCancel(); onPvTouchEnd(e); }}
@@ -2041,30 +2041,30 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, ini
                 onContextMenu={(e) => e.preventDefault()}>
                 {selSrc ? <img src={selSrc} alt="" className="ie-pv-img" draggable={false} /> : <div className="ie-pv-blank" />}
                 <span className="ie-pv-idx">{selIdx >= 0 ? selIdx + 1 : "—"}<i> / {order.length}</i></span>
-                {sel === thumbR ? <span className="ie-pv-cover">封面</span> : null}
-                {selIdx > 0 ? <button type="button" className="ie-pv-nav prev" onClick={() => gotoRel(-1)} aria-label="前の画像">‹</button> : null}
-                {selIdx >= 0 && selIdx < order.length - 1 ? <button type="button" className="ie-pv-nav next" onClick={() => gotoRel(1)} aria-label="次の画像">›</button> : null}
+                {sel === thumbR ? <span className="ie-pv-cover">{L("表紙","Cover","封面")}</span> : null}
+                {selIdx > 0 ? <button type="button" className="ie-pv-nav prev" onClick={() => gotoRel(-1)} aria-label={L("前の画像","Previous","上一張")}>‹</button> : null}
+                {selIdx >= 0 && selIdx < order.length - 1 ? <button type="button" className="ie-pv-nav next" onClick={() => gotoRel(1)} aria-label={L("次の画像","Next","下一張")}>›</button> : null}
               </div>
               <dl className="ie-sh-meta">
-                <dt>由来</dt><dd>{selMeta && selMeta.src === "ai" ? <span className="ai">AI生成</span> : <span className="pho">写真</span>}</dd>
+                <dt>{L("由来","Source","來源")}</dt><dd>{selMeta && selMeta.src === "ai" ? <span className="ai">{L("AI生成","AI","AI 生成")}</span> : <span className="pho">{L("写真","Photo","照片")}</span>}</dd>
                 {selMeta && selMeta.src === "ai"
                   ? <>
-                      <dt>モデル</dt><dd>{(AI_MODEL_OPTS.find((x) => x.value === selMeta.model) || {}).label || (selMeta && selMeta.model) || "—"}</dd>
-                      <dt>スタイル</dt><dd>{(AI_STYLES.find((x) => x.id === selMeta.style) || {}).label || "—"}</dd>
+                      <dt>{L("モデル","Model","模型")}</dt><dd>{(AI_MODEL_OPTS.find((x) => x.value === selMeta.model) || {}).label || (selMeta && selMeta.model) || "—"}</dd>
+                      <dt>{L("スタイル","Style","風格")}</dt><dd>{(AI_STYLES.find((x) => x.id === selMeta.style) || {}).label || "—"}</dd>
                     </>
-                  : <><dt>撮影者</dt><dd>{(selMeta && selMeta.by) || builderName || "—"}</dd></>}
+                  : <><dt>{L("撮影者","Photographer","拍攝者")}</dt><dd>{(selMeta && selMeta.by) || builderName || "—"}</dd></>}
                 {selMeta && selMeta.src === "ai" ? null : (<>
-                <dt>場所</dt><dd>{locEditing
-                  ? <span className="ie-locedit"><input autoFocus value={locText} placeholder="例:自宅 / イベント名" onChange={(e) => setLocText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { onSetLoc(sel, locText); setLocEditing(false); } }} /><button onClick={() => { onSetLoc(sel, locText); setLocEditing(false); }}>保存</button></span>
-                  : (selMeta && selMeta.loc ? <span>{selMeta.loc} <button className="ie-locbtn" onClick={() => { setLocText(selMeta.loc || ""); setLocEditing(true); }}>編集</button></span> : <span className="ie-dim2">未設定 <button className="ie-locbtn" onClick={() => { setLocText(""); setLocEditing(true); }}>＋ 入力</button></span>)}</dd>
+                <dt>{L("場所","Location","地點")}</dt><dd>{locEditing
+                  ? <span className="ie-locedit"><input autoFocus value={locText} placeholder={L("例:自宅 / イベント名","e.g. Home / Event","例:自宅 / 活動名")} onChange={(e) => setLocText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { onSetLoc(sel, locText); setLocEditing(false); } }} /><button onClick={() => { onSetLoc(sel, locText); setLocEditing(false); }}>{L("保存","Save","儲存")}</button></span>
+                  : (selMeta && selMeta.loc ? <span>{selMeta.loc} <button className="ie-locbtn" onClick={() => { setLocText(selMeta.loc || ""); setLocEditing(true); }}>{L("編集","Edit","編輯")}</button></span> : <span className="ie-dim2">{L("未設定","Not set","未設定")} <button className="ie-locbtn" onClick={() => { setLocText(""); setLocEditing(true); }}>{L("＋ 入力","＋ Add","＋ 輸入")}</button></span>)}</dd>
                 </>)}
-                <dt>追加</dt><dd>{fmtDT(selMeta && selMeta.at)}</dd>
+                <dt>{L("追加","Added","新增")}</dt><dd>{fmtDT(selMeta && selMeta.at)}</dd>
               </dl>
               <div className="ie-acts2">
-                <button className="ie-act2" onClick={() => { const r = sel; closeSheet(); onFrame(r); }}><span className="ic">⛶</span><span>構図を整える</span></button>
-                <button className="ie-act2 g" onClick={openAI}><span className="ic">✨</span><span>AIで変換</span></button>
+                <button className="ie-act2" onClick={() => { const r = sel; closeSheet(); onFrame(r); }}><span className="ic">⛶</span><span>{L("構図を整える","Adjust framing","調整構圖")}</span></button>
+                <button className="ie-act2 g" onClick={openAI}><span className="ic">✨</span><span>{L("AIで変換","AI restyle","AI 轉換")}</span></button>
               </div>
-              <button className="ie-del" onClick={async () => { if (await appConfirm("この画像を削除します。元に戻せません。", { title: "画像を削除", okText: "削除", danger: true })) { onRemoveImage(sel); closeSheet(); } }}><svg className="ie-delic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16" /><path d="M9 7V5.6A1.6 1.6 0 0 1 10.6 4h2.8A1.6 1.6 0 0 1 15 5.6V7" /><path d="M6.4 7l.9 12.3a1.6 1.6 0 0 0 1.6 1.5h6.2a1.6 1.6 0 0 0 1.6-1.5L17.6 7" /><path d="M10 11v6M14 11v6" /></svg>この画像を削除</button>
+              <button className="ie-del" onClick={async () => { if (await appConfirm(L("この画像を削除します。元に戻せません。","Delete this image. This cannot be undone.","刪除此圖片，無法復原。"), { title: L("画像を削除","Delete image","刪除圖片"), okText: L("削除","Delete","刪除"), cancelText: L("やめる","Cancel","取消"), danger: true })) { onRemoveImage(sel); closeSheet(); } }}><svg className="ie-delic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16" /><path d="M9 7V5.6A1.6 1.6 0 0 1 10.6 4h2.8A1.6 1.6 0 0 1 15 5.6V7" /><path d="M6.4 7l.9 12.3a1.6 1.6 0 0 0 1.6 1.5h6.2a1.6 1.6 0 0 0 1.6-1.5L17.6 7" /><path d="M10 11v6M14 11v6" /></svg>{L("この画像を削除","Delete this image","刪除此圖片")}</button>
             </div>
           </div>
         ) : null}
@@ -2089,7 +2089,7 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, ini
       ) : null}
 
       {aiOpen && aiSrc ? (
-        <AIRestyleModal src={aiSrc} geminiKey={ai && ai.geminiKey} openaiKey={ai && ai.openaiKey} model={(ai && ai.model) || "gemini-3-pro-image"} prompts={ai && ai.prompts} lastStyle={ai && ai.style} onModel={ai && ai.onModel} onStyle={ai && ai.onStyle}
+        <AIRestyleModal src={aiSrc} geminiKey={ai && ai.geminiKey} openaiKey={ai && ai.openaiKey} model={(ai && ai.model) || "gemini-3-pro-image"} prompts={ai && ai.prompts} lastStyle={ai && ai.style} onModel={ai && ai.onModel} onStyle={ai && ai.onStyle} L={L}
           onAdopt={(out, meta) => { onAddImage(out, meta); setAiOpen(false); closeSheet(); }}
           onClose={() => setAiOpen(false)} />
       ) : null}
@@ -4998,7 +4998,7 @@ export default function App() {
             onReorder={(order) => setAlbumOrder(imgEdit, order)}
             onSetLoc={(ref, loc) => setImgLoc(imgEdit, ref, loc)}
             onBack={(depth, closeTop) => { atelierCloseRef.current = closeTop; setAtelierDepth(depth); }}
-            onClose={() => setImgEdit(null)} />
+            onClose={() => setImgEdit(null)} L={L} />
         );
       })()}
 
@@ -5023,7 +5023,7 @@ export default function App() {
       {detailKit && (
         <div className="modal-bg" onClick={() => { if (!editing) closeDetail(); }}>
           <div className="modal dc-modal" onClick={(e) => e.stopPropagation()}>
-            {!editing && <button className="dc-x" onClick={(e) => { e.stopPropagation(); closeDetail(); }} aria-label="閉じる">✕</button>}
+            {!editing && <button className="dc-x" onClick={(e) => { e.stopPropagation(); closeDetail(); }} aria-label={L("閉じる","Close","關閉")}>✕</button>}
             {!editing ? (
               <>
                 <div className="dc-head">
