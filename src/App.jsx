@@ -2170,7 +2170,6 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
         </>
       )}
 
-      <div className="f-sec">基本情報<span>BASIC</span></div>
       <div className="fld-row name-row">
         <label className="fld grow2"><span>機体名 *</span><input value={f.name} onChange={set("name")} placeholder="例: νガンダム Ver.Ka" /></label>
         <label className="fld"><span>Grade</span>
@@ -2200,12 +2199,6 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
           </button>
         </div>
       </div>
-      <label className="fld"><span>メモ</span><textarea rows={2} value={f.note} onChange={set("note")} placeholder="改修予定、塗装レシピ、保管場所など" /></label>
-      <div className="fld"><span>タグ</span>
-        <div className="form-tagfield"><TagField tags={tagsLocal} onCommit={commitTags} /></div>
-      </div>
-
-      <div className="f-sec">記録<span>RECORD</span></div>
       <div className="form-dates">
         <label className="fld"><span>購入日</span>
           <span className="date-wrap">
@@ -2219,6 +2212,10 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
             {dates.buildDate && <button type="button" className="date-clear" onClick={() => setDates((d) => ({ ...d, buildDate: "" }))}>✕</button>}
           </span>
         </label>
+      </div>
+      <label className="fld"><span>メモ</span><textarea rows={2} value={f.note} onChange={set("note")} placeholder="改修予定、塗装レシピ、保管場所など" /></label>
+      <div className="fld"><span>タグ</span>
+        <div className="form-tagfield"><TagField tags={tagsLocal} onCommit={commitTags} /></div>
       </div>
 
       <div className="form-actions">
@@ -2366,7 +2363,7 @@ export default function App() {
   const [images, setImages] = useState({});
   const [extras, setExtras] = useState({});       // 追加画像 {xid: src}
   const [albumMeta, setAlbumMeta] = useState({});  // {kitId:{order,thumb,acquire,framing}}
-  const [settings, setSettings] = useState({ view: "list", compact: false, dimUnowned: true, showCode: true, showSeries: false, showPrice: true, showNo: false, showGrade: true, showYm: true, salonCols: 2, salonFit: "cover", listGrade: true, listSeries: true, listNo: false, listCode: true, listPrice: true, listPurchase: true, listBuild: true, theme: "dark", tabPad: "min", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", openaiKey: "", geminiModel: "gemini-3-pro-image", aiStyle: "ukiyoe" });
+  const [settings, setSettings] = useState({ view: "list", compact: false, dimUnowned: true, showCode: false, showSeries: false, showPrice: false, showNo: false, showGrade: false, showYm: false, salonCols: 2, salonFit: "cover", listGrade: true, listSeries: false, listNo: true, listCode: true, listPrice: true, listPurchase: false, listBuild: false, theme: "dark", tabPad: "min", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", openaiKey: "", geminiModel: "gemini-3-pro-image", aiStyle: "ukiyoe" });
   // 設定の書込みは patchSettings 経由でフィールド級に時戳付け(records と同じ stamped LWW)。
   // patch はオブジェクト、または現在値を読むトグル用に (s) => patch の関数も可。
   // 変更したフィールドだけ時戳が進むため、別端末が別フィールドを変えても互いに潰さない。
@@ -3744,22 +3741,29 @@ export default function App() {
     const gKey = tab === "collection" ? "gfShuzo" : "gfZukan";
     const gRaw = settings[gKey];
     const grades = (Array.isArray(gRaw) ? gRaw : gRaw ? [gRaw] : []).map((g) => String(g).toUpperCase());
-    const chips = [];
-    if (adv.series) chips.push({ k: "series", text: "作品", clear: () => setAdv((a) => ({ ...a, series: "" })) });
-    if (adv.uni) chips.push({ k: "uni", text: "世界観", clear: () => setAdv((a) => ({ ...a, uni: "" })) });
-    if (adv.prem) chips.push({ k: "prem", text: "区分", clear: () => setAdv((a) => ({ ...a, prem: "" })) });
-    if (adv.stat) chips.push({ k: "stat", text: "状態", clear: () => setAdv((a) => ({ ...a, stat: "" })) });
-    if (adv.yFrom || adv.yTo) chips.push({ k: "year", text: "年代", clear: () => setAdv((a) => ({ ...a, yFrom: "", yTo: "" })) });
-    if (adv.tag) chips.push({ k: "tag", text: `"${adv.tag}"`, clear: () => setAdv((a) => ({ ...a, tag: "" })) });
-    for (const g of grades) chips.push({ k: "gf:" + g, text: g, clear: () => patchSettings({ [gKey]: grades.filter((x) => x !== g) }) });
-    if (term) chips.push({ k: "q", text: `"${term}"`, clear: () => setQueries((s) => ({ ...s, [qkey]: "" })) });
-    if (!chips.length) return null;
+    const PREM_L = { pb: "プレバン", base: "ベース", normal: "一般" };
+    const STAT_L = { owned: "入手", plan: "予定", none: "未入手" };
+    const uniLabel = (u) => ((UNI_PICK.find(([v]) => v === u) || [null, u])[1] || u).split(" ")[0];
+    const yearLabel = adv.yFrom && adv.yTo ? (adv.yFrom === adv.yTo ? adv.yFrom : `${adv.yFrom}〜${adv.yTo}`)
+      : adv.yFrom ? `${adv.yFrom}〜` : adv.yTo ? `〜${adv.yTo}` : "";
+    const items = [];
+    if (adv.series) items.push({ k: "series", text: adv.series, clear: () => setAdv((a) => ({ ...a, series: "" })) });
+    if (adv.uni) items.push({ k: "uni", text: uniLabel(adv.uni), clear: () => setAdv((a) => ({ ...a, uni: "" })) });
+    if (adv.prem) items.push({ k: "prem", text: PREM_L[adv.prem] || adv.prem, clear: () => setAdv((a) => ({ ...a, prem: "" })) });
+    if (adv.stat) items.push({ k: "stat", text: STAT_L[adv.stat] || adv.stat, clear: () => setAdv((a) => ({ ...a, stat: "" })) });
+    if (yearLabel) items.push({ k: "year", text: yearLabel, clear: () => setAdv((a) => ({ ...a, yFrom: "", yTo: "" })) });
+    if (adv.tag) items.push({ k: "tag", text: adv.tag, clear: () => setAdv((a) => ({ ...a, tag: "" })) });
+    for (const g of grades) items.push({ k: "gf:" + g, text: g, clear: () => patchSettings({ [gKey]: grades.filter((x) => x !== g) }) });
+    if (term) items.push({ k: "q", text: term, clear: () => setQueries((s) => ({ ...s, [qkey]: "" })) });
+    if (!items.length) return null;
     return (
-      <div className="section-note cond-chips">
-        {chips.map((c) => (
-          <button key={c.k} className="cond-chip" onClick={() => { haptic(); c.clear(); }}>
-            条件:{c.text}<i className="cond-chip-x" aria-hidden="true">✕</i>
-          </button>
+      <div className="section-note cond-line">
+        <span className="cond-lead">条件：</span>
+        {items.map((c, i) => (
+          <span key={c.k} className="cond-itemwrap">
+            {i > 0 ? <span className="cond-sep">、</span> : null}
+            <button className="cond-item" onClick={() => { haptic(); c.clear(); }}>{c.text}</button>
+          </span>
         ))}
       </div>
     );
@@ -3870,7 +3874,7 @@ export default function App() {
         <span className="sb-head-r">
           <span className="sb-count">{countNode}</span>
           <button type="button" className={"sb-icon" + (advActive ? " on" : "")} aria-label="絞り込み(長押しで解除)"
-            {...longPress(openFilter, () => { setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "", tag: "" }); notify("絞り込みを解除しました", { kind: "ok" }); })}>
+            {...longPress(openFilter, () => { setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "", tag: "" }); patchSettings({ [gfStoreKey]: [] }); notify("絞り込みを解除しました", { kind: "ok" }); })}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 5h18M6 12h12M10 19h4" />
             </svg>
@@ -5061,7 +5065,7 @@ export default function App() {
             ) : (
               <>
                 <div className="modal-form-head">
-                  <span>機体情報の編集</span>
+                  <span>機体情報の編集 <span className="sm-eyebrow">EDIT</span></span>
                   <button className="modal-x static" onClick={() => setEditing(false)}>✕</button>
                 </div>
                 <KitForm
@@ -5408,13 +5412,14 @@ input,textarea{font-family:var(--sans)}
 .body{padding:8px 14px 16px;max-width:920px;margin:0 auto}
 .section-note{font-size:11px;color:var(--ink-mid);letter-spacing:.1em;padding:6px 4px 10px}
 .cond-clear{margin-left:0;font-size:11.5px;color:var(--shu);border-bottom:1px dashed var(--shu);padding-bottom:1px}
-.cond-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.cond-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;letter-spacing:.04em;
-  color:var(--shu);background:rgba(232,85,61,.08);border:1px solid rgba(232,85,61,.34);
-  border-radius:4px;padding:4px 9px;line-height:1}
-.cond-chip:active{filter:brightness(.92);transform:scale(.96)}
-.cond-chip-x{font-style:normal;font-size:10px;opacity:.7}
-.app.light .cond-chip{background:rgba(177,58,40,.07);border-color:rgba(177,58,40,.3)}
+.cond-line{display:flex;flex-wrap:wrap;align-items:baseline;font-size:12px;color:var(--shu);letter-spacing:.04em;line-height:1.8}
+.cond-lead{color:var(--shu);font-weight:700;margin-right:1px}
+.cond-itemwrap{display:inline-flex;align-items:baseline}
+.cond-item{color:var(--shu);border-bottom:1px solid var(--shu);padding-bottom:1px;font-size:inherit;letter-spacing:inherit}
+.cond-item:active{filter:brightness(1.25)}
+.cond-sep{color:var(--shu);opacity:.5;margin:0 1px}
+.app.light .cond-line,.app.light .cond-lead,.app.light .cond-sep{color:var(--shu-deep)}
+.app.light .cond-item{color:var(--shu-deep);border-bottom-color:var(--shu-deep)}
 .footnote{font-size:10.5px;color:var(--ink-dim);line-height:1.7;padding:18px 4px 6px}
 
 .toolbar{display:flex;gap:8px;padding:4px 0 6px}
