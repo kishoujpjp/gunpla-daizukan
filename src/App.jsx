@@ -2367,7 +2367,7 @@ export default function App() {
   const [images, setImages] = useState({});
   const [extras, setExtras] = useState({});       // 追加画像 {xid: src}
   const [albumMeta, setAlbumMeta] = useState({});  // {kitId:{order,thumb,acquire,framing}}
-  const [settings, setSettings] = useState({ view: "list", compact: false, dimUnowned: true, showCode: false, showSeries: false, showPrice: false, showNo: false, showGrade: false, showYm: false, salonCols: 2, salonFit: "cover", listGrade: true, listSeries: false, listNo: true, listCode: true, listPrice: true, listPurchase: false, listBuild: false, theme: "dark", tabPad: "min", haptic: true, crtScan: true, vfFilter: true, builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", openaiKey: "", geminiModel: "gemini-3-pro-image", aiStyle: "ukiyoe" });
+  const [settings, setSettings] = useState({ view: "list", compact: false, dimUnowned: true, showCode: false, showSeries: false, showPrice: false, showNo: false, showGrade: false, showYm: false, salonCols: 2, salonFit: "cover", listGrade: true, listSeries: false, listNo: true, listCode: true, listPrice: true, listPurchase: false, listBuild: false, theme: "dark", tabPad: "min", haptic: true, crtScan: true, vfFilter: true, lang: "ja", builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", openaiKey: "", geminiModel: "gemini-3-pro-image", aiStyle: "ukiyoe" });
   // 設定の書込みは patchSettings 経由でフィールド級に時戳付け(records と同じ stamped LWW)。
   // patch はオブジェクト、または現在値を読むトグル用に (s) => patch の関数も可。
   // 変更したフィールドだけ時戳が進むため、別端末が別フィールドを変えても互いに潰さない。
@@ -2391,6 +2391,8 @@ export default function App() {
       setSettings((s) => ({ ...s, geminiModel: "gemini-3-pro-image", _mdef3: true }));
     }
   }, [settings.geminiModel, settings._mdef3]);
+  const lang = settings.lang || "ja";
+  const L = (ja, en, zh) => (lang === "en" ? (en ?? ja) : lang === "zh" ? (zh ?? ja) : ja);
   const [sortKey, setSortKey] = useState("year");
   const [sortDir, setSortDir] = useState("asc");
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
@@ -3766,7 +3768,7 @@ export default function App() {
     if (!items.length) return null;
     return (
       <div className="section-note cond-line">
-        <span className="cond-lead">条件：</span>
+        <span className="cond-lead">{L("条件：", "Filters: ", "條件：")}</span>
         {items.map((c, i) => (
           <span key={c.k} className="cond-itemwrap">
             {i > 0 ? <span className="cond-sep">、</span> : null}
@@ -4235,7 +4237,7 @@ export default function App() {
 
   if (!loaded) return (
     <div className={"app " + (settings.theme === "light" ? "light" : "")}><style>{CSS}</style>
-      <div className="empty" style={{ paddingTop: 120 }}><MechSketch seedKey="loading" owned={false} built={false} size={70} /><p>図鑑を準備中…</p></div>
+      <div className="empty" style={{ paddingTop: 120 }}><MechSketch seedKey="loading" owned={false} built={false} size={70} /><p>{L("図鑑を準備中…", "Preparing the registry…", "圖鑑準備中…")}</p></div>
     </div>
   );
 
@@ -4382,18 +4384,37 @@ export default function App() {
               </div>
             )}
             {renderCondChips()}
-            {grouped
-              ? grouped.map(([year, kits]) => (
-                  <section key={year} className="year-sec">
-                    <div className="year-head"><span className="year-num">{year}</span><span className="year-rule" /><span className="year-count">{kits.length} 体</span></div>
-                    {Grid({ kits })}
-                  </section>
-                ))
-              : Grid({ kits: visible })}
-            {sorted.length > limit && (
-              <button ref={moreRef} className="more-btn" onClick={() => setLimit((n) => n + 80)}>
-                さらに表示(残り {sorted.length - limit} 件)
-              </button>
+            {salonView && sorted.length === 0 ? (
+              <div className="empty">
+                <MechSketch seedKey="gallery" owned={false} built={false} size={70} />
+                {imgStats.kitsWith === 0 ? (
+                  <>
+                    <p>{L("まだ撮影した機体がありません。", "No photographed kits yet.", "尚未拍攝任何機體。")}</p>
+                    <p className="empty-sub">{L("図鑑で機体を開き、写真を追加すると画廊に並びます。", "Open a kit in the Registry and add a photo to fill the gallery.", "在圖鑑開啟機體並加入照片，就會出現在畫廊。")}</p>
+                  </>
+                ) : (
+                  <>
+                    <p>{L("条件に一致する撮影がありません。", "No photos match your filters.", "沒有符合條件的照片。")}</p>
+                    <p className="empty-sub">{L("絞り込みや検索を解除してみてください。", "Try clearing the filters or search.", "試著清除篩選或搜尋條件。")}</p>
+                  </>
+                )}
+              </div>
+            ) : (
+              <>
+                {grouped
+                  ? grouped.map(([year, kits]) => (
+                      <section key={year} className="year-sec">
+                        <div className="year-head"><span className="year-num">{year}</span><span className="year-rule" /><span className="year-count">{kits.length} 体</span></div>
+                        {Grid({ kits })}
+                      </section>
+                    ))
+                  : Grid({ kits: visible })}
+                {sorted.length > limit && (
+                  <button ref={moreRef} className="more-btn" onClick={() => setLimit((n) => n + 80)}>
+                    {L(`さらに表示(残り ${sorted.length - limit} 件)`, `Show more (${sorted.length - limit} left)`, `顯示更多(剩餘 ${sorted.length - limit} 件)`)}
+                  </button>
+                )}
+              </>
             )}
             {!salonView && <p className="footnote">※ 収録データはGUNPLA ROOM等の公開型録情報を整理(一般販売:MG No.001–223+プレバン207 / Ver.Ka 01–30+プレバン20 / MGEX、HG 統一ナンバリング 全収録 No.001–268+プレバン205、HG SEED系 全86(01–59/R01–17/MSV-01–07+プレバン3)、HG 00系 全収録 No.01–72+プレバン12、HG ビルドファイターズ系 全収録 No.1–69(支援機含む。23/30/32/41欠番)+プレバン25、HG 鉄血のオルフェンズ系 全収録 No.1–47+O-1~9+プレバン23、HG ガンダムブレイカー バトローグ系 全10(うちプレバン4)、HG ククルス・ドアンの島 全11、HG THE ORIGIN系 全収録 No.001–026+プレバン001–026、HG Gのレコンギスタ系 全収録 No.001–017+プレバン4、HG AGE系 全収録 No.001–034+プレバン7、HG サンダーボルト系 全収録 No.001–013+プレバン1、HG ビルドダイバーズ系 全収録 No.001–083+プレバン6、HG ビルドメタバース系 全8、HG GQuuuuuuX系 No.1–15+プレバン4(続刊)、HG 水星の魔女系 全収録 No.01–26+プレバン12、RG 全43+プレバン74、PG 全26+プレバン5(早期プレバン数点は確認中)、HIRM 01–05(06以降確認中)、RE/100 01–06+プレバン4(他確認中)、ベース限定MG 全39・RG 01–29(以降確認中)・HG 主線分(系列網羅は順次)、MGSD 全5。ホビーオンライン/プレバン限定は「プレバン」表記で収録、イベント限定は未収録、ガンダムベース限定は「ベース限定」タグで順次収録中(現在MG分))。各欄位は詳細画面の「編集」で随時修正可能。</p>}
           </>
@@ -4405,8 +4426,8 @@ export default function App() {
             <>
               <div className="empty">
                 <MechSketch seedKey="ana" owned={false} built={false} size={70} />
-                <p>分析できる収蔵がまだありません。</p>
-                <p className="empty-sub">図鑑で「入手済み」を記録すると、ここに収蔵分析が表示されます。</p>
+                <p>{L("分析できる収蔵がまだありません。", "Nothing to analyze yet.", "尚無可分析的收藏。")}</p>
+                <p className="empty-sub">{L("図鑑で「入手済み」を記録すると、ここに収蔵分析が表示されます。", "Mark kits as owned in the Registry to see your collection analysis here.", "在圖鑑標記「已入手」後，這裡會顯示收藏分析。")}</p>
               </div>
             </>
           );
@@ -4653,53 +4674,59 @@ export default function App() {
 
         {tab === "settings" && (
           <div className="panel-wrap">
-            {secWrap("profile", "プロフィール", "BUILDER",
+            {secWrap("profile", L("プロフィール", "Profile", "個人檔案"), "BUILDER",
               <button className="builder-line builder-tap" onClick={() => setProfileOpen(true)}>
                 <span>BUILDER<b>{settings.builderName || "—"}</b></span>
-                <span>ガンプラ歴<b>{careerStr(settings.builderSince)}</b></span>
+                <span>{L("ガンプラ歴", "Building since", "模型資歷")}<b>{careerStr(settings.builderSince)}</b></span>
               </button>
             )}
 
-            {secWrap("look", "外観", "APPEARANCE",
+            {secWrap("look", L("外観", "Appearance", "外観"), "APPEARANCE",
               <>
-                <div className="set-sublabel">テーマ</div>
+                <div className="set-sublabel">{L("言語", "Language", "語言")}</div>
                 <div className="opt-group horizontal">
-                  <button className={`opt ${settings.theme !== "light" ? "on" : ""}`} onClick={() => patchSettings({ theme: "dark" })}>ダーク(漆黒)</button>
-                  <button className={`opt ${settings.theme === "light" ? "on" : ""}`} onClick={() => patchSettings({ theme: "light" })}>ライト(生成り)</button>
+                  <button className={`opt ${lang === "ja" ? "on" : ""}`} onClick={() => patchSettings({ lang: "ja" })}>日本語</button>
+                  <button className={`opt ${lang === "en" ? "on" : ""}`} onClick={() => patchSettings({ lang: "en" })}>English</button>
+                  <button className={`opt ${lang === "zh" ? "on" : ""}`} onClick={() => patchSettings({ lang: "zh" })}>中文</button>
                 </div>
-                <div className="set-sublabel" style={{ marginTop: 12 }}>触覚フィードバック</div>
+                <div className="set-sublabel" style={{ marginTop: 12 }}>{L("テーマ", "Theme", "主題")}</div>
                 <div className="opt-group horizontal">
-                  <button className={`opt ${settings.haptic !== false ? "on" : ""}`} onClick={() => { patchSettings({ haptic: true }); setHapticEnabled(true); haptic(); }}>オン</button>
-                  <button className={`opt ${settings.haptic === false ? "on" : ""}`} onClick={() => patchSettings({ haptic: false })}>オフ</button>
+                  <button className={`opt ${settings.theme !== "light" ? "on" : ""}`} onClick={() => patchSettings({ theme: "dark" })}>{L("ダーク(漆黒)", "Dark", "深色")}</button>
+                  <button className={`opt ${settings.theme === "light" ? "on" : ""}`} onClick={() => patchSettings({ theme: "light" })}>{L("ライト(生成り)", "Light", "淺色")}</button>
+                </div>
+                <div className="set-sublabel" style={{ marginTop: 12 }}>{L("触覚フィードバック", "Haptics", "觸覺回饋")}</div>
+                <div className="opt-group horizontal">
+                  <button className={`opt ${settings.haptic !== false ? "on" : ""}`} onClick={() => { patchSettings({ haptic: true }); setHapticEnabled(true); haptic(); }}>{L("オン", "On", "開")}</button>
+                  <button className={`opt ${settings.haptic === false ? "on" : ""}`} onClick={() => patchSettings({ haptic: false })}>{L("オフ", "Off", "關")}</button>
                 </div>
               </>
             )}
 
-            {secWrap("disp", "表示", "DISPLAY",
+            {secWrap("disp", L("表示", "Display", "顯示"), "DISPLAY",
               <>
                 <div className="opt-group horizontal">
-                  <button className={`opt ${dispTarget === "card" ? "on" : ""}`} onClick={() => setDispTarget("card")}>カード表示</button>
-                  <button className={`opt ${dispTarget === "list" ? "on" : ""}`} onClick={() => setDispTarget("list")}>リスト表示</button>
+                  <button className={`opt ${dispTarget === "card" ? "on" : ""}`} onClick={() => setDispTarget("card")}>{L("カード表示", "Card view", "卡片檢視")}</button>
+                  <button className={`opt ${dispTarget === "list" ? "on" : ""}`} onClick={() => setDispTarget("list")}>{L("リスト表示", "List view", "列表檢視")}</button>
                 </div>
                 <div className="opt-group" style={{ marginTop: 8 }}>
                   {(dispTarget === "card"
                     ? [
-                        ["compact", "コンパクト表示"],
-                        ["showGrade", "グレードを表示"],
-                        ["showYm", "発売年月を表示"],
-                        ["showNo", "No.番号を表示"],
-                        ["showCode", "型式番号を表示"],
-                        ["showPrice", "定価を表示"],
-                        ["showSeries", "作品名を表示"],
+                        ["compact", L("コンパクト表示", "Compact", "緊湊顯示")],
+                        ["showGrade", L("グレードを表示", "Show grade", "顯示等級")],
+                        ["showYm", L("発売年月を表示", "Show release date", "顯示發售年月")],
+                        ["showNo", L("No.番号を表示", "Show No.", "顯示編號")],
+                        ["showCode", L("型式番号を表示", "Show model code", "顯示型式番號")],
+                        ["showPrice", L("定価を表示", "Show price", "顯示定價")],
+                        ["showSeries", L("作品名を表示", "Show series", "顯示作品名")],
                       ]
                     : [
-                        ["listGrade", "グレードを表示"],
-                        ["listSeries", "作品名を表示"],
-                        ["listNo", "No.番号を表示"],
-                        ["listCode", "型式番号を表示"],
-                        ["listPrice", "定価を表示"],
-                        ["listPurchase", "購入日を表示"],
-                        ["listBuild", "完成日を表示"],
+                        ["listGrade", L("グレードを表示", "Show grade", "顯示等級")],
+                        ["listSeries", L("作品名を表示", "Show series", "顯示作品名")],
+                        ["listNo", L("No.番号を表示", "Show No.", "顯示編號")],
+                        ["listCode", L("型式番号を表示", "Show model code", "顯示型式番號")],
+                        ["listPrice", L("定価を表示", "Show price", "顯示定價")],
+                        ["listPurchase", L("購入日を表示", "Show purchase date", "顯示購入日")],
+                        ["listBuild", L("完成日を表示", "Show completion date", "顯示完成日")],
                       ]
                   ).map(([key, label]) => (
                     <button key={key} className="opt toggle" onClick={() => patchSettings((s) => ({ [key]: !s[key] }))}>
@@ -4710,14 +4737,14 @@ export default function App() {
                 </div>
                 <div className="opt-group" style={{ marginTop: 8 }}>
                   <button className="opt toggle" onClick={() => patchSettings((s) => ({ dimUnowned: !s.dimUnowned }))}>
-                    <span>未入手を淡色表示(共通)</span>
+                    <span>{L("未入手を淡色表示(共通)", "Dim un-owned kits", "未入手淡色顯示")}</span>
                     <i className={`switch ${settings.dimUnowned ? "on" : ""}`}><b /></i>
                   </button>
                 </div>
               </>
             )}
 
-            {secWrap("ai", "AI画像生成", "IMAGE AI",
+            {secWrap("ai", L("AI画像生成", "AI Imaging", "AI 影像生成"), "IMAGE AI",
               <div className="opt-group">
                 <label className="fld pad"><span>Gemini APIキー(この端末にのみ保存)</span>
                   <input type="password" value={settings.geminiKey || ""} placeholder="AIza..."
@@ -4748,7 +4775,7 @@ export default function App() {
               </div>
             )}
 
-            {secWrap("cloud", "クラウド同期", "SUPABASE",
+            {secWrap("cloud", L("クラウド同期", "Cloud Sync", "雲端同步"), "SUPABASE",
               <div className="opt-group">
                 <label className="fld pad"><span>Supabase URL</span>
                   <input value={settings.supaUrl || ""} placeholder="https://xxxx.supabase.co"
@@ -4773,7 +4800,7 @@ export default function App() {
               </div>
             )}
 
-            {secWrap("data", "データ管理", "DATA",
+            {secWrap("data", L("データ管理", "Data", "資料管理"), "DATA",
               <>
                 <div className="set-sublabel">画像</div>
                 <div className="opt-group">
@@ -4808,7 +4835,7 @@ export default function App() {
               </>
             )}
 
-            {secWrap("danger", "危険区域", "DANGER",
+            {secWrap("danger", L("危険区域", "Danger Zone", "危險區域"), "DANGER",
               <div className="opt-group">
                 {!confirmReset ? (
                   <button className="opt danger" onClick={() => setConfirmReset(true)}>収蔵記録をすべて消去…</button>
@@ -4824,7 +4851,7 @@ export default function App() {
               </div>
             , true)}
 
-            {secWrap("feedback", "問題報告・ご要望", "FEEDBACK",
+            {secWrap("feedback", L("問題報告・ご要望", "Feedback", "問題回報・建議"), "FEEDBACK",
               <>
                 <div className="opt-group">
                   {[
@@ -5022,7 +5049,7 @@ export default function App() {
                   </button>
                 </div>
                 <div className="dc-spec">
-                  <div className="dc-srow"><span className="dc-k">原作</span><span className="dc-v">
+                  <div className="dc-srow"><span className="dc-k">{L("原作", "Series", "原作")}</span><span className="dc-v">
                     {detailKit.series
                       ? <button className="dc-link" onClick={() => jumpToSeries(detailKit.series)}>{detailKit.series}</button>
                       : "—"}
@@ -5032,7 +5059,7 @@ export default function App() {
                     {detailKit.base && <span className="line-chip base">ベース</span>}
                     {lineBadge(detailKit)}
                   </span></div>
-                  <div className="dc-srow"><span className="dc-k">発売·定価</span><span className="dc-v">{detailKit.ym
+                  <div className="dc-srow"><span className="dc-k">{L("発売·定価", "Release·Price", "發售·定價")}</span><span className="dc-v">{detailKit.ym
                     ? <button className="dc-link dc-gold" onClick={() => jumpToYear(detailKit.ym.slice(0, 4))}>{detailKit.ym.replace("-", ".")}</button>
                     : <span className="dc-gold">—</span>}{detailKit.price ? <> · <span className="dc-mono">{fmtYen(detailKit.price)}</span></> : ""}</span></div>
                   {detailRec.owned && (detailRec.purchaseDate || detailRec.buildDate) && (
@@ -5042,11 +5069,11 @@ export default function App() {
                       {detailRec.buildDate && <span className="dc-mono done">完成 {fmtDate(detailRec.buildDate)}</span>}
                     </span></div>
                   )}
-                  <div className="dc-srow dc-srow-memo"><span className="dc-k">メモ</span><span className="dc-v"><NoteField note={detailKit.note} onCommit={(v) => setNote(detailKit, v)} enterOnLongPress /></span></div>
-                  <div className="dc-srow dc-srow-tag"><span className="dc-k">タグ</span><span className="dc-v"><TagField tags={getTags(detailKit.id)} onCommit={(next) => setTags(detailKit.id, next)} enterOnLongPress onTagTap={jumpToTag} /></span></div>
+                  <div className="dc-srow dc-srow-memo"><span className="dc-k">{L("メモ", "Memo", "備註")}</span><span className="dc-v"><NoteField note={detailKit.note} onCommit={(v) => setNote(detailKit, v)} enterOnLongPress /></span></div>
+                  <div className="dc-srow dc-srow-tag"><span className="dc-k">{L("タグ", "Tags", "標籤")}</span><span className="dc-v"><TagField tags={getTags(detailKit.id)} onCommit={(next) => setTags(detailKit.id, next)} enterOnLongPress onTagTap={jumpToTag} /></span></div>
                 </div>
 
-                <button className="edit-link" onClick={() => setEditing(true)}>✎ 機体情報・画像を編集</button>
+                <button className="edit-link" onClick={() => setEditing(true)}>{L("✎ 機体情報・画像を編集", "✎ Edit kit info & images", "✎ 編輯機體資訊・圖片")}</button>
               </>
             ) : (
               <>
@@ -5289,13 +5316,13 @@ export default function App() {
       {/* ── 底部分頁 ── */}
       <nav className="tabbar pad-min" style={{ paddingBottom: "4px" }}>
         {[
-          ["zukan", "図鑑", "▦"],
-          ["gallery", "画廊",
+          ["zukan", L("図鑑", "Registry", "圖鑑"), "▦"],
+          ["gallery", L("画廊", "Gallery", "畫廊"),
             (<svg className="tab-line-ico salon-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path className="pal-body" d="M12 4.6C16.8 4.6 20.4 7.5 20.4 11.3C20.4 13.7 18.7 14.5 17.3 14.5C16.4 14.5 15.6 14.3 15.6 13.5C15.6 12.8 16 12.5 16 11.9C16 11.2 15.4 10.7 14.5 10.7C12.9 10.7 12 12.4 12 14.1C12 16 12.9 17.2 12.2 18.1C11.8 18.5 11.3 18.7 10.7 18.7C6.7 18.7 4 15.1 4 11.3C4 7.5 7.4 4.6 12 4.6Z" strokeWidth="1.6" strokeLinejoin="round" /><circle className="pd1" cx="7.1" cy="10.4" r="1.25" /><circle className="pd2" cx="8.7" cy="7.6" r="1.25" /><circle className="pd3" cx="11.8" cy="6.7" r="1.25" /><circle className="pd4" cx="15" cy="7.6" r="1.25" /></svg>)],
-          ["analysis", anaMode === "analysis" ? "紀録" : "称号", anaMode === "analysis"
+          ["analysis", anaMode === "analysis" ? L("紀録", "Records", "紀錄") : L("称号", "Honors", "稱號"), anaMode === "analysis"
             ? (<svg className="tab-line-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 4 V19 H20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><polyline points="6.5 14.5 10.5 10.5 13.5 12.5 18.5 6.5" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>)
             : (<svg className="tab-line-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 4h10v7a5 5 0 0 1-10 0V4z" /><path d="M7 6H4v2a3 3 0 0 0 3 3" /><path d="M17 6h3v2a3 3 0 0 1-3 3" /><path d="M12 16v3" /><path d="M8.5 21h7l-1-2h-5z" /></svg>)],
-          ["settings", "設定", "⚙"],
+          ["settings", L("設定", "Settings", "設定"), "⚙"],
         ].map(([k, label, icon]) => {
           // 紀錄タブのみ:長押しで 称号↔紀録(該当タブへ移動)。図鑑/画廊は独立タブで副モードなし。
           const lp = k === "analysis"
@@ -7208,6 +7235,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 /* リスト */
 /* 左スワイプで「入手」「予定」アクションを表示(CSSスクロールスナップ) */
 .kz-rowscroll{display:block}
+.kz-row,.kz-card,.sl-card{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .kz-row{position:relative;display:flex;gap:15px;align-items:center;width:100%;background:none;border:none;border-bottom:1px solid var(--line);padding:15px 2px;text-align:left;transition:background .12s}
 .kz-row:active{background:rgba(217,179,106,.03)}
 .kz-row.dim{opacity:.5}
