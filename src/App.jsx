@@ -2351,6 +2351,10 @@ function LedgerTitle({ scheme, title, alt, akey, dir }) {
   );
 }
 
+const EMPTY_ADV = { series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "", tag: "" };
+const SORT_ICON = { purchase: "入", year: "販", name: "名", build: "完", price: "価" };
+const SORT_MENU = ["purchase", "year", "name", "build", "price"];
+
 export default function App() {
   const [tab, setTab] = useState("zukan");
   const [records, setRecords] = useState({});
@@ -2389,9 +2393,15 @@ export default function App() {
   }, [settings.geminiModel, settings._mdef3]);
   const [sortKey, setSortKey] = useState("year");
   const [sortDir, setSortDir] = useState("asc");
-  const [queries, setQueries] = useState({ z: "", c: "" });
-  const query = queries.z;
-  const gfStoreKey = "gfZukan";
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [advMap, setAdvMap] = useState({ zukan: EMPTY_ADV, gallery: EMPTY_ADV }); // 図鑑/画廊で独立した絞り込み
+  const advTab = tab === "gallery" ? "gallery" : "zukan";
+  const adv = advMap[advTab];
+  const setAdv = (updater) =>
+    setAdvMap((m) => ({ ...m, [advTab]: typeof updater === "function" ? updater(m[advTab]) : updater }));
+  const [queries, setQueries] = useState({ zukan: "", gallery: "" });
+  const query = queries[advTab];
+  const gfStoreKey = tab === "gallery" ? "gfGallery" : "gfZukan";
   // グレード絞り込みは複数選択(配列)。旧データの単一文字列も [str] へ正規化して相容。
   const gfList = useMemo(() => {
     const raw = settings[gfStoreKey];
@@ -2404,7 +2414,6 @@ export default function App() {
   const [anaMode, setAnaMode] = useState("record");  // record=記録(記錄) / analysis=分析
   const [advOpen, setAdvOpen] = useState(false);
   const [seriesPickerOpen, setSeriesPickerOpen] = useState(false);
-  const [adv, setAdv] = useState({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "", tag: "" }); // 進階篩選
   const [viewer, setViewer] = useState(null); // 画像鑑賞: {kitId, idx} | null
   const [viewerDel, setViewerDel] = useState(false); // 鑑賞内の削除確認
   const [frameEdit, setFrameEdit] = useState(null); // 構図調整: {kitId, ref} | null
@@ -3735,9 +3744,9 @@ export default function App() {
   /* 篩選/検索の使用後、リスト上に「条件:◯◯」膠囊を並べる。各膠囊タップで当該条件のみ解除。
      構造化フィルタ(作品・世界観・区分・状態・年代)は分類名を、検索語/タグは "値" を表示。 */
   const renderCondChips = () => {
-    const qkey = "z";
+    const qkey = advTab;
     const term = (queries[qkey] || "").trim();
-    const gKey = "gfZukan";
+    const gKey = gfStoreKey;
     const gRaw = settings[gKey];
     const grades = (Array.isArray(gRaw) ? gRaw : gRaw ? [gRaw] : []).map((g) => String(g).toUpperCase());
     const PREM_L = { pb: "プレバン", base: "ベース", normal: "一般" };
@@ -3810,13 +3819,13 @@ export default function App() {
   );
 
   const advActive = adv.series || adv.uni || adv.prem || adv.stat || adv.yFrom || adv.yTo || adv.tag;
-  const openSearch = useCallback(() => { haptic(); setSearchDraft(queries.z); setSearchOpen(true); }, [tab, queries]);
+  const openSearch = useCallback(() => { haptic(); setSearchDraft(queries[advTab] || ""); setSearchOpen(true); }, [advTab, queries]);
   const closeSearch = useCallback(() => { setSearchOpen(false); }, []);
   // 確定(✓ボタン / Enter):下書きを query へ反映 → リストが絞り込まれる。
   const commitSearch = useCallback(() => {
-    setQueries((s) => ({ ...s, ["z"]: searchDraft.trim() }));
+    setQueries((s) => ({ ...s, [advTab]: searchDraft.trim() }));
     setSearchOpen(false);
-  }, [tab, searchDraft]);
+  }, [advTab, searchDraft]);
   const openFilter = useCallback(() => { haptic(); setFilterOpen(true); }, []);
   const closeFilter = useCallback(() => { setFilterOpen(false); }, []);
   /* タップ=onTap / 長押し=onLong。既存の makeLongPress/consumeLP を再利用 */
@@ -3824,13 +3833,13 @@ export default function App() {
     ...makeLongPress(() => { hapticStrong(); onLong && onLong(); }),
     onClick: (e) => { if (e) e.stopPropagation(); if (consumeLP()) return; onTap && onTap(); },
   });
-  /* 全条件クリア:絞り込み(adv)+検索語+グレード を一括解除 */
-  const clearAllConds = useCallback(() => {
+  /* 全条件クリア:現在のタブの 絞り込み(adv)+検索語+グレード を一括解除 */
+  const clearAllConds = () => {
     haptic();
-    setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "", tag: "" });
-    setQueries({ z: "", c: "" });
-    patchSettings({ gfZukan: [], gfShuzo: [] });
-  }, []);
+    setAdv(EMPTY_ADV);
+    setQueries((s) => ({ ...s, [advTab]: "" }));
+    patchSettings({ [gfStoreKey]: [] });
+  };
   /* 検索ヒット(下書きに対する即時候補。タップ=該当機体へジャンプ、リストは不動) */
   const searchHits = useMemo(() => {
     const term = searchDraft.trim();
@@ -3888,6 +3897,10 @@ export default function App() {
           : <div className="sb-switch sb-static">{titleInner}</div>}
         <span className="sb-head-r">
           <span className="sb-count">{countNode}</span>
+          <div className="sb-sort">
+            <button type="button" className="sb-sort-key" onClick={() => { haptic(); setSortMenuOpen(true); }} aria-label="並び替えの基準">{SORT_ICON[sortKey] || "販"}</button>
+            <button type="button" className="sb-sort-dir" onClick={() => { haptic(); setSortDir((d) => (d === "asc" ? "desc" : "asc")); }} aria-label="昇順・降順">{sortDir === "asc" ? "↑" : "↓"}</button>
+          </div>
           <button type="button" className={"sb-icon" + (advActive ? " on" : "")} aria-label="絞り込み(長押しで解除)"
             {...longPress(openFilter, () => { setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "", tag: "" }); patchSettings({ [gfStoreKey]: [] }); notify("絞り込みを解除しました", { kind: "ok" }); })}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -4015,8 +4028,8 @@ export default function App() {
      図鑑は独立タブ(画廊と分離)なので利用者既定の list/card 表示で着地する。 */
   const gotoZukanFiltered = (patch) => {
     closeDetail();
-    setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "", tag: "", ...patch });
-    setQueries((s) => ({ ...s, z: "" }));
+    setAdvMap((m) => ({ ...m, zukan: { ...EMPTY_ADV, ...patch } }));
+    setQueries((s) => ({ ...s, zukan: "" }));
     patchSettings({ gfZukan: [] });
     setLimit(60);
     changeTab("zukan");
@@ -4175,6 +4188,7 @@ export default function App() {
     { open: fixOpen, close: () => setFixOpen(false) },
     { open: quizOpen, close: () => setQuizOpen(false) },
     { open: identifyOpen, close: () => setIdentifyOpen(false) },
+    { open: sortMenuOpen, close: () => setSortMenuOpen(false) },
     { open: titleDetail != null, close: () => setTitleDetail(null) },
     { open: !!adding, close: () => setAdding(false) },
     { open: !!detailKit && editing, close: () => setEditing(false) },
@@ -4222,7 +4236,7 @@ export default function App() {
   );
 
   return (
-    <div className={"app " + (settings.theme === "light" ? "light" : "") + (detailKit || adding || promptEdit || profileOpen || setupOpen || titleDetail || searchOpen || filterOpen || fixOpen || quizOpen || identifyOpen || imgEdit ? " lock" : "")}>
+    <div className={"app " + (settings.theme === "light" ? "light" : "") + (detailKit || adding || promptEdit || profileOpen || setupOpen || titleDetail || searchOpen || filterOpen || fixOpen || quizOpen || identifyOpen || sortMenuOpen || imgEdit ? " lock" : "")}>
       <style>{CSS}</style>
       <AppDialogHost />
 
@@ -4333,11 +4347,11 @@ export default function App() {
               scheme: "slide",
               akey: salonView ? "salon" : "registry",
               dir: salonView ? 1 : -1,
-              searchActive: !!queries.z,
-              onClearSearch: () => setQueries((s) => ({ ...s, z: "" })),
-              active: !!queries.z || advActive,
+              searchActive: !!queries[advTab],
+              onClearSearch: () => setQueries((s) => ({ ...s, [advTab]: "" })),
+              active: !!queries[advTab] || advActive,
               countNode: salonView
-                ? <><b>{sorted.length}</b> 点</>
+                ? <><b>{sorted.length}</b> / {imgStats.kitsWith} 目撃</>
                 : <><b>{sorted.length}</b> / {allKits.length} 収録</>,
             })}
             {searchOpen && renderSearchModal({
@@ -4353,7 +4367,7 @@ export default function App() {
                   </div>
                   <AdvPanel />
                   <div className="drawer-sub">
-                    <GfRow skey="gfZukan" />
+                    <GfRow skey={gfStoreKey} />
                   </div>
                   <div className="drawer-tools">
                     <SortBar />
@@ -4835,6 +4849,22 @@ export default function App() {
       {fixOpen && <KitFixModal allKits={allKits} onClose={() => setFixOpen(false)} />}
       {quizOpen && <QuizModal allKits={allKits} getRec={getRec} images={images} extras={extras} albumMeta={albumMeta} builderName={settings.builderName} onClose={() => setQuizOpen(false)} />}
       {identifyOpen && <KitIdentifyModal allKits={allKits} geminiKey={settings.geminiKey} openaiKey={settings.openaiKey} cameraMode={identifyCam} onAttach={attachPhoto} onClose={() => setIdentifyOpen(false)} onManual={() => { setIdentifyOpen(false); setAdding("zukan"); }} />}
+
+      {sortMenuOpen && (
+        <div className="modal-bg" onClick={() => setSortMenuOpen(false)} style={{ zIndex: 94 }}>
+          <div className="sort-menu" onClick={(e) => e.stopPropagation()}>
+            <div className="sort-menu-head">並び替え<span>SORT</span></div>
+            {SORT_MENU.map((k) => (
+              <button key={k} className={"sort-menu-item" + (sortKey === k ? " on" : "")}
+                onClick={() => { haptic(); setSortKey(k); setSortMenuOpen(false); }}>
+                <span className="sort-menu-ico">{SORT_ICON[k]}</span>
+                <span className="sort-menu-lbl">{sortLabel[k]}</span>
+                {sortKey === k && <span className="sort-menu-chk">✓</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── 詳細 / 編輯彈窗 ── */}
       {quickKit && (() => {
@@ -6735,8 +6765,8 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .av-chev.open{transform:rotate(180deg);color:var(--gold)}
 .av-rule{height:1px;margin:11px 0 0;background:linear-gradient(90deg,var(--gold),rgba(217,179,106,.05) 70%,transparent)}
 /* ── 簿冊表頭(博物誌/繪測巻/蔵品帳/発注簿):叙勲録の表頭に倣う ── */
-.sb-band{margin:2px 0 14px}
-.sb-head{display:flex;align-items:flex-end;justify-content:space-between;width:100%;padding:4px 2px 0;gap:10px}
+.sb-band{margin:-5px 0 12px}
+.sb-head{display:flex;align-items:flex-end;justify-content:space-between;width:100%;padding:2px 2px 0;gap:9px}
 .sb-switch{display:flex;flex-direction:column;align-items:flex-start;min-width:0;flex:1;background:none;border:none;padding:0;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .sb-switch.sb-static{cursor:default}
 .sb-switch:active{opacity:.78}
@@ -6754,6 +6784,20 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .sb-icon:active{transform:scale(.92);border-color:var(--gold);color:var(--gold)}
 .sb-icon svg{width:15px;height:15px;display:block}
 .sb-icon.on{color:var(--gold);border-color:var(--gold);background:rgba(217,179,106,.09)}
+.sb-sort{flex:none;display:flex;align-items:stretch;height:32px;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.sb-sort button{display:flex;align-items:center;justify-content:center;background:none;border:none;color:var(--ink-mid);padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:color .2s,background .2s}
+.sb-sort .sb-sort-key{width:29px;font-family:var(--serif);font-weight:800;font-size:14px;border-right:1px solid var(--line)}
+.sb-sort .sb-sort-dir{width:25px;font-size:13px;font-weight:700}
+.sb-sort button:active{color:var(--gold);background:rgba(217,179,106,.12)}
+.sort-menu{background:var(--panel);border:1px solid var(--line);border-radius:15px;width:min(290px,86vw);margin:auto;padding:7px;box-shadow:0 20px 54px rgba(0,0,0,.5)}
+.sort-menu-head{font-family:var(--serif);font-weight:800;font-size:13px;color:var(--ink-mid);letter-spacing:.16em;padding:9px 10px 11px;display:flex;align-items:baseline;gap:8px;justify-content:center}
+.sort-menu-head span{font-family:var(--sans);font-size:8.5px;letter-spacing:.3em;color:var(--ink-dim)}
+.sort-menu-item{display:flex;align-items:center;gap:13px;width:100%;padding:12px;border-radius:10px;background:none;border:none;color:var(--ink);text-align:left;-webkit-tap-highlight-color:transparent}
+.sort-menu-item.on{background:rgba(217,179,106,.1);color:var(--ink-strong)}
+.sort-menu-item:active{background:var(--panel2)}
+.sort-menu-ico{font-family:var(--serif);font-weight:800;font-size:16px;color:var(--gold);width:22px;text-align:center;flex:none}
+.sort-menu-lbl{font-size:14px;letter-spacing:.02em}
+.sort-menu-chk{margin-left:auto;color:var(--gold);font-size:13px}
 /* ── 表頭 表裏切換タイトル(A翻面/B捲軸/C滑移) ── */
 .lt{display:inline-flex;align-items:baseline;gap:9px;min-width:0;position:relative}
 .lt-win{display:inline-block}
