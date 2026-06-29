@@ -2390,8 +2390,8 @@ export default function App() {
   const [sortKey, setSortKey] = useState("year");
   const [sortDir, setSortDir] = useState("asc");
   const [queries, setQueries] = useState({ z: "", c: "" });
-  const query = tab === "collection" ? queries.c : queries.z;
-  const gfStoreKey = tab === "collection" ? "gfShuzo" : "gfZukan";
+  const query = queries.z;
+  const gfStoreKey = "gfZukan";
   // グレード絞り込みは複数選択(配列)。旧データの単一文字列も [str] へ正規化して相容。
   const gfList = useMemo(() => {
     const raw = settings[gfStoreKey];
@@ -2401,9 +2401,7 @@ export default function App() {
   const [detail, setDetail] = useState(null);
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
-  const [collMode, setCollMode] = useState("owned"); // owned=収蔵 / plan=予定
   const [anaMode, setAnaMode] = useState("record");  // record=記録(記錄) / analysis=分析
-  const [zukanMode, setZukanMode] = useState("all");  // all=図鑑 / salon=沙龍(画像ありのみ)
   const [advOpen, setAdvOpen] = useState(false);
   const [seriesPickerOpen, setSeriesPickerOpen] = useState(false);
   const [adv, setAdv] = useState({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "", tag: "" }); // 進階篩選
@@ -3607,7 +3605,7 @@ export default function App() {
       const q = normJa(term); const rq = toRomaji(q);
       pool = pool.filter((k) => { const idx = searchIndex[k.id] || ""; return idx.includes(q) || (rq && rq !== q && idx.includes(rq)); });
     }
-    if (tab === "zukan" && zukanMode === "salon") pool = pool.filter((k) => !!thumbSrc(k.id));
+    if (tab === "gallery") pool = pool.filter((k) => !!thumbSrc(k.id));
     if (adv.prem === "pb") pool = pool.filter((k) => !!k.premium);
     else if (adv.prem === "base") pool = pool.filter((k) => !!k.base);
     else if (adv.prem === "normal") pool = pool.filter((k) => !k.premium && !k.base);
@@ -3624,7 +3622,7 @@ export default function App() {
       });
     }
     return pool;
-  }, [allKits, gfList, searchIndex, adv, getRec, getTags, tab, zukanMode, thumbSrc, query]);
+  }, [allKits, gfList, searchIndex, adv, getRec, getTags, tab, thumbSrc, query]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
@@ -3649,13 +3647,13 @@ export default function App() {
   /* 画像鑑賞の横断スライド: 繪測(salon)ビュー時のみ現在のビュー順(sorted)で連結。
      他モードでは空配列を返し、ビューア側で単独機体にフォールバックする。 */
   const viewerFlat = useMemo(() => {
-    if (!(tab === "zukan" && zukanMode === "salon")) return [];
+    if (tab !== "gallery") return [];
     const list = [];
     for (const k of sorted) for (const ref of albumRefs(k.id, images, extras, albumMeta)) {
       if (refSrc(ref, k.id, images, extras)) list.push({ kitId: k.id, ref, name: k.name, code: k.code, no: k.no, series: k.series });
     }
     return list;
-  }, [tab, zukanMode, sorted, images, extras, albumMeta]);
+  }, [tab, sorted, images, extras, albumMeta]);
   const ownedKits = sorted.filter((k) => getRec(k.id).owned);
   const ownedVisible = ownedKits.slice(0, paintLimit);
   const ownedAll = allKits.filter((k) => getRec(k.id).owned).length;
@@ -3681,9 +3679,7 @@ export default function App() {
      observer を張り直す。依存なしの旧実装は毎レンダー再生成し、センチネルが
      視界内にあると isIntersecting の初回コールバックが繰り返し発火して limit が
      一気に跳ね上がっていた(遅延ロードの意図が崩れる)。 */
-  const moreVisible = (tab === "zukan" ? sorted.length
-    : tab === "collection" ? (collMode === "plan" ? planKits.length : ownedKits.length)
-    : 0) > limit;
+  const moreVisible = ((tab === "zukan" || tab === "gallery") ? sorted.length : 0) > limit;
   useEffect(() => {
     const el = moreRef.current;
     if (!el || !moreVisible || typeof IntersectionObserver === "undefined") return;
@@ -3693,7 +3689,7 @@ export default function App() {
     );
     ob.observe(el);
     return () => ob.disconnect();
-  }, [moreVisible, tab, collMode, limit]);
+  }, [moreVisible, tab, limit]);
 
   const seriesList = useMemo(() => {
     const s = new Set();
@@ -3739,9 +3735,9 @@ export default function App() {
   /* 篩選/検索の使用後、リスト上に「条件:◯◯」膠囊を並べる。各膠囊タップで当該条件のみ解除。
      構造化フィルタ(作品・世界観・区分・状態・年代)は分類名を、検索語/タグは "値" を表示。 */
   const renderCondChips = () => {
-    const qkey = tab === "collection" ? "c" : "z";
+    const qkey = "z";
     const term = (queries[qkey] || "").trim();
-    const gKey = tab === "collection" ? "gfShuzo" : "gfZukan";
+    const gKey = "gfZukan";
     const gRaw = settings[gKey];
     const grades = (Array.isArray(gRaw) ? gRaw : gRaw ? [gRaw] : []).map((g) => String(g).toUpperCase());
     const PREM_L = { pb: "プレバン", base: "ベース", normal: "一般" };
@@ -3814,11 +3810,11 @@ export default function App() {
   );
 
   const advActive = adv.series || adv.uni || adv.prem || adv.stat || adv.yFrom || adv.yTo || adv.tag;
-  const openSearch = useCallback(() => { haptic(); setSearchDraft(tab === "collection" ? queries.c : queries.z); setSearchOpen(true); }, [tab, queries]);
+  const openSearch = useCallback(() => { haptic(); setSearchDraft(queries.z); setSearchOpen(true); }, [tab, queries]);
   const closeSearch = useCallback(() => { setSearchOpen(false); }, []);
   // 確定(✓ボタン / Enter):下書きを query へ反映 → リストが絞り込まれる。
   const commitSearch = useCallback(() => {
-    setQueries((s) => ({ ...s, [tab === "collection" ? "c" : "z"]: searchDraft.trim() }));
+    setQueries((s) => ({ ...s, ["z"]: searchDraft.trim() }));
     setSearchOpen(false);
   }, [tab, searchDraft]);
   const openFilter = useCallback(() => { haptic(); setFilterOpen(true); }, []);
@@ -3839,12 +3835,10 @@ export default function App() {
   const searchHits = useMemo(() => {
     const term = searchDraft.trim();
     if (!term) return [];
-    const base = tab === "collection"
-      ? allKits.filter((k) => (collMode === "plan" ? getRec(k.id).plan : getRec(k.id).owned))
-      : allKits;
+    const base = allKits;
     const q = normJa(term); const rq = toRomaji(q);
     return base.filter((k) => { const idx = searchIndex[k.id] || ""; return idx.includes(q) || (rq && rq !== q && idx.includes(rq)); }).slice(0, 14);
-  }, [tab, collMode, searchDraft, allKits, getRec, searchIndex]);
+  }, [searchDraft, allKits, searchIndex]);
   const renderSearchModal = ({ placeholder, title }) => (
     <div className="modal-bg search-modal-bg" onClick={closeSearch}>
       <div className="modal search-modal" onClick={(e) => e.stopPropagation()}>
@@ -3876,16 +3870,22 @@ export default function App() {
   /* ── 簿冊表頭(博物誌/繪測巻/蔵品帳/発注簿):仿叙勲録の表頭。タップで検索窓 ── */
   /* LedgerTitle は module scope へ移動済み(remount による表頭アニメ再生を防ぐため)。 */
 
-  const LedgerHead = ({ eyebrow, title, alt, countNode, active, variant, onSwitch, scheme = "slide", akey, dir = 1, searchActive, onClearSearch }) => (
+  const LedgerHead = ({ eyebrow, title, alt, countNode, active, variant, onSwitch, scheme = "slide", akey, dir = 1, searchActive, onClearSearch }) => {
+    const titleInner = (
+      <>
+        <span className="sb-eyebrow">{eyebrow}</span>
+        <span className="sb-titlewrap">
+          <LedgerTitle scheme={scheme} title={title} alt={onSwitch ? alt : null} akey={akey} dir={dir} />
+        </span>
+      </>
+    );
+    return (
     <div key={variant} className={"sb-band sb-v-" + variant}>
       <div className={"sb-head" + (active ? " on" : "")}>
-        <button type="button" className="sb-switch" onClick={() => { hapticStrong(); onSwitch && onSwitch(); }}
-          aria-label={alt ? "「" + alt + "」へ切り替え" : "切り替え"}>
-          <span className="sb-eyebrow">{eyebrow}</span>
-          <span className="sb-titlewrap">
-            <LedgerTitle scheme={scheme} title={title} alt={alt} akey={akey} dir={dir} />
-          </span>
-        </button>
+        {onSwitch
+          ? <button type="button" className="sb-switch" onClick={() => { hapticStrong(); onSwitch(); }}
+              aria-label={alt ? "「" + alt + "」へ切り替え" : "切り替え"}>{titleInner}</button>
+          : <div className="sb-switch sb-static">{titleInner}</div>}
         <span className="sb-head-r">
           <span className="sb-count">{countNode}</span>
           <button type="button" className={"sb-icon" + (advActive ? " on" : "")} aria-label="絞り込み(長押しで解除)"
@@ -3904,7 +3904,8 @@ export default function App() {
       </div>
       <div className="sb-rule" />
     </div>
-  );
+    );
+  };
 
   const AdvPanel = () => (
     <div className="adv-panel">
@@ -4011,10 +4012,9 @@ export default function App() {
     if (titleReturn) { setTitleDetail(titleReturn); setTitleReturn(null); }
   };
   /* 詳細頁→図鑑へ:他の条件を一掃し、指定の単一条件だけを残してクリーンな結果頁を出す。
-     zukanMode を all に戻すため salon ではなく利用者既定の list/card 表示で着地する。 */
+     図鑑は独立タブ(画廊と分離)なので利用者既定の list/card 表示で着地する。 */
   const gotoZukanFiltered = (patch) => {
     closeDetail();
-    setZukanMode("all");
     setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "", tag: "", ...patch });
     setQueries((s) => ({ ...s, z: "" }));
     patchSettings({ gfZukan: [] });
@@ -4035,7 +4035,7 @@ export default function App() {
     </>
   );
 
-  const salonView = tab === "zukan" && zukanMode === "salon";
+  const salonView = tab === "gallery";
   const slPad = typeof window !== "undefined" && !!(window.matchMedia && window.matchMedia("(min-width:768px)").matches);
   const Card = ({ kit }) => {
     const rec = getRec(kit.id);
@@ -4257,19 +4257,16 @@ export default function App() {
 
       <header className="head">
         {(() => {
-          const arc = tab === "zukan" ? (zukanMode === "salon" ? { jp: "絵測档案", en: "GALLERY" } : { jp: "機体档案", en: "REGISTRY" })
-            : tab === "collection" ? (collMode === "plan" ? { jp: "発注档案", en: "REQUISITION" } : { jp: "収蔵档案", en: "HOLDINGS" })
+          const arc = tab === "zukan" ? { jp: "機体档案", en: "REGISTRY" }
+            : tab === "gallery" ? { jp: "絵測档案", en: "GALLERY" }
             : tab === "analysis" ? (anaMode === "analysis" ? { jp: "観測档案", en: "ANALYSIS" } : { jp: "叙勲档案", en: "DECORATIONS" })
             : { jp: "管理档案", en: "ADMINISTRATION" };
-          const isPlan = tab === "collection" && collMode === "plan";
           const isDecor = tab === "analysis" && anaMode === "record";
-          const isSalon = tab === "zukan" && zukanMode === "salon";
+          const isSalon = tab === "gallery";
           const titlesGot = titles.filter((t) => t.unlocked).length;
           const titlesPct = Math.round((titlesGot / Math.max(1, titles.length)) * 100);
           const pct = isDecor ? titlesPct
-            : isPlan ? futurePct
             : isSalon ? imgStats.pct
-            : tab === "collection" ? builtPct
             : collectPct;
           return (
             <div className="hf" role="button" tabIndex={0}
@@ -4297,14 +4294,6 @@ export default function App() {
                         <div className="hf-div" />
                         <div className="s"><b className="kin"><Roll value={titlesPct} resetKey={arc.jp} />%</b><span>完成率</span></div>
                       </>
-                    ) : isPlan ? (
-                      <>
-                        <div className="s"><b><Roll value={allKits.length} resetKey={arc.jp} /></b><span>収録</span></div>
-                        <div className="hf-div" />
-                        <div className="s"><b className="kin"><Roll value={planAll} resetKey={arc.jp} /></b><span>予定</span></div>
-                        <div className="hf-div" />
-                        <div className="s"><b className="kin"><Roll value={futurePct} resetKey={arc.jp} />%</b><span>収集率</span></div>
-                      </>
                     ) : isSalon ? (
                       <>
                         <div className="s"><b><Roll value={allKits.length} resetKey={arc.jp} /></b><span>収録</span></div>
@@ -4315,17 +4304,17 @@ export default function App() {
                       </>
                     ) : (
                       <>
-                        <div className="s"><b><Roll value={tab === "collection" ? ownedAll : allKits.length} resetKey={arc.jp} /></b><span>{tab === "collection" ? "収蔵" : "収録"}</span></div>
+                        <div className="s"><b><Roll value={allKits.length} resetKey={arc.jp} /></b><span>収録</span></div>
                         <div className="hf-div" />
-                        <div className="s"><b><Roll value={tab === "collection" ? builtAll : ownedAll} resetKey={arc.jp} /></b><span>{tab === "collection" ? "完成" : "入手"}</span></div>
+                        <div className="s"><b><Roll value={ownedAll} resetKey={arc.jp} /></b><span>入手</span></div>
                         <div className="hf-div" />
-                        <div className="s"><b><Roll value={tab === "collection" ? builtPct : collectPct} resetKey={arc.jp} />%</b><span>{tab === "collection" ? "完成率" : "収集率"}</span></div>
+                        <div className="s"><b><Roll value={collectPct} resetKey={arc.jp} />%</b><span>収集率</span></div>
                       </>
                     )}
                   </div>
                 </div>
               </div>
-              <div className="hf-prog"><i className={isPlan || isDecor ? "kin" : ""} style={{ width: `${pct}%` }} /></div>
+              <div className="hf-prog"><i className={isDecor ? "kin" : ""} style={{ width: `${pct}%` }} /></div>
             </div>
           );
         })()}
@@ -4333,7 +4322,7 @@ export default function App() {
 
       <main className="body" ref={bodyRef} onScroll={onBodyScroll}>
         <div key={tab} className="tab-page">
-        {tab === "zukan" && (
+        {(tab === "zukan" || tab === "gallery") && (
           <>
             {LedgerHead({
               variant: salonView ? "salon" : "registry",
@@ -4341,8 +4330,6 @@ export default function App() {
               title: salonView
                 ? <>絵<em>測</em>巻</>
                 : <><span>博</span><em>物</em><span>誌</span></>,
-              alt: salonView ? "博物誌" : "絵測巻",
-              onSwitch: () => setZukanMode((m) => (m === "salon" ? "all" : "salon")),
               scheme: "slide",
               akey: salonView ? "salon" : "registry",
               dir: salonView ? 1 : -1,
@@ -4390,77 +4377,9 @@ export default function App() {
                 さらに表示(残り {sorted.length - limit} 件)
               </button>
             )}
-            <p className="footnote">※ 収録データはGUNPLA ROOM等の公開型録情報を整理(一般販売:MG No.001–223+プレバン207 / Ver.Ka 01–30+プレバン20 / MGEX、HG 統一ナンバリング 全収録 No.001–268+プレバン205、HG SEED系 全86(01–59/R01–17/MSV-01–07+プレバン3)、HG 00系 全収録 No.01–72+プレバン12、HG ビルドファイターズ系 全収録 No.1–69(支援機含む。23/30/32/41欠番)+プレバン25、HG 鉄血のオルフェンズ系 全収録 No.1–47+O-1~9+プレバン23、HG ガンダムブレイカー バトローグ系 全10(うちプレバン4)、HG ククルス・ドアンの島 全11、HG THE ORIGIN系 全収録 No.001–026+プレバン001–026、HG Gのレコンギスタ系 全収録 No.001–017+プレバン4、HG AGE系 全収録 No.001–034+プレバン7、HG サンダーボルト系 全収録 No.001–013+プレバン1、HG ビルドダイバーズ系 全収録 No.001–083+プレバン6、HG ビルドメタバース系 全8、HG GQuuuuuuX系 No.1–15+プレバン4(続刊)、HG 水星の魔女系 全収録 No.01–26+プレバン12、RG 全43+プレバン74、PG 全26+プレバン5(早期プレバン数点は確認中)、HIRM 01–05(06以降確認中)、RE/100 01–06+プレバン4(他確認中)、ベース限定MG 全39・RG 01–29(以降確認中)・HG 主線分(系列網羅は順次)、MGSD 全5。ホビーオンライン/プレバン限定は「プレバン」表記で収録、イベント限定は未収録、ガンダムベース限定は「ベース限定」タグで順次収録中(現在MG分))。各欄位は詳細画面の「編集」で随時修正可能。</p>
+            {!salonView && <p className="footnote">※ 収録データはGUNPLA ROOM等の公開型録情報を整理(一般販売:MG No.001–223+プレバン207 / Ver.Ka 01–30+プレバン20 / MGEX、HG 統一ナンバリング 全収録 No.001–268+プレバン205、HG SEED系 全86(01–59/R01–17/MSV-01–07+プレバン3)、HG 00系 全収録 No.01–72+プレバン12、HG ビルドファイターズ系 全収録 No.1–69(支援機含む。23/30/32/41欠番)+プレバン25、HG 鉄血のオルフェンズ系 全収録 No.1–47+O-1~9+プレバン23、HG ガンダムブレイカー バトローグ系 全10(うちプレバン4)、HG ククルス・ドアンの島 全11、HG THE ORIGIN系 全収録 No.001–026+プレバン001–026、HG Gのレコンギスタ系 全収録 No.001–017+プレバン4、HG AGE系 全収録 No.001–034+プレバン7、HG サンダーボルト系 全収録 No.001–013+プレバン1、HG ビルドダイバーズ系 全収録 No.001–083+プレバン6、HG ビルドメタバース系 全8、HG GQuuuuuuX系 No.1–15+プレバン4(続刊)、HG 水星の魔女系 全収録 No.01–26+プレバン12、RG 全43+プレバン74、PG 全26+プレバン5(早期プレバン数点は確認中)、HIRM 01–05(06以降確認中)、RE/100 01–06+プレバン4(他確認中)、ベース限定MG 全39・RG 01–29(以降確認中)・HG 主線分(系列網羅は順次)、MGSD 全5。ホビーオンライン/プレバン限定は「プレバン」表記で収録、イベント限定は未収録、ガンダムベース限定は「ベース限定」タグで順次収録中(現在MG分))。各欄位は詳細画面の「編集」で随時修正可能。</p>}
           </>
         )}
-
-        {tab === "collection" && (() => {
-          const isPlan = collMode === "plan";
-          const listKits = isPlan ? planKits : ownedKits;
-          const listVisible = isPlan ? planVisible : ownedVisible;
-          const baseCount = isPlan ? planAll : ownedAll;
-          if (baseCount === 0) {
-            return (
-              <div className="empty">
-                <MechSketch seedKey="empty" owned={false} built={false} size={70} />
-                <p>{isPlan ? "購入予定がありません。" : "まだ収蔵がありません。"}</p>
-                <p className="empty-sub">{isPlan ? "図鑑やリストで機体を長押しすると「購入予定」に追加できます。" : "図鑑から機体を選び、「入手済み」を記録しましょう。"}</p>
-              </div>
-            );
-          }
-          return (
-            <>
-              {LedgerHead({
-                variant: isPlan ? "requisition" : "holdings",
-                eyebrow: isPlan ? "REQUISITION · 予定" : "HOLDINGS · 所持",
-                title: isPlan ? <>発<em>注</em>簿</> : <>蔵<em>品</em>帳</>,
-                alt: isPlan ? "蔵品帳" : "発注簿",
-                onSwitch: () => setCollMode((m) => (m === "plan" ? "owned" : "plan")),
-                scheme: "slide",
-                akey: isPlan ? "requisition" : "holdings",
-                dir: isPlan ? 1 : -1,
-                searchActive: !!queries.c,
-                onClearSearch: () => setQueries((s) => ({ ...s, c: "" })),
-                active: !!queries.c || advActive,
-                countNode: isPlan
-                  ? <><b>{listKits.length}</b> / {planAll} 発注</>
-                  : <><b>{listKits.length}</b> / {ownedAll} 収蔵</>,
-              })}
-              {searchOpen && renderSearchModal({
-                placeholder: isPlan ? "予定内を検索" : "収蔵内を機体名・型式で検索",
-                title: isPlan ? <>発<em>注</em>簿</> : <>蔵<em>品</em>帳</>,
-              })}
-              {filterOpen && (
-                <div className="modal-bg search-modal-bg" onClick={closeFilter}>
-                  <div className="modal search-modal" onClick={(e) => e.stopPropagation()}>
-                    <div className="sm-head">
-                      <span className="sm-title">{isPlan ? <>発<em>注</em>簿</> : <>蔵<em>品</em>帳</>} <span className="sm-eyebrow">FILTER</span></span>
-                      <button className="modal-x static" onClick={closeFilter}>✕</button>
-                    </div>
-                    <AdvPanel />
-                    <div className="drawer-sub">
-                      <GfRow skey="gfShuzo" />
-                    </div>
-                    <div className="drawer-tools">
-                      <SortBar />
-                      <ViewToggle />
-                      <button className="add-btn" onClick={() => { closeFilter(); setAdding(isPlan ? "plan" : "owned"); }}>＋ 追加</button>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {renderCondChips()}
-              {listKits.length === 0
-                ? <p className="ana-note">検索条件に一致する{isPlan ? "予定" : "収蔵"}がありません。</p>
-                : Grid({ kits: listVisible })}
-              {listKits.length > limit && (
-                <button ref={moreRef} className="more-btn" onClick={() => setLimit((n) => n + 80)}>
-                  さらに表示(残り {listKits.length - limit} 件)
-                </button>
-              )}
-            </>
-          );
-        })()}
 
         {tab === "analysis" && (() => {
           const owned = allKits.filter((k) => getRec(k.id).owned);
@@ -5336,35 +5255,26 @@ export default function App() {
       {/* ── 底部分頁 ── */}
       <nav className="tabbar pad-min" style={{ paddingBottom: "4px" }}>
         {[
-          ["zukan", zukanMode === "salon" ? "画廊" : "図鑑", zukanMode === "salon"
-            ? (<svg className="tab-line-ico salon-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path className="pal-body" d="M12 4.6C16.8 4.6 20.4 7.5 20.4 11.3C20.4 13.7 18.7 14.5 17.3 14.5C16.4 14.5 15.6 14.3 15.6 13.5C15.6 12.8 16 12.5 16 11.9C16 11.2 15.4 10.7 14.5 10.7C12.9 10.7 12 12.4 12 14.1C12 16 12.9 17.2 12.2 18.1C11.8 18.5 11.3 18.7 10.7 18.7C6.7 18.7 4 15.1 4 11.3C4 7.5 7.4 4.6 12 4.6Z" strokeWidth="1.6" strokeLinejoin="round" /><circle className="pd1" cx="7.1" cy="10.4" r="1.25" /><circle className="pd2" cx="8.7" cy="7.6" r="1.25" /><circle className="pd3" cx="11.8" cy="6.7" r="1.25" /><circle className="pd4" cx="15" cy="7.6" r="1.25" /></svg>)
-            : "▦"],
-          ["collection", collMode === "plan" ? "予定" : "所持", collMode === "plan" ? "◆" : "✦"],
+          ["zukan", "図鑑", "▦"],
+          ["gallery", "画廊",
+            (<svg className="tab-line-ico salon-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path className="pal-body" d="M12 4.6C16.8 4.6 20.4 7.5 20.4 11.3C20.4 13.7 18.7 14.5 17.3 14.5C16.4 14.5 15.6 14.3 15.6 13.5C15.6 12.8 16 12.5 16 11.9C16 11.2 15.4 10.7 14.5 10.7C12.9 10.7 12 12.4 12 14.1C12 16 12.9 17.2 12.2 18.1C11.8 18.5 11.3 18.7 10.7 18.7C6.7 18.7 4 15.1 4 11.3C4 7.5 7.4 4.6 12 4.6Z" strokeWidth="1.6" strokeLinejoin="round" /><circle className="pd1" cx="7.1" cy="10.4" r="1.25" /><circle className="pd2" cx="8.7" cy="7.6" r="1.25" /><circle className="pd3" cx="11.8" cy="6.7" r="1.25" /><circle className="pd4" cx="15" cy="7.6" r="1.25" /></svg>)],
           ["analysis", anaMode === "analysis" ? "紀録" : "称号", anaMode === "analysis"
             ? (<svg className="tab-line-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 4 V19 H20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><polyline points="6.5 14.5 10.5 10.5 13.5 12.5 18.5 6.5" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>)
             : (<svg className="tab-line-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 4h10v7a5 5 0 0 1-10 0V4z" /><path d="M7 6H4v2a3 3 0 0 0 3 3" /><path d="M17 6h3v2a3 3 0 0 1-3 3" /><path d="M12 16v3" /><path d="M8.5 21h7l-1-2h-5z" /></svg>)],
           ["settings", "設定", "⚙"],
         ].map(([k, label, icon]) => {
-          // 収蔵タブ:長押しで 収蔵↔予定 / 紀錄タブ:長押しで 敘勲↔紀錄(どちらも該当タブへ移動)
-          const lp = k === "collection"
-            ? makeLongPress(() => { hapticStrong(); setCollMode((m) => (m === "plan" ? "owned" : "plan")); changeTab("collection"); })
-            : k === "analysis"
+          // 紀錄タブのみ:長押しで 称号↔紀録(該当タブへ移動)。図鑑/画廊は独立タブで副モードなし。
+          const lp = k === "analysis"
             ? makeLongPress(() => { hapticStrong(); setAnaMode((m) => (m === "analysis" ? "record" : "analysis")); changeTab("analysis"); })
-            : k === "zukan"
-            ? makeLongPress(() => { hapticStrong(); setZukanMode((m) => (m === "salon" ? "all" : "salon")); changeTab("zukan"); })
             : {};
           return (
             <button key={k}
               className={`tab ${tab === k ? "on" : ""} `
-                + (k === "collection" && collMode === "plan" ? "plan-tab " : "")
                 + (k === "analysis" && anaMode === "analysis" ? "ana-tab " : "")
-                + (k === "zukan" && zukanMode === "salon" ? "salon-tab " : "")
                 + (k === "settings" ? "set-tab " : "")}
               onClick={() => {
-                if ((k === "collection" || k === "analysis" || k === "zukan") && consumeLP()) return;
-                if (k === "collection" && tab === "collection") { hapticStrong(); setCollMode((m) => (m === "plan" ? "owned" : "plan")); return; }
+                if (k === "analysis" && consumeLP()) return;
                 if (k === "analysis" && tab === "analysis") { hapticStrong(); setAnaMode((m) => (m === "analysis" ? "record" : "analysis")); return; }
-                if (k === "zukan" && tab === "zukan") { hapticStrong(); setZukanMode((m) => (m === "salon" ? "all" : "salon")); return; }
                 changeTab(k); setConfirmReset(false);
               }}
               {...lp}>
@@ -5374,13 +5284,9 @@ export default function App() {
           );
         })}
         {(() => {
-          const order = ["zukan", "collection", "analysis", "settings"];
+          const order = ["zukan", "gallery", "analysis", "settings"];
           const idx = Math.max(0, order.indexOf(tab));
-          const col = tab === "analysis" && anaMode === "analysis" ? "var(--gold)"
-            : tab === "zukan" && zukanMode === "salon" ? "var(--gold)"
-            : tab === "collection" && collMode === "plan" ? "var(--kin)"
-            : tab === "settings" ? "var(--ink-strong)"
-            : "var(--gold)";
+          const col = tab === "settings" ? "var(--ink-strong)" : "var(--gold)";
           return <i className="tab-slider" style={{ transform: `translateX(${idx * 100}%)` }}><b style={{ background: col }} /></i>;
         })()}
       </nav>
@@ -5445,12 +5351,12 @@ input,textarea{font-family:var(--sans)}
 .body{padding:8px 14px 16px;max-width:920px;margin:0 auto}
 .section-note{font-size:11px;color:var(--ink-mid);letter-spacing:.1em;padding:6px 4px 10px}
 .cond-clear{margin-left:0;font-size:11.5px;color:var(--shu);border-bottom:1px dashed var(--shu);padding-bottom:1px}
-.cond-line{display:flex;flex-wrap:wrap;align-items:baseline;font-size:12px;color:var(--shu);letter-spacing:.04em;line-height:1.8}
-.cond-lead{color:var(--shu);font-weight:700;margin-right:1px}
+.cond-line{display:flex;flex-wrap:wrap;align-items:baseline;font-size:11.5px;color:var(--shu);letter-spacing:0;line-height:1.8}
+.cond-lead{color:var(--shu)}
 .cond-itemwrap{display:inline-flex;align-items:baseline}
-.cond-item{color:var(--shu);border-bottom:1px solid var(--shu);padding-bottom:1px;font-size:inherit;letter-spacing:inherit}
+.cond-item{font-size:11.5px;color:var(--shu);border-bottom:1px dashed var(--shu);padding-bottom:1px}
 .cond-item:active{filter:brightness(1.25)}
-.cond-sep{color:var(--shu);opacity:.5;margin:0 1px}
+.cond-sep{color:var(--shu);opacity:.5;margin:0 2px}
 .app.light .cond-line,.app.light .cond-lead,.app.light .cond-sep{color:var(--shu-deep)}
 .app.light .cond-item{color:var(--shu-deep);border-bottom-color:var(--shu-deep)}
 .footnote{font-size:10.5px;color:var(--ink-dim);line-height:1.7;padding:18px 4px 6px}
@@ -6832,6 +6738,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .sb-band{margin:2px 0 14px}
 .sb-head{display:flex;align-items:flex-end;justify-content:space-between;width:100%;padding:4px 2px 0;gap:10px}
 .sb-switch{display:flex;flex-direction:column;align-items:flex-start;min-width:0;flex:1;background:none;border:none;padding:0;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.sb-switch.sb-static{cursor:default}
 .sb-switch:active{opacity:.78}
 .sb-head-l{display:flex;flex-direction:column;min-width:0}
 .sb-eyebrow{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:9px;letter-spacing:.30em;color:var(--ink-mid);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
