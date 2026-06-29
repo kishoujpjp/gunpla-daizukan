@@ -2201,18 +2201,18 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
         </div>
       </div>
       <div className="form-dates">
-        <label className="fld"><span>{L("購入日", "Purchase date", "購入日")}</span>
+        <div className="fld"><span>{L("購入日", "Purchase date", "購入日")}</span>
           <span className="date-wrap">
             <input type="date" value={dates.purchaseDate} onChange={(e) => setDates((d) => ({ ...d, purchaseDate: e.target.value }))} />
             {dates.purchaseDate && <button type="button" className="date-clear" aria-label={L("クリア", "Clear", "清除")} onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setDates((d) => ({ ...d, purchaseDate: "" })); }}>✕</button>}
           </span>
-        </label>
-        <label className="fld"><span>{L("制作完了日", "Completion date", "完成日")}</span>
+        </div>
+        <div className="fld"><span>{L("制作完了日", "Completion date", "完成日")}</span>
           <span className="date-wrap">
             <input type="date" value={dates.buildDate} onChange={(e) => setDates((d) => ({ ...d, buildDate: e.target.value }))} />
             {dates.buildDate && <button type="button" className="date-clear" aria-label={L("クリア", "Clear", "清除")} onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setDates((d) => ({ ...d, buildDate: "" })); }}>✕</button>}
           </span>
-        </label>
+        </div>
       </div>
       <label className="fld"><span>{L("メモ", "Memo", "備註")}</span><textarea rows={2} value={f.note} onChange={set("note")} placeholder={L("改修予定、塗装レシピ、保管場所など", "build plans, paint recipe, storage…", "改修計畫、塗裝配方、保管位置等")} /></label>
       <div className="fld"><span>{L("タグ", "Tags", "標籤")}</span>
@@ -2416,9 +2416,9 @@ export default function App() {
   }, [settings, gfStoreKey]);
   const [detail, setDetail] = useState(null);
   const [editing, setEditing] = useState(false);
-  const [statusOpen, setStatusOpen] = useState(false);
+  const [recMenu, setRecMenu] = useState(null);
   const [doneIntent, setDoneIntent] = useState(false);
-  useEffect(() => { setStatusOpen(false); setDoneIntent(false); }, [detail]);
+  useEffect(() => { setRecMenu(null); setDoneIntent(false); }, [detail]);
   const [adding, setAdding] = useState(false);
   const [anaMode, setAnaMode] = useState("record");  // record=記録(記錄) / analysis=分析
   const [advOpen, setAdvOpen] = useState(false);
@@ -4166,16 +4166,22 @@ export default function App() {
 
   const detailKit = useMemo(() => (detail ? allKits.find((k) => k.id === detail) : null), [detail, allKits]);
   const detailRec = detailKit ? getRec(detailKit.id) : null;
-  const detailStatus = detailRec ? (detailRec.buildDate ? "done" : doneIntent ? "done" : detailRec.owned ? "own" : detailRec.plan ? "plan" : "none") : "none";
-  const STATUS_OPTS = [["none", L("未所持", "Unowned", "未所持")], ["plan", L("予定", "Planned", "預定")], ["own", L("入手", "Owned", "入手")], ["done", L("完成", "Built", "完成")]];
-  const applyStatus = (s) => {
+  const recStatus = detailRec ? (detailRec.owned ? "own" : detailRec.plan ? "plan" : "none") : "none";
+  const doneState = detailRec && (detailRec.buildDate || doneIntent) ? "done" : "undone";
+  const REC_STATUS_LABEL = { none: L("未入手", "Unowned", "未入手"), plan: L("予定", "Planned", "預定"), own: L("入手", "Owned", "入手") };
+  const setRecStatus = (s) => {
     if (!detailKit) return;
     const id = detailKit.id;
-    if (s === "none") { setRec(id, { owned: false, plan: false, purchaseDate: "", buildDate: "" }); setDoneIntent(false); }
-    else if (s === "plan") { setRec(id, { plan: true, owned: false, purchaseDate: "", buildDate: "" }); setDoneIntent(false); }
-    else if (s === "own") { setRec(id, { owned: true, plan: false, buildDate: "" }); setDoneIntent(false); }
-    else { setRec(id, { owned: true, plan: false }); setDoneIntent(true); }
-    haptic(); setStatusOpen(false);
+    if (s === "none") setRec(id, { owned: false, plan: false, purchaseDate: "", buildDate: "" });
+    else if (s === "plan") setRec(id, { plan: true, owned: false, purchaseDate: "", buildDate: "" });
+    else setRec(id, { owned: true, plan: false });
+    setDoneIntent(false); setRecMenu(null); haptic();
+  };
+  const setDoneState = (v) => {
+    if (!detailKit) return;
+    if (v === "done") setDoneIntent(true);
+    else { setRec(detailKit.id, { buildDate: "" }); setDoneIntent(false); }
+    setRecMenu(null); haptic();
   };
   /* 掃描線:開くたびに各ビームへランダムな負の animation-delay を与え、
      開始位置(=出現タイミング)を毎回ばらけさせる。2本も同期しない。
@@ -5084,35 +5090,44 @@ export default function App() {
                     {detailKit.base && <span className="line-chip base">{L("ベース","Base","基地")}</span>}
                     {lineBadge(detailKit)}
                   </span></div>
-                  <div className="dc-srow dc-srow-status"><span className="dc-k">{L("発売·定価", "Release·Price", "發售·定價")}</span><span className="dc-v">{detailKit.ym
+                  <div className="dc-srow"><span className="dc-k">{L("発売·定価", "Release·Price", "發售·定價")}</span><span className="dc-v">{detailKit.ym
                     ? <button className="dc-link dc-gold" onClick={() => jumpToYear(detailKit.ym.slice(0, 4))}>{detailKit.ym.replace("-", ".")}</button>
-                    : <span className="dc-gold">—</span>}{detailKit.price ? <> · <span className="dc-mono">{fmtYen(detailKit.price)}</span></> : ""}</span>
-                    <button className={`dc-statbtn ${detailStatus} ${statusOpen ? "open" : ""}`} onClick={() => setStatusOpen((o) => !o)} aria-expanded={statusOpen}>
-                      <span className={`dc-statdot ${detailStatus}`} />{STATUS_OPTS.find(([v]) => v === detailStatus)[1]}<span className="dc-statchev">▾</span>
-                    </button></div>
-                  <div className={`dc-status-opts ${statusOpen ? "open" : ""}`}>
-                    {STATUS_OPTS.map(([v, lab]) => (
-                      <button key={v} type="button" className={`dc-stat-opt ${detailStatus === v ? "sel" : ""}`} onClick={() => applyStatus(v)}>
-                        <span className={`dc-statdot ${v}`} />{lab}{detailStatus === v && <span className="dc-stat-ck">✓</span>}
+                    : <span className="dc-gold">—</span>}{detailKit.price ? <> · <span className="dc-mono">{fmtYen(detailKit.price)}</span></> : ""}</span></div>
+                  <div className="dc-srow dc-srow-rec"><span className="dc-k">{L("記録", "Records", "紀錄")}</span><span className="dc-v rec-field">
+                    <span className="rec-cell">
+                      <button type="button" className={`rec-pill ${recStatus}`} onClick={() => setRecMenu((m) => (m === "status" ? null : "status"))} aria-expanded={recMenu === "status"}>
+                        <span className={`dc-statdot ${recStatus}`} />{REC_STATUS_LABEL[recStatus]}<span className="rec-chev">▾</span>
                       </button>
-                    ))}
-                  </div>
-                  {detailStatus === "done" && (
-                    <div className="dc-srow"><span className="dc-k">{L("完成日", "Built date", "完成日")}</span><span className="dc-v">
-                      <span className="date-wrap dc-datewrap">
-                        <input type="date" value={detailRec.buildDate || ""} onChange={(e) => setRec(detailKit.id, { buildDate: e.target.value, owned: true, plan: false })} />
-                        {detailRec.buildDate && <button type="button" className="date-clear" aria-label={L("クリア", "Clear", "清除")} onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setRec(detailKit.id, { buildDate: "" }); }}>✕</button>}
+                      <span className={`rec-pop ${recMenu === "status" ? "open" : ""}`}>
+                        {[["none", L("未入手", "Unowned", "未入手")], ["plan", L("予定", "Planned", "預定")], ["own", L("入手", "Owned", "入手")]].map(([v, lab]) => (
+                          <button key={v} type="button" className={`rec-pop-opt ${recStatus === v ? "sel" : ""}`} onClick={() => setRecStatus(v)}><span className={`dc-statdot ${v}`} />{lab}</button>
+                        ))}
                       </span>
-                    </span></div>
-                  )}
-                  {detailRec.owned && detailRec.purchaseDate && (
-                    <div className="dc-srow"><span className="dc-k">{L("記録", "Records", "紀錄")}</span><span className="dc-v"><span className="dc-mono">{L("購入", "Bought", "購入")} {fmtDate(detailRec.purchaseDate)}</span></span></div>
-                  )}
+                    </span>
+                    {detailRec.owned && (detailRec.purchaseDate
+                      ? <span className="rec-dateval">{L("購入", "Bought", "購入")} {fmtDate(detailRec.purchaseDate)}</span>
+                      : <input type="date" className="rec-date" value="" onChange={(e) => setRec(detailKit.id, { purchaseDate: e.target.value, owned: true, plan: false })} aria-label={L("購入日", "Purchase date", "購入日")} />)}
+                    {detailRec.owned && (
+                      <span className="rec-cell">
+                        <button type="button" className={`rec-pill ${doneState === "done" ? "done" : "none"}`} onClick={() => setRecMenu((m) => (m === "done" ? null : "done"))} aria-expanded={recMenu === "done"}>
+                          <span className={`dc-statdot ${doneState === "done" ? "done" : "none"}`} />{doneState === "done" ? L("完成", "Built", "完成") : L("未完成", "Unbuilt", "未完成")}<span className="rec-chev">▾</span>
+                        </button>
+                        <span className={`rec-pop ${recMenu === "done" ? "open" : ""}`}>
+                          {[["undone", L("未完成", "Unbuilt", "未完成")], ["done", L("完成", "Built", "完成")]].map(([v, lab]) => (
+                            <button key={v} type="button" className={`rec-pop-opt ${doneState === v ? "sel" : ""}`} onClick={() => setDoneState(v)}><span className={`dc-statdot ${v === "done" ? "done" : "none"}`} />{lab}</button>
+                          ))}
+                        </span>
+                      </span>
+                    )}
+                    {detailRec.owned && doneState === "done" && (detailRec.buildDate
+                      ? <span className="rec-dateval done">{L("完成", "Done", "完成")} {fmtDate(detailRec.buildDate)}</span>
+                      : <input type="date" className="rec-date" value="" onChange={(e) => setRec(detailKit.id, { buildDate: e.target.value, owned: true, plan: false })} aria-label={L("完成日", "Built date", "完成日")} />)}
+                  </span></div>
                   <div className="dc-srow dc-srow-memo"><span className="dc-k">{L("メモ", "Memo", "備註")}</span><span className="dc-v"><NoteField note={detailKit.note} onCommit={(v) => setNote(detailKit, v)} enterOnLongPress L={L} /></span></div>
                   <div className="dc-srow dc-srow-tag"><span className="dc-k">{L("タグ", "Tags", "標籤")}</span><span className="dc-v"><TagField tags={getTags(detailKit.id)} onCommit={(next) => setTags(detailKit.id, next)} enterOnLongPress onTagTap={jumpToTag} L={L} /></span></div>
                 </div>
 
-                <button className="edit-link" onClick={() => setEditing(true)}>{L("✎ 機体情報・画像を編集", "✎ Edit kit info & images", "✎ 編輯機體資訊・圖片")}</button>
+                <button className="edit-link" onClick={() => setEditing(true)}>{L("✎ 機体情報を編集", "✎ Edit kit info", "✎ 編輯機體資訊")}</button>
               </>
             ) : (
               <>
@@ -7325,28 +7340,33 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .dc-unref{position:absolute;bottom:11px;font-family:var(--mono);font-size:8px;letter-spacing:.18em;color:#3c4452}
 .dc-spec{margin-top:15px}
 .dc-srow{display:flex;align-items:baseline;gap:14px;padding:11px 0;border-bottom:1px solid var(--line)}
-.dc-srow-status{align-items:center;flex-wrap:wrap}
-.dc-statbtn{margin-left:auto;display:inline-flex;align-items:center;gap:7px;background:transparent;
-  border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-family:var(--serif);
-  font-size:12.5px;color:var(--ink-mid);cursor:pointer;line-height:1}
-.dc-statbtn:active{background:rgba(255,255,255,.04)}
 .dc-statdot{width:6px;height:6px;border-radius:50%;background:var(--ink-dim);flex:none;display:inline-block}
 .dc-statdot.plan{background:var(--gold)}
 .dc-statdot.own{background:var(--shu)}
 .dc-statdot.done{background:var(--teal)}
 .dc-statdot.none{background:#41485a}
-.dc-statchev{font-size:9px;color:var(--ink-dim);transition:transform .25s;margin-left:1px}
-.dc-statbtn.open .dc-statchev{transform:rotate(180deg)}
-.dc-status-opts{max-height:0;opacity:0;overflow:hidden;transition:max-height .28s ease,opacity .2s;
-  border-radius:10px;margin:0;background:var(--panel2)}
-.dc-status-opts.open{max-height:260px;opacity:1;border:1px solid var(--line);margin:4px 0 2px}
-.dc-stat-opt{display:flex;align-items:center;gap:9px;width:100%;text-align:left;padding:11px 12px;
-  font-family:var(--serif);font-size:13px;color:var(--ink-mid);background:transparent;border:0;
-  border-top:1px solid var(--line-soft);cursor:pointer}
-.dc-stat-opt:first-child{border-top:0}
-.dc-stat-opt:active{background:rgba(255,255,255,.04)}
-.dc-stat-opt.sel{color:var(--ink-strong)}
-.dc-stat-ck{margin-left:auto;color:var(--gold);font-size:12px}
+.dc-srow-rec{align-items:flex-start}
+.rec-field{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.rec-cell{position:relative;display:inline-flex}
+.rec-pill{display:inline-flex;align-items:center;gap:7px;background:transparent;border:1px solid var(--line);
+  border-radius:16px;padding:5px 11px;font-family:var(--serif);font-size:12.5px;color:var(--ink-mid);cursor:pointer;line-height:1}
+.rec-pill.none{color:var(--ink-dim)}
+.rec-pill.own,.rec-pill.plan,.rec-pill.done{color:var(--ink-strong)}
+.rec-pill:active{background:rgba(255,255,255,.04)}
+.rec-chev{font-size:9px;color:var(--ink-dim);margin-left:1px}
+.rec-pop{position:absolute;top:calc(100% + 6px);left:0;z-index:30;display:flex;flex-direction:column;gap:2px;
+  min-width:128px;background:#1a2030;border:1px solid var(--line);border-radius:11px;padding:6px;
+  transform-origin:top left;transform:scale(.92);opacity:0;pointer-events:none;
+  transition:transform .18s,opacity .18s;box-shadow:0 14px 34px rgba(0,0,0,.5)}
+.rec-pop.open{transform:scale(1);opacity:1;pointer-events:auto}
+.rec-pop-opt{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:8px 10px;border-radius:7px;
+  border:0;background:transparent;font-family:var(--serif);font-size:13px;color:var(--ink-mid);cursor:pointer}
+.rec-pop-opt:active{background:#232c3d;color:var(--ink)}
+.rec-pop-opt.sel{color:var(--ink-strong)}
+.rec-date{background:var(--panel);border:1px solid var(--line);border-radius:7px;color:var(--ink);
+  padding:5px 8px;font-size:12px;font-family:var(--mono);color-scheme:dark;max-width:160px}
+.rec-dateval{font-family:var(--mono);font-size:12.5px;color:var(--ink-mid)}
+.rec-dateval.done{color:var(--teal)}
 .dc-k{flex:none;width:64px;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--ink-dim);text-transform:uppercase}
 .dc-v{flex:1;font-size:13.5px;color:var(--ink-strong);min-width:0}
 .dc-v.dc-tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
