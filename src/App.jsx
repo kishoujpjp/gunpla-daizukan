@@ -1115,7 +1115,7 @@ const IDF_MODELS = [
   { id: "gpt-4o-mini", label: "GPT-4o mini", note: "標準・速い", p: "openai" },
 ];
 
-function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach, onClose }) {
+function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach, onClose, onManual }) {
   const [phase, setPhase] = useState("pick"); // pick | loading | result | error
   const [storeImg, setStoreImg] = useState("");
   const [cands, setCands] = useState([]);
@@ -1341,6 +1341,9 @@ function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach,
               </div>
             </div>
           </div>
+        )}
+        {onManual && (
+          <button type="button" className="idf-manual-add" onClick={onManual}>自分で入力</button>
         )}
       </div>
     </div>
@@ -1632,9 +1635,10 @@ function Roll({ value, resetKey }) {
   return <>{disp}</>;
 }
 
-function TagField({ tags, onCommit }) {
+function TagField({ tags, onCommit, enterOnLongPress = false, onTagTap = null }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  const lp = useRef({ timer: null, fired: false });
   const start = (e) => { if (e) e.stopPropagation(); setDraft(tags.join("; ")); setEditing(true); };
   const commit = () => {
     const next = [];
@@ -1658,20 +1662,41 @@ function TagField({ tags, onCommit }) {
         placeholder="タグを半角「;」区切りで入力" />
     );
   }
+  // 長按=編集モード(タグ自体は短タップで onTagTap へ。鉛筆/空欄タップでも編集へ)
+  const beginLong = (e) => {
+    if (e) e.stopPropagation();
+    lp.current.fired = false;
+    clearTimeout(lp.current.timer);
+    lp.current.timer = setTimeout(() => { lp.current.fired = true; hapticStrong(); start(); }, 480);
+  };
+  const cancelLong = () => clearTimeout(lp.current.timer);
+  const wrapProps = enterOnLongPress
+    ? { className: "kt-field", onTouchStart: beginLong, onTouchEnd: cancelLong, onTouchMove: cancelLong,
+        onMouseDown: beginLong, onMouseUp: cancelLong, onMouseLeave: cancelLong, onContextMenu: (e) => e.preventDefault() }
+    : { className: "kt-field", role: "button", tabIndex: 0, onClick: start,
+        onKeyDown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); start(); } } };
+  const tapTag = (t) => (e) => {
+    if (e) e.stopPropagation();
+    if (lp.current.fired) { lp.current.fired = false; return; } // 長按誤発を無視
+    if (onTagTap) onTagTap(t);
+  };
   return (
-    <span className="kt-field" role="button" tabIndex={0} onClick={start}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); start(); } }}>
+    <span {...wrapProps}>
       {tags.length
-        ? tags.map((t) => <span key={t} className="dc-tag">{t}</span>)
-        : <span className="kt-empty">タグを追加…</span>}
-      <i className="kt-pen" aria-hidden="true">✎</i>
+        ? tags.map((t) => (
+            <span key={t} className={"dc-tag" + (enterOnLongPress && onTagTap ? " tap" : "")}
+              {...(enterOnLongPress && onTagTap ? { role: "button", onClick: tapTag(t) } : {})}>{t}</span>
+          ))
+        : <span className="kt-empty" onClick={enterOnLongPress ? start : undefined}>タグを追加…</span>}
+      <i className="kt-pen" aria-hidden="true" onClick={enterOnLongPress ? start : undefined}>✎</i>
     </span>
   );
 }
 
-function NoteField({ note, onCommit }) {
+function NoteField({ note, onCommit, enterOnLongPress = false }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  const lp = useRef({ timer: null, fired: false });
   const start = (e) => { if (e) e.stopPropagation(); setDraft(note || ""); setEditing(true); };
   const commit = () => { onCommit(draft.trim()); setEditing(false); };
   if (editing) {
@@ -1684,9 +1709,20 @@ function NoteField({ note, onCommit }) {
         placeholder="改修予定、塗装レシピ、保管場所など" />
     );
   }
+  const beginLong = (e) => {
+    if (e) e.stopPropagation();
+    lp.current.fired = false;
+    clearTimeout(lp.current.timer);
+    lp.current.timer = setTimeout(() => { lp.current.fired = true; hapticStrong(); start(); }, 480);
+  };
+  const cancelLong = () => clearTimeout(lp.current.timer);
+  const props = enterOnLongPress
+    ? { className: "dc-memo", onTouchStart: beginLong, onTouchEnd: cancelLong, onTouchMove: cancelLong,
+        onMouseDown: beginLong, onMouseUp: cancelLong, onMouseLeave: cancelLong, onContextMenu: (e) => e.preventDefault() }
+    : { className: "dc-memo", role: "button", tabIndex: 0, onClick: start,
+        onKeyDown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); start(); } } };
   return (
-    <span className="dc-memo" role="button" tabIndex={0} onClick={start}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); start(); } }}>
+    <span {...props}>
       {note ? note : <span className="kt-empty">メモを追加…</span>}
     </span>
   );
@@ -2062,12 +2098,14 @@ function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, ini
 }
 
 function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, seriesOptions = [], ai, recInitial = null, onSaveRec,
-  album, onAddImage, onRemoveImage, onSetRole, onFrame, onEditImages, thumbRef, acqRef, maxImgs = 6 }) {
+  album, onAddImage, onRemoveImage, onSetRole, onFrame, onEditImages, thumbRef, acqRef, maxImgs = 6, tags = [], onTags = null }) {
   const albumMode = typeof onAddImage === "function";
   const [f, setF] = useState({
     name: initial.name || "", code: initial.code || "", ym: initial.ym || "",
     price: initial.price || "", series: initial.series || "", note: initial.note || "", premium: !!initial.premium, grade: initial.grade || "MG",
   });
+  const [tagsLocal, setTagsLocal] = useState(tags);
+  const commitTags = (next) => { setTagsLocal(next); if (onTags) onTags(next); }; // 既存機体は即時書込、新規は保存時に適用
   const [dates, setDates] = useState({ purchaseDate: (recInitial && recInitial.purchaseDate) || "", buildDate: (recInitial && recInitial.buildDate) || "" });
   const [imgVal, setImgVal] = useState(undefined); // undefined=不變 null=刪除 string=新圖(新規機体用)
   const [urlInput, setUrlInput] = useState("");
@@ -2163,6 +2201,9 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
         </div>
       </div>
       <label className="fld"><span>メモ</span><textarea rows={2} value={f.note} onChange={set("note")} placeholder="改修予定、塗装レシピ、保管場所など" /></label>
+      <div className="fld"><span>タグ</span>
+        <div className="form-tagfield"><TagField tags={tagsLocal} onCommit={commitTags} /></div>
+      </div>
 
       <div className="f-sec">記録<span>RECORD</span></div>
       <div className="form-dates">
@@ -2182,7 +2223,7 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
 
       <div className="form-actions">
         <button className="btn primary" disabled={!f.name.trim()}
-          onClick={() => { if (onSaveRec) onSaveRec(dates); onSave({ ...f, price: f.price ? Number(f.price) : "" }, imgVal, pendingMeta); }}>保存</button>
+          onClick={() => { if (onSaveRec) onSaveRec(dates); onSave({ ...f, price: f.price ? Number(f.price) : "" }, imgVal, pendingMeta, tagsLocal); }}>保存</button>
         <button className="btn" onClick={onCancel}>やめる</button>
         {isCustom && onDelete && <button className="btn danger" onClick={onDelete}>この機体を削除</button>}
       </div>
@@ -2279,27 +2320,21 @@ function SeriesPicker({ open, value, options, onPick, onClose }) {
   );
 }
 
-/* 世界観ピッカー(作品ピッカーと同じ独立リスト式)。options は [value,label] の配列。 */
+/* 世界観ピッカー(数が少ないため検索欄なし・純リスト直選)。options は [value,label] の配列。 */
 function UniPicker({ open, value, options, onPick, onClose }) {
-  const [q, setQ] = useState("");
-  useEffect(() => { if (open) setQ(""); }, [open]);
   if (!open) return null;
-  const ql = q.trim().toLowerCase();
-  const filtered = ql ? options.filter(([u, l]) => l.toLowerCase().includes(ql) || u.toLowerCase().includes(ql)) : options;
   return (
     <div className="modal-bg sp-bg" onClick={onClose}>
       <div className="sp-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="sp-head">
-          <input className="sp-search" autoFocus placeholder="世界観で絞り込み" value={q}
-            onChange={(e) => setQ(e.target.value)} />
+        <div className="sp-head sp-head-plain">
+          <span className="sp-title">世界観</span>
           <button className="sp-close" onClick={onClose}>✕</button>
         </div>
         <div className="sp-list">
           <button className={"sp-item" + (value === "" ? " on" : "")} onClick={() => onPick("")}>すべての世界観</button>
-          {filtered.map(([u, l]) => (
+          {options.map(([u, l]) => (
             <button key={u} className={"sp-item" + (value === u ? " on" : "")} onClick={() => onPick(u)}>{l}</button>
           ))}
-          {filtered.length === 0 && <div className="sp-empty">該当する世界観がありません</div>}
         </div>
       </div>
     </div>
@@ -2359,7 +2394,13 @@ export default function App() {
   const [sortDir, setSortDir] = useState("asc");
   const [queries, setQueries] = useState({ z: "", c: "" });
   const query = tab === "collection" ? queries.c : queries.z;
-  const gf = ((tab === "collection" ? settings.gfShuzo : settings.gfZukan) || "").toUpperCase();
+  const gfStoreKey = tab === "collection" ? "gfShuzo" : "gfZukan";
+  // グレード絞り込みは複数選択(配列)。旧データの単一文字列も [str] へ正規化して相容。
+  const gfList = useMemo(() => {
+    const raw = settings[gfStoreKey];
+    const arr = Array.isArray(raw) ? raw : raw ? [raw] : [];
+    return arr.map((g) => String(g).toUpperCase()).filter(Boolean);
+  }, [settings, gfStoreKey]);
   const [detail, setDetail] = useState(null);
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -2368,7 +2409,7 @@ export default function App() {
   const [zukanMode, setZukanMode] = useState("all");  // all=図鑑 / salon=沙龍(画像ありのみ)
   const [advOpen, setAdvOpen] = useState(false);
   const [seriesPickerOpen, setSeriesPickerOpen] = useState(false);
-  const [adv, setAdv] = useState({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "" }); // 進階篩選
+  const [adv, setAdv] = useState({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "", tag: "" }); // 進階篩選
   const [viewer, setViewer] = useState(null); // 画像鑑賞: {kitId, idx} | null
   const [viewerDel, setViewerDel] = useState(false); // 鑑賞内の削除確認
   const [frameEdit, setFrameEdit] = useState(null); // 構図調整: {kitId, ref} | null
@@ -2779,7 +2820,7 @@ export default function App() {
     };
   }, [loaded, saveKey, flushDirty]);
 
-  useEffect(() => { setLimit(60); }, [gf, sortKey, sortDir, settings.view]);
+  useEffect(() => { setLimit(60); }, [gfList, sortKey, sortDir, settings.view]);
   // 切替直後は gridReady=false(少数描画)。2フレーム後に満載へ。クリーンアップで取り消し。
   useEffect(() => {
     setGridReady(false);
@@ -3553,12 +3594,13 @@ export default function App() {
 
   const filtered = useMemo(() => {
     let pool = allKits;
-    if (gf) pool = pool.filter((k) => {
+    if (gfList.length) pool = pool.filter((k) => {
       const kg = (k.grade || "MG").toUpperCase();
-      return gf === "MG" ? (kg === "MG" || kg === "MGSD") : kg === gf;
+      return gfList.some((g) => (g === "MG" ? (kg === "MG" || kg === "MGSD") : kg === g));
     });
     if (adv.series) pool = pool.filter((k) => (k.series || "") === adv.series);
     if (adv.uni) pool = pool.filter((k) => universeOfKit(k) === adv.uni);
+    if (adv.tag) pool = pool.filter((k) => getTags(k.id).includes(adv.tag));
     // 確定済み検索語をリストへ反映(✓/Enter で commit された query)。候補ジャンプ時は query 未確定なので不動。
     const term = (query || "").trim();
     if (term) {
@@ -3582,7 +3624,7 @@ export default function App() {
       });
     }
     return pool;
-  }, [allKits, gf, searchIndex, adv, getRec, tab, zukanMode, thumbSrc, query]);
+  }, [allKits, gfList, searchIndex, adv, getRec, getTags, tab, zukanMode, thumbSrc, query]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
@@ -3673,14 +3715,55 @@ export default function App() {
   const sortLabel = { year: "発売年月", name: "名称(五十音)", purchase: "購入日", build: "制作完了日", price: "定価" };
 
   const GF_OPTS = [["", "全部"], ["MG", "MG"], ["HG", "HG"], ["RG", "RG"], ["PG", "PG"], ["HIRM", "HIRM"], ["RE", "RE"], ["FM", "FM"], ["EXTRA", "EXTRA"]];
-  const GfRow = ({ skey }) => (
-    <div className="gf-row">
-      {GF_OPTS.map(([v, l]) => (
-        <button key={v || "all"} className={"gf-btn" + (gf === v ? " on" : "")}
-          onClick={() => patchSettings({ [skey]: v })}>{l}</button>
-      ))}
-    </div>
-  );
+  const GfRow = ({ skey }) => {
+    const raw = settings[skey];
+    const cur = (Array.isArray(raw) ? raw : raw ? [raw] : []).map((g) => String(g).toUpperCase());
+    const isOn = (v) => (v === "" ? cur.length === 0 : cur.includes(v.toUpperCase()));
+    const toggle = (v) => {
+      haptic();
+      if (v === "") { patchSettings({ [skey]: [] }); return; } // 「全部」=複数選択を解除
+      const V = v.toUpperCase();
+      const next = cur.includes(V) ? cur.filter((x) => x !== V) : [...cur, V];
+      patchSettings({ [skey]: next });
+    };
+    return (
+      <div className="gf-row">
+        {GF_OPTS.map(([v, l]) => (
+          <button key={v || "all"} className={"gf-btn" + (isOn(v) ? " on" : "")}
+            onClick={() => toggle(v)}>{l}</button>
+        ))}
+      </div>
+    );
+  };
+
+  /* 篩選/検索の使用後、リスト上に「条件:◯◯」膠囊を並べる。各膠囊タップで当該条件のみ解除。
+     構造化フィルタ(作品・世界観・区分・状態・年代)は分類名を、検索語/タグは "値" を表示。 */
+  const renderCondChips = () => {
+    const qkey = tab === "collection" ? "c" : "z";
+    const term = (queries[qkey] || "").trim();
+    const gKey = tab === "collection" ? "gfShuzo" : "gfZukan";
+    const gRaw = settings[gKey];
+    const grades = (Array.isArray(gRaw) ? gRaw : gRaw ? [gRaw] : []).map((g) => String(g).toUpperCase());
+    const chips = [];
+    if (adv.series) chips.push({ k: "series", text: "作品", clear: () => setAdv((a) => ({ ...a, series: "" })) });
+    if (adv.uni) chips.push({ k: "uni", text: "世界観", clear: () => setAdv((a) => ({ ...a, uni: "" })) });
+    if (adv.prem) chips.push({ k: "prem", text: "区分", clear: () => setAdv((a) => ({ ...a, prem: "" })) });
+    if (adv.stat) chips.push({ k: "stat", text: "状態", clear: () => setAdv((a) => ({ ...a, stat: "" })) });
+    if (adv.yFrom || adv.yTo) chips.push({ k: "year", text: "年代", clear: () => setAdv((a) => ({ ...a, yFrom: "", yTo: "" })) });
+    if (adv.tag) chips.push({ k: "tag", text: `"${adv.tag}"`, clear: () => setAdv((a) => ({ ...a, tag: "" })) });
+    for (const g of grades) chips.push({ k: "gf:" + g, text: g, clear: () => patchSettings({ [gKey]: grades.filter((x) => x !== g) }) });
+    if (term) chips.push({ k: "q", text: `"${term}"`, clear: () => setQueries((s) => ({ ...s, [qkey]: "" })) });
+    if (!chips.length) return null;
+    return (
+      <div className="section-note cond-chips">
+        {chips.map((c) => (
+          <button key={c.k} className="cond-chip" onClick={() => { haptic(); c.clear(); }}>
+            条件:{c.text}<i className="cond-chip-x" aria-hidden="true">✕</i>
+          </button>
+        ))}
+      </div>
+    );
+  };
 
   const SortBar = () => (
     <div className="sort-bar">
@@ -3711,7 +3794,7 @@ export default function App() {
     </div>
   );
 
-  const advActive = adv.series || adv.uni || adv.prem || adv.stat || adv.yFrom || adv.yTo;
+  const advActive = adv.series || adv.uni || adv.prem || adv.stat || adv.yFrom || adv.yTo || adv.tag;
   const openSearch = useCallback(() => { haptic(); setSearchDraft(tab === "collection" ? queries.c : queries.z); setSearchOpen(true); }, [tab, queries]);
   const closeSearch = useCallback(() => { setSearchOpen(false); }, []);
   // 確定(✓ボタン / Enter):下書きを query へ反映 → リストが絞り込まれる。
@@ -3729,9 +3812,9 @@ export default function App() {
   /* 全条件クリア:絞り込み(adv)+検索語+グレード を一括解除 */
   const clearAllConds = useCallback(() => {
     haptic();
-    setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "" });
+    setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "", tag: "" });
     setQueries({ z: "", c: "" });
-    patchSettings({ gfZukan: "", gfShuzo: "" });
+    patchSettings({ gfZukan: [], gfShuzo: [] });
   }, []);
   /* 検索ヒット(下書きに対する即時候補。タップ=該当機体へジャンプ、リストは不動) */
   const searchHits = useMemo(() => {
@@ -3787,7 +3870,7 @@ export default function App() {
         <span className="sb-head-r">
           <span className="sb-count">{countNode}</span>
           <button type="button" className={"sb-icon" + (advActive ? " on" : "")} aria-label="絞り込み(長押しで解除)"
-            {...longPress(openFilter, () => { setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "" }); notify("絞り込みを解除しました", { kind: "ok" }); })}>
+            {...longPress(openFilter, () => { setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "", tag: "" }); notify("絞り込みを解除しました", { kind: "ok" }); })}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 5h18M6 12h12M10 19h4" />
             </svg>
@@ -3853,7 +3936,7 @@ export default function App() {
         </div>
       </div>
       <div className="adv-foot">
-        {(advActive || query || gf) ? <button className="adv-clear" onClick={clearAllConds}>全条件をクリア</button> : <span className="adv-hint">作品・区分・状態・年代で絞り込み</span>}
+        {(advActive || query || gfList.length) ? <button className="adv-clear" onClick={clearAllConds}>全条件をクリア</button> : <span className="adv-hint">作品・区分・状態・年代で絞り込み</span>}
         <button className="adv-close" onClick={closeFilter}>閉じる</button>
       </div>
     </div>
@@ -3882,13 +3965,14 @@ export default function App() {
     }
   };
 
-  const saveNew = (values, imgVal, imgMeta) => {
+  const saveNew = (values, imgVal, imgMeta, tags) => {
     const now = new Date().toISOString();
     const id = "c" + Date.now().toString(36);
     setCustomKits((cs) => [...cs, { id, no: "—", line: "CUSTOM", ...values, t: now }]);
     if (adding === "owned") setRecords((r) => ({ ...r, [id]: stampRecAll({ owned: true, plan: false, purchaseDate: "", buildDate: "" }, now) }));
     if (adding === "plan") setRecords((r) => ({ ...r, [id]: stampRecAll({ owned: false, plan: true, purchaseDate: "", buildDate: "" }, now) }));
     if (imgVal !== undefined && imgVal !== null) { setImage(id, imgVal); recordImgMeta(id, "primary", imgMeta || { src: "photo" }); }
+    if (tags && tags.length) setTags(id, tags);
     setAdding(false);
     setDetail(id);
   };
@@ -3907,6 +3991,20 @@ export default function App() {
     setDetail(null); setEditing(false); setTagInput("");
     if (titleReturn) { setTitleDetail(titleReturn); setTitleReturn(null); }
   };
+  /* 詳細頁→図鑑へ:他の条件を一掃し、指定の単一条件だけを残してクリーンな結果頁を出す。
+     zukanMode を all に戻すため salon ではなく利用者既定の list/card 表示で着地する。 */
+  const gotoZukanFiltered = (patch) => {
+    closeDetail();
+    setZukanMode("all");
+    setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "", tag: "", ...patch });
+    setQueries((s) => ({ ...s, z: "" }));
+    patchSettings({ gfZukan: [] });
+    setLimit(60);
+    changeTab("zukan");
+  };
+  const jumpToSeries = (s) => { if (s) gotoZukanFiltered({ series: s }); };
+  const jumpToYear = (y) => { if (y) gotoZukanFiltered({ yFrom: String(y), yTo: String(y) }); };
+  const jumpToTag = (t) => { if (t) gotoZukanFiltered({ tag: t }); };
 
   /* ── 卡片 ── */
   const lineBadge = (k, showPb = true) => (
@@ -4259,7 +4357,7 @@ export default function App() {
                 </div>
               </div>
             )}
-            {(advActive || query || gf) && <div className="section-note"><button className="cond-clear" onClick={clearAllConds}>全条件をクリア</button></div>}
+            {renderCondChips()}
             {grouped
               ? grouped.map(([year, kits]) => (
                   <section key={year} className="year-sec">
@@ -4332,7 +4430,7 @@ export default function App() {
                   </div>
                 </div>
               )}
-              {(advActive || query || gf) && <div className="section-note"><button className="cond-clear" onClick={clearAllConds}>全条件をクリア</button></div>}
+              {renderCondChips()}
               {listKits.length === 0
                 ? <p className="ana-note">検索条件に一致する{isPlan ? "予定" : "収蔵"}がありません。</p>
                 : Grid({ kits: listVisible })}
@@ -4780,7 +4878,7 @@ export default function App() {
 
       {fixOpen && <KitFixModal allKits={allKits} onClose={() => setFixOpen(false)} />}
       {quizOpen && <QuizModal allKits={allKits} getRec={getRec} images={images} extras={extras} albumMeta={albumMeta} builderName={settings.builderName} onClose={() => setQuizOpen(false)} />}
-      {identifyOpen && <KitIdentifyModal allKits={allKits} geminiKey={settings.geminiKey} openaiKey={settings.openaiKey} cameraMode={identifyCam} onAttach={attachPhoto} onClose={() => setIdentifyOpen(false)} />}
+      {identifyOpen && <KitIdentifyModal allKits={allKits} geminiKey={settings.geminiKey} openaiKey={settings.openaiKey} cameraMode={identifyCam} onAttach={attachPhoto} onClose={() => setIdentifyOpen(false)} onManual={() => { setIdentifyOpen(false); setAdding("zukan"); }} />}
 
       {/* ── 詳細 / 編輯彈窗 ── */}
       {quickKit && (() => {
@@ -4933,14 +5031,20 @@ export default function App() {
                     編集
                   </button>
                 </div>
-                <div className="dc-spec" onClick={closeDetail}>
-                  <div className="dc-srow"><span className="dc-k">原作</span><span className="dc-v">{detailKit.series || "—"}</span></div>
+                <div className="dc-spec">
+                  <div className="dc-srow"><span className="dc-k">原作</span><span className="dc-v">
+                    {detailKit.series
+                      ? <button className="dc-link" onClick={() => jumpToSeries(detailKit.series)}>{detailKit.series}</button>
+                      : "—"}
+                  </span></div>
                   <div className="dc-srow"><span className="dc-k">分類</span><span className="dc-v dc-tags">
                     <GradeChip grade={detailKit.grade} />
                     {detailKit.base && <span className="line-chip base">ベース</span>}
                     {lineBadge(detailKit)}
                   </span></div>
-                  <div className="dc-srow"><span className="dc-k">発売·定価</span><span className="dc-v"><span className="dc-gold">{detailKit.ym ? detailKit.ym.replace("-", ".") : "—"}</span>{detailKit.price ? <> · <span className="dc-mono">{fmtYen(detailKit.price)}</span></> : ""}</span></div>
+                  <div className="dc-srow"><span className="dc-k">発売·定価</span><span className="dc-v">{detailKit.ym
+                    ? <button className="dc-link dc-gold" onClick={() => jumpToYear(detailKit.ym.slice(0, 4))}>{detailKit.ym.replace("-", ".")}</button>
+                    : <span className="dc-gold">—</span>}{detailKit.price ? <> · <span className="dc-mono">{fmtYen(detailKit.price)}</span></> : ""}</span></div>
                   {detailRec.owned && (detailRec.purchaseDate || detailRec.buildDate) && (
                     <div className="dc-srow"><span className="dc-k">記録</span><span className="dc-v">
                       {detailRec.purchaseDate && <span className="dc-mono">購入 {fmtDate(detailRec.purchaseDate)}</span>}
@@ -4948,8 +5052,8 @@ export default function App() {
                       {detailRec.buildDate && <span className="dc-mono done">完成 {fmtDate(detailRec.buildDate)}</span>}
                     </span></div>
                   )}
-                  <div className="dc-srow dc-srow-memo" onClick={(e) => e.stopPropagation()}><span className="dc-k">メモ</span><span className="dc-v"><NoteField note={detailKit.note} onCommit={(v) => setNote(detailKit, v)} /></span></div>
-                  <div className="dc-srow dc-srow-tag" onClick={(e) => e.stopPropagation()}><span className="dc-k">タグ</span><span className="dc-v"><TagField tags={getTags(detailKit.id)} onCommit={(next) => setTags(detailKit.id, next)} /></span></div>
+                  <div className="dc-srow dc-srow-memo"><span className="dc-k">メモ</span><span className="dc-v"><NoteField note={detailKit.note} onCommit={(v) => setNote(detailKit, v)} enterOnLongPress /></span></div>
+                  <div className="dc-srow dc-srow-tag"><span className="dc-k">タグ</span><span className="dc-v"><TagField tags={getTags(detailKit.id)} onCommit={(next) => setTags(detailKit.id, next)} enterOnLongPress onTagTap={jumpToTag} /></span></div>
                 </div>
 
                 <button className="edit-link" onClick={() => setEditing(true)}>✎ 機体情報・画像を編集</button>
@@ -4974,6 +5078,8 @@ export default function App() {
                   thumbRef={pickRef("thumb", detailKit.id, images, extras, albumMeta)}
                   acqRef={pickRef("acquire", detailKit.id, images, extras, albumMeta)}
                   maxImgs={MAX_IMGS_PER_KIT}
+                  tags={getTags(detailKit.id)}
+                  onTags={(next) => setTags(detailKit.id, next)}
                   isCustom={detailKit.line === "CUSTOM"}
                   recInitial={detailRec.owned ? detailRec : null}
                   onSaveRec={(dates) => {
@@ -5302,6 +5408,13 @@ input,textarea{font-family:var(--sans)}
 .body{padding:8px 14px 16px;max-width:920px;margin:0 auto}
 .section-note{font-size:11px;color:var(--ink-mid);letter-spacing:.1em;padding:6px 4px 10px}
 .cond-clear{margin-left:0;font-size:11.5px;color:var(--shu);border-bottom:1px dashed var(--shu);padding-bottom:1px}
+.cond-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.cond-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;letter-spacing:.04em;
+  color:var(--shu);background:rgba(232,85,61,.08);border:1px solid rgba(232,85,61,.34);
+  border-radius:4px;padding:4px 9px;line-height:1}
+.cond-chip:active{filter:brightness(.92);transform:scale(.96)}
+.cond-chip-x{font-style:normal;font-size:10px;opacity:.7}
+.app.light .cond-chip{background:rgba(177,58,40,.07);border-color:rgba(177,58,40,.3)}
 .footnote{font-size:10.5px;color:var(--ink-dim);line-height:1.7;padding:18px 4px 6px}
 
 .toolbar{display:flex;gap:8px;padding:4px 0 6px}
@@ -5725,6 +5838,8 @@ input,textarea{font-family:var(--sans)}
   background:var(--bg2);border:1px solid var(--line);border-radius:14px;overflow:hidden;
   animation:up .26s cubic-bezier(.2,.9,.3,1.1)}
 .sp-head{display:flex;gap:8px;padding:12px 12px 10px;border-bottom:1px solid var(--line-soft)}
+.sp-head-plain{align-items:center;justify-content:space-between}
+.sp-title{font-family:var(--serif);font-weight:800;font-size:15px;color:var(--ink-strong);letter-spacing:.06em}
 .sp-search{flex:1;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:8px;
   color:var(--ink);padding:10px 12px;font-size:14px}
 .sp-search::placeholder{color:var(--ink-dim)}
@@ -6638,6 +6753,12 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .dc-srow-tag{align-items:center}
 .kt-field{display:flex;flex-wrap:wrap;gap:6px;align-items:center;cursor:text;width:100%}
 .dc-tag{display:inline-flex;align-items:center;font-size:12px;color:var(--ink-strong);background:rgba(217,179,106,.07);border:1px solid rgba(217,179,106,.3);border-radius:3px;padding:3px 9px;letter-spacing:.02em}
+.dc-tag.tap{cursor:pointer}
+.dc-tag.tap:active{filter:brightness(1.12);background:rgba(217,179,106,.16)}
+.dc-link{font:inherit;color:var(--ink-strong);border-bottom:1px dashed var(--ink-dim);padding-bottom:1px;letter-spacing:inherit}
+.dc-link.dc-gold{color:var(--gold);border-bottom-color:rgba(217,179,106,.5)}
+.dc-link:active{filter:brightness(1.15)}
+.form-tagfield{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 11px;min-height:40px;display:flex;align-items:center}
 .kt-pen{font-style:normal;color:var(--ink-dim);font-size:11px;opacity:.65;margin-left:auto}
 .kt-edit{width:100%;background:var(--bg2);border:1px solid rgba(217,179,106,.4);border-radius:4px;padding:7px 10px;color:var(--ink);font-family:inherit;font-size:13px;letter-spacing:.02em}
 .kt-edit:focus{outline:none;border-color:rgba(217,179,106,.65)}
@@ -6775,6 +6896,9 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .idf-cands{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
 .idf-conf{font-style:normal;color:var(--gold);font-size:12px;margin-left:4px}
 .idf-manual{margin-top:14px;border-top:1px solid var(--line);padding-top:8px}
+.idf-manual-add{display:block;margin:18px auto 4px;color:var(--gold);font-size:12.5px;font-family:var(--serif);
+  letter-spacing:.14em;border-bottom:1px dashed rgba(217,179,106,.5);padding-bottom:2px}
+.idf-manual-add:active{filter:brightness(1.15)}
 .idf-hints{margin-bottom:18px;display:flex;flex-direction:column;gap:12px}
 .idf-field{display:flex;flex-direction:column;gap:5px}
 .idf-field>span{font-size:11.5px;color:var(--ink-mid);letter-spacing:.02em}
