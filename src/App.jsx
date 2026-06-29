@@ -4885,7 +4885,7 @@ export default function App() {
       </main>
 
       {fixOpen && <KitFixModal allKits={allKits} onClose={() => setFixOpen(false)} L={L} />}
-      {quizOpen && <QuizModal allKits={allKits} getRec={getRec} images={images} extras={extras} albumMeta={albumMeta} builderName={settings.builderName} onClose={() => setQuizOpen(false)} />}
+      {quizOpen && <QuizModal allKits={allKits} getRec={getRec} images={images} extras={extras} albumMeta={albumMeta} builderName={settings.builderName} onClose={() => setQuizOpen(false)} L={L} />}
       {identifyOpen && <KitIdentifyModal allKits={allKits} geminiKey={settings.geminiKey} openaiKey={settings.openaiKey} cameraMode={identifyCam} onAttach={attachPhoto} onClose={() => setIdentifyOpen(false)} onManual={() => { setIdentifyOpen(false); setAdding("zukan"); }} L={L} />}
 
       {sortMenuOpen && (
