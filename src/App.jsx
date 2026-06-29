@@ -2204,13 +2204,13 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
         <label className="fld"><span>{L("購入日", "Purchase date", "購入日")}</span>
           <span className="date-wrap">
             <input type="date" value={dates.purchaseDate} onChange={(e) => setDates((d) => ({ ...d, purchaseDate: e.target.value }))} />
-            {dates.purchaseDate && <button type="button" className="date-clear" onClick={() => setDates((d) => ({ ...d, purchaseDate: "" }))}>✕</button>}
+            {dates.purchaseDate && <button type="button" className="date-clear" aria-label={L("クリア", "Clear", "清除")} onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setDates((d) => ({ ...d, purchaseDate: "" })); }}>✕</button>}
           </span>
         </label>
         <label className="fld"><span>{L("制作完了日", "Completion date", "完成日")}</span>
           <span className="date-wrap">
             <input type="date" value={dates.buildDate} onChange={(e) => setDates((d) => ({ ...d, buildDate: e.target.value }))} />
-            {dates.buildDate && <button type="button" className="date-clear" onClick={() => setDates((d) => ({ ...d, buildDate: "" }))}>✕</button>}
+            {dates.buildDate && <button type="button" className="date-clear" aria-label={L("クリア", "Clear", "清除")} onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setDates((d) => ({ ...d, buildDate: "" })); }}>✕</button>}
           </span>
         </label>
       </div>
@@ -2416,6 +2416,9 @@ export default function App() {
   }, [settings, gfStoreKey]);
   const [detail, setDetail] = useState(null);
   const [editing, setEditing] = useState(false);
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [doneIntent, setDoneIntent] = useState(false);
+  useEffect(() => { setStatusOpen(false); setDoneIntent(false); }, [detail]);
   const [adding, setAdding] = useState(false);
   const [anaMode, setAnaMode] = useState("record");  // record=記録(記錄) / analysis=分析
   const [advOpen, setAdvOpen] = useState(false);
@@ -4163,6 +4166,17 @@ export default function App() {
 
   const detailKit = useMemo(() => (detail ? allKits.find((k) => k.id === detail) : null), [detail, allKits]);
   const detailRec = detailKit ? getRec(detailKit.id) : null;
+  const detailStatus = detailRec ? (detailRec.buildDate ? "done" : doneIntent ? "done" : detailRec.owned ? "own" : detailRec.plan ? "plan" : "none") : "none";
+  const STATUS_OPTS = [["none", L("未所持", "Unowned", "未所持")], ["plan", L("予定", "Planned", "預定")], ["own", L("入手", "Owned", "入手")], ["done", L("完成", "Built", "完成")]];
+  const applyStatus = (s) => {
+    if (!detailKit) return;
+    const id = detailKit.id;
+    if (s === "none") { setRec(id, { owned: false, plan: false, purchaseDate: "", buildDate: "" }); setDoneIntent(false); }
+    else if (s === "plan") { setRec(id, { plan: true, owned: false, purchaseDate: "", buildDate: "" }); setDoneIntent(false); }
+    else if (s === "own") { setRec(id, { owned: true, plan: false, buildDate: "" }); setDoneIntent(false); }
+    else { setRec(id, { owned: true, plan: false }); setDoneIntent(true); }
+    haptic(); setStatusOpen(false);
+  };
   /* 掃描線:開くたびに各ビームへランダムな負の animation-delay を与え、
      開始位置(=出現タイミング)を毎回ばらけさせる。2本も同期しない。
      負の遅延=その分だけ既に進んだ状態で開始するので、上縁から同時に
@@ -5070,15 +5084,29 @@ export default function App() {
                     {detailKit.base && <span className="line-chip base">{L("ベース","Base","基地")}</span>}
                     {lineBadge(detailKit)}
                   </span></div>
-                  <div className="dc-srow"><span className="dc-k">{L("発売·定価", "Release·Price", "發售·定價")}</span><span className="dc-v">{detailKit.ym
+                  <div className="dc-srow dc-srow-status"><span className="dc-k">{L("発売·定価", "Release·Price", "發售·定價")}</span><span className="dc-v">{detailKit.ym
                     ? <button className="dc-link dc-gold" onClick={() => jumpToYear(detailKit.ym.slice(0, 4))}>{detailKit.ym.replace("-", ".")}</button>
-                    : <span className="dc-gold">—</span>}{detailKit.price ? <> · <span className="dc-mono">{fmtYen(detailKit.price)}</span></> : ""}</span></div>
-                  {detailRec.owned && (detailRec.purchaseDate || detailRec.buildDate) && (
-                    <div className="dc-srow"><span className="dc-k">{L("記録","Records","紀錄")}</span><span className="dc-v">
-                      {detailRec.purchaseDate && <span className="dc-mono">{L("購入","Bought","購入")} {fmtDate(detailRec.purchaseDate)}</span>}
-                      {detailRec.purchaseDate && detailRec.buildDate ? " · " : ""}
-                      {detailRec.buildDate && <span className="dc-mono done">{L("完成","Done","完成")} {fmtDate(detailRec.buildDate)}</span>}
+                    : <span className="dc-gold">—</span>}{detailKit.price ? <> · <span className="dc-mono">{fmtYen(detailKit.price)}</span></> : ""}</span>
+                    <button className={`dc-statbtn ${detailStatus} ${statusOpen ? "open" : ""}`} onClick={() => setStatusOpen((o) => !o)} aria-expanded={statusOpen}>
+                      <span className={`dc-statdot ${detailStatus}`} />{STATUS_OPTS.find(([v]) => v === detailStatus)[1]}<span className="dc-statchev">▾</span>
+                    </button></div>
+                  <div className={`dc-status-opts ${statusOpen ? "open" : ""}`}>
+                    {STATUS_OPTS.map(([v, lab]) => (
+                      <button key={v} type="button" className={`dc-stat-opt ${detailStatus === v ? "sel" : ""}`} onClick={() => applyStatus(v)}>
+                        <span className={`dc-statdot ${v}`} />{lab}{detailStatus === v && <span className="dc-stat-ck">✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                  {detailStatus === "done" && (
+                    <div className="dc-srow"><span className="dc-k">{L("完成日", "Built date", "完成日")}</span><span className="dc-v">
+                      <span className="date-wrap dc-datewrap">
+                        <input type="date" value={detailRec.buildDate || ""} onChange={(e) => setRec(detailKit.id, { buildDate: e.target.value, owned: true, plan: false })} />
+                        {detailRec.buildDate && <button type="button" className="date-clear" aria-label={L("クリア", "Clear", "清除")} onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setRec(detailKit.id, { buildDate: "" }); }}>✕</button>}
+                      </span>
                     </span></div>
+                  )}
+                  {detailRec.owned && detailRec.purchaseDate && (
+                    <div className="dc-srow"><span className="dc-k">{L("記録", "Records", "紀錄")}</span><span className="dc-v"><span className="dc-mono">{L("購入", "Bought", "購入")} {fmtDate(detailRec.purchaseDate)}</span></span></div>
                   )}
                   <div className="dc-srow dc-srow-memo"><span className="dc-k">{L("メモ", "Memo", "備註")}</span><span className="dc-v"><NoteField note={detailKit.note} onCommit={(v) => setNote(detailKit, v)} enterOnLongPress L={L} /></span></div>
                   <div className="dc-srow dc-srow-tag"><span className="dc-k">{L("タグ", "Tags", "標籤")}</span><span className="dc-v"><TagField tags={getTags(detailKit.id)} onCommit={(next) => setTags(detailKit.id, next)} enterOnLongPress onTagTap={jumpToTag} L={L} /></span></div>
@@ -5728,7 +5756,7 @@ input,textarea{font-family:var(--sans)}
 .own-btn.half.plan:active{background:rgba(255,255,255,.04)}
 .form-dates{display:flex;gap:10px}
 .form-dates .fld{flex:1}
-.form-dates .date-wrap{position:relative;display:flex}
+.form-dates .date-wrap{display:flex;gap:6px;align-items:stretch}
 .form-dates input{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:7px;
   color:var(--ink);padding:9px 10px;font-size:13px;color-scheme:dark}
 
@@ -6352,11 +6380,11 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 /* 2+3. 彈窗置中(略偏下),日期清除鈕 */
 .modal-bg{align-items:center;padding:0 14px}
 .modal{margin-top:9vh;border-radius:16px;border-bottom:1px solid var(--line)}
-.date-wrap{position:relative;display:flex}
-.date-wrap input{flex:1;width:100%;padding-right:32px}
-.date-clear{position:absolute;right:5px;top:50%;transform:translateY(-50%);
-  width:22px;height:22px;border-radius:50%;background:var(--line);color:var(--ink);
-  font-size:10px;display:flex;align-items:center;justify-content:center;line-height:1}
+.date-wrap{display:flex;gap:6px;align-items:stretch}
+.date-wrap input{flex:1;min-width:0;width:100%}
+.date-clear{flex:none;width:40px;border-radius:7px;border:1px solid var(--line);background:var(--panel);
+  color:var(--ink-mid);font-size:12px;display:flex;align-items:center;justify-content:center;line-height:1;cursor:pointer}
+.date-clear:active{background:rgba(255,255,255,.06);color:#f0a18f}
 
 /* 3. 表單列改 grid:左右欄寬同步,プレバン不換行 */
 .fld-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -7297,6 +7325,28 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .dc-unref{position:absolute;bottom:11px;font-family:var(--mono);font-size:8px;letter-spacing:.18em;color:#3c4452}
 .dc-spec{margin-top:15px}
 .dc-srow{display:flex;align-items:baseline;gap:14px;padding:11px 0;border-bottom:1px solid var(--line)}
+.dc-srow-status{align-items:center;flex-wrap:wrap}
+.dc-statbtn{margin-left:auto;display:inline-flex;align-items:center;gap:7px;background:transparent;
+  border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-family:var(--serif);
+  font-size:12.5px;color:var(--ink-mid);cursor:pointer;line-height:1}
+.dc-statbtn:active{background:rgba(255,255,255,.04)}
+.dc-statdot{width:6px;height:6px;border-radius:50%;background:var(--ink-dim);flex:none;display:inline-block}
+.dc-statdot.plan{background:var(--gold)}
+.dc-statdot.own{background:var(--shu)}
+.dc-statdot.done{background:var(--teal)}
+.dc-statdot.none{background:#41485a}
+.dc-statchev{font-size:9px;color:var(--ink-dim);transition:transform .25s;margin-left:1px}
+.dc-statbtn.open .dc-statchev{transform:rotate(180deg)}
+.dc-status-opts{max-height:0;opacity:0;overflow:hidden;transition:max-height .28s ease,opacity .2s;
+  border-radius:10px;margin:0;background:var(--panel2)}
+.dc-status-opts.open{max-height:260px;opacity:1;border:1px solid var(--line);margin:4px 0 2px}
+.dc-stat-opt{display:flex;align-items:center;gap:9px;width:100%;text-align:left;padding:11px 12px;
+  font-family:var(--serif);font-size:13px;color:var(--ink-mid);background:transparent;border:0;
+  border-top:1px solid var(--line-soft);cursor:pointer}
+.dc-stat-opt:first-child{border-top:0}
+.dc-stat-opt:active{background:rgba(255,255,255,.04)}
+.dc-stat-opt.sel{color:var(--ink-strong)}
+.dc-stat-ck{margin-left:auto;color:var(--gold);font-size:12px}
 .dc-k{flex:none;width:64px;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--ink-dim);text-transform:uppercase}
 .dc-v{flex:1;font-size:13.5px;color:var(--ink-strong);min-width:0}
 .dc-v.dc-tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
