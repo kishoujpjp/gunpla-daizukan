@@ -3901,16 +3901,10 @@ export default function App() {
             <button type="button" className="sb-sort-key" onClick={() => { haptic(); setSortMenuOpen(true); }} aria-label="並び替えの基準">{SORT_ICON[sortKey] || "販"}</button>
             <button type="button" className="sb-sort-dir" onClick={() => { haptic(); setSortDir((d) => (d === "asc" ? "desc" : "asc")); }} aria-label="昇順・降順">{sortDir === "asc" ? "↑" : "↓"}</button>
           </div>
-          <button type="button" className={"sb-icon" + (advActive ? " on" : "")} aria-label="絞り込み(長押しで解除)"
-            {...longPress(openFilter, () => { setAdv({ series: "", uni: "", prem: "", stat: "", yFrom: "", yTo: "", tag: "" }); patchSettings({ [gfStoreKey]: [] }); notify("絞り込みを解除しました", { kind: "ok" }); })}>
+          <button type="button" className={"sb-icon" + ((advActive || !!queries[advTab]) ? " on" : "")} aria-label="絞り込み・検索(長押しで解除)"
+            {...longPress(openFilter, () => { clearAllConds(); notify("絞り込みを解除しました", { kind: "ok" }); })}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 5h18M6 12h12M10 19h4" />
-            </svg>
-          </button>
-          <button type="button" className={"sb-icon sb-find" + (searchActive ? " on" : "")} aria-label="検索(長押しで解除)"
-            {...longPress(openSearch, () => { onClearSearch && onClearSearch(); notify("検索を解除しました", { kind: "ok" }); })}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <circle cx="10.5" cy="10.5" r="6.5" /><line x1="15.4" y1="15.4" x2="21" y2="21" />
             </svg>
           </button>
         </span>
@@ -3922,6 +3916,16 @@ export default function App() {
 
   const AdvPanel = () => (
     <div className="adv-panel">
+      <div className="adv-row">
+        <span className="adv-lbl">検索</span>
+        <div className="adv-search">
+          <input className="adv-search-input" value={queries[advTab] || ""}
+            placeholder="機体名・型式・原作で検索"
+            onChange={(e) => setQueries((s) => ({ ...s, [advTab]: e.target.value }))} />
+          {queries[advTab] ? <button type="button" className="adv-search-x" aria-label="検索をクリア"
+            onClick={() => setQueries((s) => ({ ...s, [advTab]: "" }))}>✕</button> : null}
+        </div>
+      </div>
       <div className="adv-row">
         <span className="adv-lbl">作品</span>
         <button className="adv-sel adv-series-btn" onClick={() => setSeriesPickerOpen(true)}>
@@ -4365,7 +4369,7 @@ export default function App() {
                     <span className="sm-title">{salonView ? <>絵<em>測</em>巻</> : <>博<em>物</em>誌</>} <span className="sm-eyebrow">FILTER</span></span>
                     <button className="modal-x static" onClick={closeFilter}>✕</button>
                   </div>
-                  <AdvPanel />
+                  {AdvPanel()}
                   <div className="drawer-sub">
                     <GfRow skey={gfStoreKey} />
                   </div>
@@ -5699,6 +5703,12 @@ input,textarea{font-family:var(--sans)}
 .adv-sel{flex:1;min-width:0;background:var(--bg2);border:1px solid var(--line);border-radius:7px;
   color:var(--ink);padding:8px 9px;font-size:12.5px;color-scheme:dark}
 .adv-seg{flex:1;display:flex;gap:5px}
+.adv-search{flex:1;min-width:0;display:flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--line);border-radius:7px;padding:0 8px 0 9px}
+.adv-search-input{flex:1;min-width:0;background:none;border:none;color:var(--ink);padding:8px 0;font-size:12.5px;color-scheme:dark}
+.adv-search-input::placeholder{color:var(--ink-dim)}
+.adv-search-x{flex:none;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border:none;background:none;color:var(--ink-dim);font-size:11px;cursor:pointer}
+.adv-search-x:active{color:var(--gold)}
+.adv-search:focus-within{border-color:var(--gold)}
 .adv-seg-btn{flex:1;padding:7px 4px;font-size:11.5px;font-weight:700;border:1px solid var(--line);
   border-radius:7px;color:var(--ink-mid);background:var(--bg2);white-space:nowrap}
 .adv-seg-btn.on{border-color:rgba(217,179,106,.5);color:var(--gold);background:rgba(217,179,106,.1);box-shadow:inset 0 -2px 0 -1px var(--gold)}
@@ -6784,11 +6794,12 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .sb-icon:active{transform:scale(.92);border-color:var(--gold);color:var(--gold)}
 .sb-icon svg{width:15px;height:15px;display:block}
 .sb-icon.on{color:var(--gold);border-color:var(--gold);background:rgba(217,179,106,.09)}
-.sb-sort{flex:none;display:flex;align-items:stretch;height:32px;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.sb-sort{flex:none;display:flex;align-items:stretch;height:32px;border:1px solid var(--line);border-radius:9px;overflow:hidden;transition:transform .2s,border-color .2s,background .2s}
+.sb-sort:has(button:active){transform:scale(.92);border-color:var(--gold)}
 .sb-sort button{display:flex;align-items:center;justify-content:center;background:none;border:none;color:var(--ink-mid);padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:color .2s,background .2s}
 .sb-sort .sb-sort-key{width:29px;font-family:var(--serif);font-weight:800;font-size:14px;border-right:1px solid var(--line)}
 .sb-sort .sb-sort-dir{width:25px;font-size:13px;font-weight:700}
-.sb-sort button:active{color:var(--gold);background:rgba(217,179,106,.12)}
+.sb-sort button:active{color:var(--gold)}
 .sort-menu{background:var(--panel);border:1px solid var(--line);border-radius:15px;width:min(290px,86vw);margin:auto;padding:7px;box-shadow:0 20px 54px rgba(0,0,0,.5)}
 .sort-menu-head{font-family:var(--serif);font-weight:800;font-size:13px;color:var(--ink-mid);letter-spacing:.16em;padding:9px 10px 11px;display:flex;align-items:baseline;gap:8px;justify-content:center}
 .sort-menu-head span{font-family:var(--sans);font-size:8.5px;letter-spacing:.3em;color:var(--ink-dim)}
