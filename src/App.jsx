@@ -2204,13 +2204,13 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
         <div className="fld"><span>{L("購入日", "Purchase date", "購入日")}</span>
           <span className="date-wrap">
             <input type="date" value={dates.purchaseDate} onChange={(e) => setDates((d) => ({ ...d, purchaseDate: e.target.value }))} />
-            {dates.purchaseDate && <button type="button" className="date-clear" aria-label={L("クリア", "Clear", "清除")} onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setDates((d) => ({ ...d, purchaseDate: "" })); }}>✕</button>}
+            <button type="button" className="date-clear" disabled={!dates.purchaseDate} aria-label={L("クリア", "Clear", "清除")} style={{ visibility: dates.purchaseDate ? "visible" : "hidden" }} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDates((d) => ({ ...d, purchaseDate: "" })); }}>✕</button>
           </span>
         </div>
         <div className="fld"><span>{L("制作完了日", "Completion date", "完成日")}</span>
           <span className="date-wrap">
             <input type="date" value={dates.buildDate} onChange={(e) => setDates((d) => ({ ...d, buildDate: e.target.value }))} />
-            {dates.buildDate && <button type="button" className="date-clear" aria-label={L("クリア", "Clear", "清除")} onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setDates((d) => ({ ...d, buildDate: "" })); }}>✕</button>}
+            <button type="button" className="date-clear" disabled={!dates.buildDate} aria-label={L("クリア", "Clear", "清除")} style={{ visibility: dates.buildDate ? "visible" : "hidden" }} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDates((d) => ({ ...d, buildDate: "" })); }}>✕</button>
           </span>
         </div>
       </div>
@@ -5090,39 +5090,43 @@ export default function App() {
                     {detailKit.base && <span className="line-chip base">{L("ベース","Base","基地")}</span>}
                     {lineBadge(detailKit)}
                   </span></div>
-                  <div className="dc-srow"><span className="dc-k">{L("発売·定価", "Release·Price", "發售·定價")}</span><span className="dc-v">{detailKit.ym
+                  <div className="dc-srow dc-srow-status"><span className="dc-k">{L("発売·定価", "Release·Price", "發售·定價")}</span><span className="dc-v">{detailKit.ym
                     ? <button className="dc-link dc-gold" onClick={() => jumpToYear(detailKit.ym.slice(0, 4))}>{detailKit.ym.replace("-", ".")}</button>
-                    : <span className="dc-gold">—</span>}{detailKit.price ? <> · <span className="dc-mono">{fmtYen(detailKit.price)}</span></> : ""}</span></div>
-                  <div className="dc-srow dc-srow-rec"><span className="dc-k">{L("記録", "Records", "紀錄")}</span><span className="dc-v rec-field">
-                    <span className="rec-cell">
-                      <button type="button" className={`rec-pill ${recStatus}`} onClick={() => setRecMenu((m) => (m === "status" ? null : "status"))} aria-expanded={recMenu === "status"}>
-                        <span className={`dc-statdot ${recStatus}`} />{REC_STATUS_LABEL[recStatus]}<span className="rec-chev">▾</span>
-                      </button>
-                      <span className={`rec-pop ${recMenu === "status" ? "open" : ""}`}>
-                        {[["none", L("未入手", "Unowned", "未入手")], ["plan", L("予定", "Planned", "預定")], ["own", L("入手", "Owned", "入手")]].map(([v, lab]) => (
-                          <button key={v} type="button" className={`rec-pop-opt ${recStatus === v ? "sel" : ""}`} onClick={() => setRecStatus(v)}><span className={`dc-statdot ${v}`} />{lab}</button>
-                        ))}
-                      </span>
-                    </span>
-                    {detailRec.owned && (detailRec.purchaseDate
-                      ? <span className="rec-dateval">{L("購入", "Bought", "購入")} {fmtDate(detailRec.purchaseDate)}</span>
-                      : <input type="date" className="rec-date" value="" onChange={(e) => setRec(detailKit.id, { purchaseDate: e.target.value, owned: true, plan: false })} aria-label={L("購入日", "Purchase date", "購入日")} />)}
-                    {detailRec.owned && (
+                    : <span className="dc-gold">—</span>}{detailKit.price ? <> · <span className="dc-mono">{fmtYen(detailKit.price)}</span></> : ""}</span>
+                    <span className="rec-pills">
                       <span className="rec-cell">
-                        <button type="button" className={`rec-pill ${doneState === "done" ? "done" : "none"}`} onClick={() => setRecMenu((m) => (m === "done" ? null : "done"))} aria-expanded={recMenu === "done"}>
-                          <span className={`dc-statdot ${doneState === "done" ? "done" : "none"}`} />{doneState === "done" ? L("完成", "Built", "完成") : L("未完成", "Unbuilt", "未完成")}<span className="rec-chev">▾</span>
+                        <button type="button" className={`rec-pill ${recStatus}`} onClick={() => setRecMenu((m) => (m === "status" ? null : "status"))} aria-expanded={recMenu === "status"}>
+                          <span className={`dc-statdot ${recStatus}`} />{REC_STATUS_LABEL[recStatus]}<span className="rec-chev">▾</span>
                         </button>
-                        <span className={`rec-pop ${recMenu === "done" ? "open" : ""}`}>
-                          {[["undone", L("未完成", "Unbuilt", "未完成")], ["done", L("完成", "Built", "完成")]].map(([v, lab]) => (
-                            <button key={v} type="button" className={`rec-pop-opt ${doneState === v ? "sel" : ""}`} onClick={() => setDoneState(v)}><span className={`dc-statdot ${v === "done" ? "done" : "none"}`} />{lab}</button>
+                        <span className={`rec-pop rec-pop-r ${recMenu === "status" ? "open" : ""}`}>
+                          {[["none", L("未入手", "Unowned", "未入手")], ["plan", L("予定", "Planned", "預定")], ["own", L("入手", "Owned", "入手")]].map(([v, lab]) => (
+                            <button key={v} type="button" className={`rec-pop-opt ${recStatus === v ? "sel" : ""}`} onClick={() => setRecStatus(v)}><span className={`dc-statdot ${v}`} />{lab}</button>
                           ))}
                         </span>
                       </span>
-                    )}
-                    {detailRec.owned && doneState === "done" && (detailRec.buildDate
-                      ? <span className="rec-dateval done">{L("完成", "Done", "完成")} {fmtDate(detailRec.buildDate)}</span>
-                      : <input type="date" className="rec-date" value="" onChange={(e) => setRec(detailKit.id, { buildDate: e.target.value, owned: true, plan: false })} aria-label={L("完成日", "Built date", "完成日")} />)}
-                  </span></div>
+                      {detailRec.owned && (
+                        <span className="rec-cell">
+                          <button type="button" className={`rec-pill ${doneState === "done" ? "done" : "none"}`} onClick={() => setRecMenu((m) => (m === "done" ? null : "done"))} aria-expanded={recMenu === "done"}>
+                            <span className={`dc-statdot ${doneState === "done" ? "done" : "none"}`} />{doneState === "done" ? L("完成", "Built", "完成") : L("未完成", "Unbuilt", "未完成")}<span className="rec-chev">▾</span>
+                          </button>
+                          <span className={`rec-pop rec-pop-r ${recMenu === "done" ? "open" : ""}`}>
+                            {[["undone", L("未完成", "Unbuilt", "未完成")], ["done", L("完成", "Built", "完成")]].map(([v, lab]) => (
+                              <button key={v} type="button" className={`rec-pop-opt ${doneState === v ? "sel" : ""}`} onClick={() => setDoneState(v)}><span className={`dc-statdot ${v === "done" ? "done" : "none"}`} />{lab}</button>
+                            ))}
+                          </span>
+                        </span>
+                      )}
+                    </span></div>
+                  {detailRec.owned && (
+                    <div className="dc-srow dc-srow-rec"><span className="dc-k">{L("記録", "Records", "紀錄")}</span><span className="dc-v rec-field">
+                      {detailRec.purchaseDate
+                        ? <span className="rec-dateval">{L("購入", "Bought", "購入")} {fmtDate(detailRec.purchaseDate)}</span>
+                        : <input type="date" className="rec-date" value="" onChange={(e) => setRec(detailKit.id, { purchaseDate: e.target.value, owned: true, plan: false })} aria-label={L("購入日", "Purchase date", "購入日")} />}
+                      {doneState === "done" && (detailRec.buildDate
+                        ? <span className="rec-dateval done">{L("完成", "Done", "完成")} {fmtDate(detailRec.buildDate)}</span>
+                        : <input type="date" className="rec-date" value="" onChange={(e) => setRec(detailKit.id, { buildDate: e.target.value, owned: true, plan: false })} aria-label={L("完成日", "Built date", "完成日")} />)}
+                    </span></div>
+                  )}
                   <div className="dc-srow dc-srow-memo"><span className="dc-k">{L("メモ", "Memo", "備註")}</span><span className="dc-v"><NoteField note={detailKit.note} onCommit={(v) => setNote(detailKit, v)} enterOnLongPress L={L} /></span></div>
                   <div className="dc-srow dc-srow-tag"><span className="dc-k">{L("タグ", "Tags", "標籤")}</span><span className="dc-v"><TagField tags={getTags(detailKit.id)} onCommit={(next) => setTags(detailKit.id, next)} enterOnLongPress onTagTap={jumpToTag} L={L} /></span></div>
                 </div>
@@ -7367,6 +7371,9 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
   padding:5px 8px;font-size:12px;font-family:var(--mono);color-scheme:dark;max-width:160px}
 .rec-dateval{font-family:var(--mono);font-size:12.5px;color:var(--ink-mid)}
 .rec-dateval.done{color:var(--teal)}
+.dc-srow-status{align-items:center;flex-wrap:wrap;gap:8px 10px}
+.rec-pills{margin-left:auto;display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rec-pop-r{left:auto;right:0;transform-origin:top right}
 .dc-k{flex:none;width:64px;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--ink-dim);text-transform:uppercase}
 .dc-v{flex:1;font-size:13.5px;color:var(--ink-strong);min-width:0}
 .dc-v.dc-tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
