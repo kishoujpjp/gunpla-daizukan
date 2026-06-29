@@ -3904,7 +3904,7 @@ export default function App() {
             <button type="button" className="sb-sort-dir" onClick={() => { haptic(); setSortDir((d) => (d === "asc" ? "desc" : "asc")); }} aria-label="昇順・降順">{sortDir === "asc" ? "↑" : "↓"}</button>
           </div>
           <button type="button" className={"sb-icon" + ((advActive || !!queries[advTab]) ? " on" : "")} aria-label="絞り込み・検索(長押しで解除)"
-            {...longPress(openFilter, () => { clearAllConds(); notify("絞り込みを解除しました", { kind: "ok" }); })}>
+            {...longPress(openFilter, () => { clearAllConds(); notify(L("絞り込みを解除しました", "Filters cleared", "已清除篩選"), { kind: "ok" }); })}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 5h18M6 12h12M10 19h4" />
             </svg>
@@ -4508,7 +4508,7 @@ export default function App() {
                       <span className="av-head-r">
                         <span className="av-count"><b>{got}</b> / {pool.length} 叙勲{newN > 0 ? ` · NEW ${newN}` : ""}</span>
                         <button type="button" className={"sb-icon" + (segOpen || titleUniverse !== "all" ? " on" : "")} aria-label="世界観で絞り込み(長押しで解除)"
-                          {...longPress(() => { haptic(); setSegOpen((o) => !o); }, () => { setTitleUniverse("all"); setSegOpen(false); notify("世界観の絞り込みを解除しました", { kind: "ok" }); })}>
+                          {...longPress(() => { haptic(); setSegOpen((o) => !o); }, () => { setTitleUniverse("all"); setSegOpen(false); notify(L("世界観の絞り込みを解除しました", "Universe filter cleared", "已清除世界觀篩選"), { kind: "ok" }); })}>
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M3 5h18M6 12h12M10 19h4" />
                           </svg>
@@ -4789,7 +4789,7 @@ export default function App() {
                 <button className="opt" onClick={async () => {
                   const cfg = supaRef.current;
                   if (!cfg.url || !cfg.key) { notify("Supabase URL と anon キーを入力してください", { kind: "warn" }); return; }
-                  if (!(await appConfirm("クラウドのデータでこの端末を上書き復元します。この端末だけの未同期の変更は失われます。", { title: "クラウドから復元", okText: "上書き復元", danger: true }))) return;
+                  if (!(await appConfirm(L("クラウドのデータでこの端末を上書き復元します。この端末だけの未同期の変更は失われます。", "Restore from the cloud, overwriting this device. Unsynced changes on this device only will be lost.", "以雲端資料覆寫還原此裝置。此裝置上尚未同步的變更將遺失。"), { title: L("クラウドから復元", "Restore from cloud", "從雲端還原"), okText: L("上書き復元", "Overwrite", "覆寫還原"), cancelText: L("やめる", "Cancel", "取消"), danger: true }))) return;
                   setSyncMsg("復元中…");
                   try {
                     const nn = await pullCloud(cfg, true);
@@ -4838,13 +4838,13 @@ export default function App() {
             {secWrap("danger", L("危険区域", "Danger Zone", "危險區域"), "DANGER",
               <div className="opt-group">
                 {!confirmReset ? (
-                  <button className="opt danger" onClick={() => setConfirmReset(true)}>収蔵記録をすべて消去…</button>
+                  <button className="opt danger" onClick={() => setConfirmReset(true)}>{L("収蔵記録をすべて消去…", "Erase all collection records…", "清除所有收藏紀錄…")}</button>
                 ) : (
                   <div className="confirm-box">
-                    <span>収蔵記録(入手・購入日・完成日)を消去します。編集内容・追加機体・画像は残ります。よろしいですか?</span>
+                    <span>{L("収蔵記録(入手・購入日・完成日)を消去します。編集内容・追加機体・画像は残ります。よろしいですか?", "This erases collection records (owned, purchase & completion dates). Your edits, added kits and images are kept. Continue?", "將清除收藏紀錄(入手・購入日・完成日)。編輯內容・新增機體・圖片會保留。確定嗎?")}</span>
                     <div>
-                      <button className="opt danger solid" onClick={async () => { if (await appConfirm("収蔵記録(入手・購入日・完成日)を完全に消去します。元に戻せません。", { title: "収蔵記録を消去", okText: "消去する", danger: true })) setRecords({}); setConfirmReset(false); }}>消去する</button>
-                      <button className="opt" onClick={() => setConfirmReset(false)}>やめる</button>
+                      <button className="opt danger solid" onClick={async () => { if (await appConfirm(L("収蔵記録(入手・購入日・完成日)を完全に消去します。元に戻せません。", "Permanently erase collection records (owned, purchase & completion dates). This cannot be undone.", "將永久清除收藏紀錄(入手・購入日・完成日)，無法復原。"), { title: L("収蔵記録を消去", "Erase records", "清除收藏紀錄"), okText: L("消去する", "Erase", "清除"), cancelText: L("やめる", "Cancel", "取消"), danger: true })) setRecords({}); setConfirmReset(false); }}>{L("消去する", "Erase", "清除")}</button>
+                      <button className="opt" onClick={() => setConfirmReset(false)}>{L("やめる", "Cancel", "取消")}</button>
                     </div>
                   </div>
                 )}
@@ -4907,10 +4907,10 @@ export default function App() {
               <div className="qm-btns">
                 <button className={"qm-btn own" + (qr.owned ? " on" : "")}
                   onClick={() => { haptic(); toggleOwned(quickKit.id); setQuickKit(null); }}>
-                  <span className="qm-ico">{qr.owned ? "✓" : "◎"}</span>{qr.owned ? "入手済" : "入手"}</button>
+                  <span className="qm-ico">{qr.owned ? "✓" : "◎"}</span>{qr.owned ? L("入手済", "Owned", "已入手") : L("入手", "Own", "入手")}</button>
                 <button className={"qm-btn plan" + (qr.plan ? " on" : "")}
                   onClick={() => { haptic(); togglePlan(quickKit.id); setQuickKit(null); }}>
-                  <span className="qm-ico">{qr.plan ? "✓" : "◆"}</span>{qr.plan ? "予定中" : "予定"}</button>
+                  <span className="qm-ico">{qr.plan ? "✓" : "◆"}</span>{qr.plan ? L("予定中", "Planned", "規劃中") : L("予定", "Plan", "規劃")}</button>
               </div>
             </div>
           </div>
@@ -4921,11 +4921,11 @@ export default function App() {
         <div className="modal-bg confirm-bg" onClick={() => setOwnConfirm(null)} style={{ zIndex: 90 }}>
           <div className="confirm-card" onClick={(e) => e.stopPropagation()}>
             <div className="confirm-icon" style={{ color: "var(--shu)" }}>✦</div>
-            <div className="confirm-title">入手記録を解除しますか?</div>
+            <div className="confirm-title">{L("入手記録を解除しますか?", "Clear owned status?", "解除入手紀錄?")}</div>
             <div className="confirm-name">{ownConfirm.name}</div>
             <div className="confirm-btns">
-              <button className="btn" onClick={() => setOwnConfirm(null)}>やめる</button>
-              <button className="btn primary" onClick={() => { toggleOwned(ownConfirm.id); setOwnConfirm(null); }}>解除する</button>
+              <button className="btn" onClick={() => setOwnConfirm(null)}>{L("やめる", "Cancel", "取消")}</button>
+              <button className="btn primary" onClick={() => { toggleOwned(ownConfirm.id); setOwnConfirm(null); }}>{L("解除する", "Clear", "解除")}</button>
             </div>
           </div>
         </div>
