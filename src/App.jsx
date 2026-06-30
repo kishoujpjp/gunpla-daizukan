@@ -39,6 +39,89 @@ import {
   newImgId
 } from "./storage-lib.js";
 
+/* ───────────────────────────────────────────────────────────
+   機体目錄(クラウド配信)── 選項1:静的 delta JSON を CDN/Repo から取得
+   ・ALL_BASE(bundle)は「離線地板」。雲端は add/patch/discontinue の増量のみ。
+   ・合併順:ALL_BASE → 雲端 delta → overrides(端末) → customKits(端末)。
+   ・本地キャッシュは saveKey を通さない(= per-user 同期に混ぜない・上雲しない)。
+   ・★商用化の差し替え点はこの 2 つの fetch 関数だけ。applyCatalog 以上は不変。
+     例: fetchCatalogDelta を「認証付き API / Supabase の権限別配信」に置換しても、
+         戻り値の形(delta オブジェクト)さえ守れば上位ロジックは一切変更不要。
+   ─────────────────────────────────────────────────────────── */
+const CATALOG_SCHEMA = 1;
+const CATALOG_CACHE_KEY = "mg_catalog";   // 本地キャッシュ鍵(同期対象外)
+const CATALOG_DEFAULT_BASE = "";          // 既定の配信元。例:
+//   "https://cdn.jsdelivr.net/gh/<user>/<repo>@main/catalog"
+//   (末尾に /version.json・/delta.json を付けて取得。空なら目錄更新は無効=ALL_BASE のみ)
+
+// delta の最低限スキーマ検証(壊れた/半端な取得を弾き、現行データに固着させない)
+function validateCatalog(d) {
+  if (!d || typeof d !== "object" || Array.isArray(d)) return false;
+  if (typeof d.catalogVersion !== "number") return false;
+  if (d.add != null && !Array.isArray(d.add)) return false;
+  if (d.patch != null && (typeof d.patch !== "object" || Array.isArray(d.patch))) return false;
+  if (d.discontinue != null && !Array.isArray(d.discontinue)) return false;
+  const seen = new Set();
+  for (const k of (d.add || [])) {
+    if (!k || typeof k.id !== "string" || !k.id) return false; // id は永久・必須
+    if (seen.has(k.id)) return false;                          // delta 内重複禁止
+    seen.add(k.id);
+  }
+  if (typeof d.count === "number" && d.count !== (d.add ? d.add.length : 0)) return false;
+  return true;
+}
+
+// ALL_BASE に delta を適用して合併済み配列を返す(純関数・ALL_BASE は不変)
+function applyCatalog(base, cat) {
+  if (!cat) return base;
+  const out = base.slice();
+  const pos = new Map();
+  for (let i = 0; i < out.length; i++) pos.set(out[i].id, i);
+  // add:新規IDは追記。既存IDと衝突したら patch 扱いでマージ(取りこぼし防止)。
+  for (const rec of (cat.add || [])) {
+    if (pos.has(rec.id)) {
+      const i = pos.get(rec.id);
+      out[i] = { ...out[i], ...rec };
+    } else {
+      out.push({ line: "", no: "", code: "", series: "", premium: false, base: false, ...rec });
+      pos.set(rec.id, out.length - 1);
+    }
+  }
+  // patch:既存機体の部分更新(定価・alias 等の公式修正)
+  if (cat.patch) {
+    for (const id in cat.patch) {
+      const i = pos.get(id);
+      if (i != null) out[i] = { ...out[i], ...cat.patch[id] };
+    }
+  }
+  // discontinue:削除せずフラグのみ(収藏記録・画像を孤児化させない)
+  if (cat.discontinue && cat.discontinue.length) {
+    for (const id of cat.discontinue) {
+      const i = pos.get(id);
+      if (i != null) out[i] = { ...out[i], discontinued: true };
+    }
+  }
+  return out;
+}
+
+// ── 配信トランスポート(★商用化の差し替え点はここだけ)──
+async function fetchCatalogVersion(base) {
+  const root = String(base || "").trim().replace(/\/+$/, "");
+  if (!root) return null;
+  const res = await fetch(root + "/version.json", { cache: "no-store" });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  return res.json();
+}
+async function fetchCatalogDelta(base) {
+  const root = String(base || "").trim().replace(/\/+$/, "");
+  if (!root) return null;
+  const res = await fetch(root + "/delta.json", { cache: "no-store" });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const d = await res.json();
+  if (!validateCatalog(d)) throw new Error("catalog schema invalid");
+  return d;
+}
+
 /* settings / albumMeta / serifs を mg_meta から独立した雲端鍵へ分離。
    各キーが独自の updated_at を持つため、粗粒度の単一META gate を回避でき、
    設定トグル等での「META 丸ごと再シリアライズ&再送(書込み増幅)」も無くなる。 */
@@ -2494,11 +2577,13 @@ export default function App() {
   const [serifEdit, setSerifEdit] = useState(null); // {ref, text} | null
   const [tagInput, setTagInput] = useState("");
   const [overrides, setOverrides] = useState({});
+  const [catalog, setCatalog] = useState(null);   // クラウド配信の目錄 delta(検証済み or null)
+  const catalogRef = useRef(null);                // 最新版判定用(load effect の単発クロージャ回避)
   const [customKits, setCustomKits] = useState([]);
   const [images, setImages] = useState({});
   const [extras, setExtras] = useState({});       // 追加画像 {xid: src}
   const [albumMeta, setAlbumMeta] = useState({});  // {kitId:{order,thumb,acquire,framing}}
-  const [settings, setSettings] = useState({ view: "list", compact: false, dimUnowned: true, showCode: false, showSeries: false, showPrice: false, showNo: false, showGrade: false, showYm: false, salonCols: 2, salonFit: "cover", listGrade: true, listTags: true, listSeries: false, listNo: true, listCode: true, listPrice: true, listPurchase: false, listBuild: false, theme: "dark", tabPad: "min", haptic: true, crtScan: true, vfFilter: true, lang: "ja", builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", openaiKey: "", geminiModel: "gemini-3-pro-image", aiStyle: "ukiyoe" });
+  const [settings, setSettings] = useState({ view: "list", compact: false, dimUnowned: true, showCode: false, showSeries: false, showPrice: false, showNo: false, showGrade: false, showYm: false, salonCols: 2, salonFit: "cover", listGrade: true, listTags: true, listSeries: false, listNo: true, listCode: true, listPrice: true, listPurchase: false, listBuild: false, theme: "dark", tabPad: "min", haptic: true, crtScan: true, vfFilter: true, lang: "ja", builderName: "", builderSince: "", supaUrl: "", supaKey: "", catalogUrl: "", geminiKey: "", openaiKey: "", geminiModel: "gemini-3-pro-image", aiStyle: "ukiyoe" });
   // 設定の書込みは patchSettings 経由でフィールド級に時戳付け(records と同じ stamped LWW)。
   // patch はオブジェクト、または現在値を読むトグル用に (s) => patch の関数も可。
   // 変更したフィールドだけ時戳が進むため、別端末が別フィールドを変えても互いに潰さない。
@@ -2723,6 +2808,10 @@ export default function App() {
         const arr = JSON.parse(dr.value);
         if (Array.isArray(arr)) dirtyRef.current = new Set(arr);
       } catch (e) { /* 未送信なし */ }
+      try {
+        const cr = await window.storage.get(CATALOG_CACHE_KEY);
+        if (cr && cr.value) { const cv = JSON.parse(cr.value); if (validateCatalog(cv)) { catalogRef.current = cv; setCatalog(cv); } }
+      } catch (e) { /* 初回はキャッシュ無し:ALL_BASE のみで起動 */ }
       setLoaded(true); // UI 立即顯示,圖像分片於背景逐片載入
       for (let i = 0; i < IMG_SHARDS; i++) {
         window.storage.get("mg_imgs_" + i)
@@ -2756,6 +2845,9 @@ export default function App() {
       } else if (metaEmpty) {
         setSetupOpen(true);
       }
+      // 機体目錄:本地キャッシュで即描画済み。ここで背景刷新(失敗は無感)。
+      // settings state はまだ反映前なので、直読みした metaSettings の URL を渡す。
+      refreshCatalog((metaSettings && metaSettings.catalogUrl) || "");
     })();
   }, []);
 
@@ -3151,6 +3243,38 @@ export default function App() {
     } catch (e) { setSetupMsg(L("エラー:","Error: ","錯誤:") + ((e && e.message) || e)); }
     setSetupBusy(false);
   };
+
+  /* ── 機体目錄の刷新(選項1)──
+     version.json で新鮮度を先判定 → 新しければ delta.json を取得・検証 → state 更新 +
+     本地キャッシュ(saveKey を通さない=同期に混ぜない)。失敗は握り潰し、現行データを維持。
+     baseArg は load effect から「直読みした settings.catalogUrl」を渡す用(state 反映前のため)。 */
+  const refreshCatalog = useCallback(async (baseArg) => {
+    const raw = baseArg != null ? baseArg : (settings.catalogUrl || "");
+    const base = (String(raw).trim() || CATALOG_DEFAULT_BASE).replace(/\/+$/, "");
+    if (!base) return 0;
+    const curVer = (catalogRef.current && typeof catalogRef.current.catalogVersion === "number")
+      ? catalogRef.current.catalogVersion : -1;
+    try {
+      // 1) version.json で先に新鮮度判定(無ければスキップして delta 直取得)
+      let remoteVer = null;
+      try { const v = await fetchCatalogVersion(base); if (v && typeof v.catalogVersion === "number") remoteVer = v.catalogVersion; } catch (e) {}
+      if (remoteVer != null && remoteVer <= curVer) return 0; // 既に最新:delta を取りに行かない
+      // 2) delta 取得・検証
+      const d = await fetchCatalogDelta(base);
+      if (!d) return 0;
+      if (typeof d.catalogVersion === "number" && d.catalogVersion <= curVer) return 0;
+      const addN = (d.add || []).length;
+      const patchN = d.patch ? Object.keys(d.patch).length : 0;
+      catalogRef.current = d;
+      setCatalog(d);
+      persist(CATALOG_CACHE_KEY, JSON.stringify(d)); // 同期対象外の本地キャッシュ
+      if (addN + patchN > 0) {
+        setSyncMsg(L("機体データ更新:+","Catalog updated: +","機體資料已更新:+") + (addN + patchN) + L(" 件 "," items "," 筆 ") + new Date().toLocaleTimeString());
+        notify(L("機体データを更新しました(+","Catalog updated (+","已更新機體資料(+") + (addN + patchN) + L("件)","items)","筆)"), { kind: "ok" });
+      }
+      return addN + patchN;
+    } catch (e) { /* オフライン/取得失敗/検証失敗:無感で現行データ続行 */ return 0; }
+  }, [settings.catalogUrl, persist]);
 
   /* ── 下滾自動收回搜尋列:完全滑過後才瞬間收合 + 補償捲動位置,內容零跳動 ── */
   const drawerClosingRef = useRef(false);
@@ -3564,11 +3688,12 @@ export default function App() {
     e.target.value = "";
   };
 
-  /* ── 合成機體清單(基礎 + 覆寫 + 自訂) ── */
+  /* ── 合成機體清單(基礎 + 雲端目錄 + 覆寫 + 自訂) ── */
+  const baseCatalog = useMemo(() => applyCatalog(ALL_BASE, catalog), [catalog]);
   const allKits = useMemo(() => {
-    const merged = ALL_BASE.map((k) => (overrides[k.id] ? { ...k, ...overrides[k.id] } : k));
+    const merged = baseCatalog.map((k) => (overrides[k.id] ? { ...k, ...overrides[k.id] } : k));
     return merged.concat(customKits.filter((c) => !c.deleted).map((c) => ({ line: "CUSTOM", no: "—", code: "", series: "", note: "", ...c })));
-  }, [overrides, customKits]);
+  }, [baseCatalog, overrides, customKits]);
 
   const seriesOptions = useMemo(
     () => [...new Set(allKits.map((k) => k.series).filter(Boolean))].sort((x, y) => x.localeCompare(y, "ja")),
@@ -4964,6 +5089,19 @@ export default function App() {
                   } catch (e) { setSyncMsg(L("復元エラー:","Restore error: ","還原錯誤:") + ((e && e.message) || e)); }
                 }}><span>{L("クラウドから復元(上書き)","Restore from cloud (overwrite)","從雲端還原(覆寫)")}</span><i>⬇</i></button>
                 {syncMsg && <p className="ana-note">{syncMsg}</p>}
+                <div className="set-sublabel" style={{ marginTop: 10 }}>{L("機体データ(クラウド配信)","Catalog (cloud-delivered)","機體資料(雲端配信)")}</div>
+                <label className="fld pad"><span>{L("目錄 URL(version.json / delta.json を置くベース)","Catalog base URL (hosts version.json / delta.json)","目錄 URL(放置 version.json / delta.json 的基底)")}</span>
+                  <input value={settings.catalogUrl || ""} placeholder="https://cdn.jsdelivr.net/gh/<user>/<repo>@main/catalog"
+                    onChange={(e) => patchSettings({ catalogUrl: e.target.value })} />
+                </label>
+                <button className="opt" onClick={async () => {
+                  const base = (settings.catalogUrl || "").trim() || CATALOG_DEFAULT_BASE;
+                  if (!base) { notify(L("目錄 URL を設定してください","Set the catalog URL first","請先設定目錄 URL"), { kind: "warn" }); return; }
+                  const n = await refreshCatalog();
+                  notify(n ? (L("機体データ更新:+","Catalog updated: +","機體資料已更新:+") + n + L("件","items","筆"))
+                           : L("最新です(更新なし)","Already up to date","已是最新(無更新)"), { kind: "ok" });
+                }}><span>{L("機体データを今すぐ確認","Check for catalog updates","立即檢查機體資料更新")}</span><i>⟳</i></button>
+                {catalog && <p className="ana-note">{L("目錄版本 v","Catalog v","目錄版本 v") + catalog.catalogVersion + (catalog.generatedAt ? " · " + String(catalog.generatedAt).slice(0, 10) : "")}</p>}
               </div>
             )}
 
