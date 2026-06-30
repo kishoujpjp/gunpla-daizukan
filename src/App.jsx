@@ -2416,9 +2416,9 @@ export default function App() {
   }, [settings, gfStoreKey]);
   const [detail, setDetail] = useState(null);
   const [editing, setEditing] = useState(false);
-  const [recMenu, setRecMenu] = useState(null);
+  const [pillOpen, setPillOpen] = useState(false);
   const [doneIntent, setDoneIntent] = useState(false);
-  useEffect(() => { setRecMenu(null); setDoneIntent(false); }, [detail]);
+  useEffect(() => { setPillOpen(false); setDoneIntent(false); }, [detail]);
   const [adding, setAdding] = useState(false);
   const [anaMode, setAnaMode] = useState("record");  // record=記録(記錄) / analysis=分析
   const [advOpen, setAdvOpen] = useState(false);
@@ -3636,7 +3636,7 @@ export default function App() {
     else if (adv.prem === "normal") pool = pool.filter((k) => !k.premium && !k.base);
     if (adv.stat) pool = pool.filter((k) => {
       const r = getRec(k.id);
-      return adv.stat === "owned" ? r.owned : adv.stat === "plan" ? r.plan : adv.stat === "none" ? (!r.owned && !r.plan) : true;
+      return adv.stat === "owned" ? r.owned : adv.stat === "plan" ? r.plan : adv.stat === "built" ? !!r.buildDate : adv.stat === "none" ? (!r.owned && !r.plan) : true;
     });
     if (adv.yFrom || adv.yTo) {
       const lo = adv.yFrom ? parseInt(adv.yFrom, 10) : -Infinity;
@@ -3766,7 +3766,7 @@ export default function App() {
     const gRaw = settings[gKey];
     const grades = (Array.isArray(gRaw) ? gRaw : gRaw ? [gRaw] : []).map((g) => String(g).toUpperCase());
     const PREM_L = { pb: "プレバン", base: "ベース", normal: "一般" };
-    const STAT_L = { owned: "入手", plan: "予定", none: "未入手" };
+    const STAT_L = { owned: "入手", plan: "予定", none: "未入手", built: "完成" };
     const uniLabel = (u) => ((UNI_PICK.find(([v]) => v === u) || [null, u])[1] || u).split(" ")[0];
     const yearLabel = adv.yFrom && adv.yTo ? (adv.yFrom === adv.yTo ? adv.yFrom : `${adv.yFrom}〜${adv.yTo}`)
       : adv.yFrom ? `${adv.yFrom}〜` : adv.yTo ? `〜${adv.yTo}` : "";
@@ -3968,7 +3968,7 @@ export default function App() {
       <div className="adv-row">
         <span className="adv-lbl">{L("状態","Status","狀態")}</span>
         <div className="adv-seg">
-          {[["", L("全","All","全")], ["owned", L("入手","Owned","入手")], ["plan", L("予定","Plan","規劃")], ["none", L("未","None","未")]].map(([v, l]) => (
+          {[["", L("全", "All", "全")], ["none", L("未", "None", "未")], ["plan", L("予", "Plan", "予")], ["owned", L("入", "Own", "入")], ["built", L("完", "Built", "完")]].map(([v, l]) => (
             <button key={v || "all"} className={"adv-seg-btn" + (adv.stat === v ? " on" : "")}
               onClick={() => setAdv((a) => ({ ...a, stat: v }))}>{l}</button>
           ))}
@@ -4166,22 +4166,17 @@ export default function App() {
 
   const detailKit = useMemo(() => (detail ? allKits.find((k) => k.id === detail) : null), [detail, allKits]);
   const detailRec = detailKit ? getRec(detailKit.id) : null;
-  const recStatus = detailRec ? (detailRec.owned ? "own" : detailRec.plan ? "plan" : "none") : "none";
-  const doneState = detailRec && (detailRec.buildDate || doneIntent) ? "done" : "undone";
-  const REC_STATUS_LABEL = { none: L("未入手", "Unowned", "未入手"), plan: L("予定", "Planned", "預定"), own: L("入手", "Owned", "入手") };
-  const setRecStatus = (s) => {
+  const pillState = detailRec ? (detailRec.buildDate || doneIntent ? "done" : detailRec.owned ? "own" : detailRec.plan ? "plan" : "none") : "none";
+  const PILL_LABEL = { none: L("未入手", "Unowned", "未入手"), plan: L("予定", "Planned", "預定"), own: L("入手", "Owned", "入手"), done: L("完成", "Built", "完成") };
+  const PILL_MENU = { none: ["plan", "own"], plan: ["none", "own"], own: ["none", "done"], done: ["none"] };
+  const applyPill = (s) => {
     if (!detailKit) return;
     const id = detailKit.id;
-    if (s === "none") setRec(id, { owned: false, plan: false, purchaseDate: "", buildDate: "" });
-    else if (s === "plan") setRec(id, { plan: true, owned: false, purchaseDate: "", buildDate: "" });
-    else setRec(id, { owned: true, plan: false });
-    setDoneIntent(false); setRecMenu(null); haptic();
-  };
-  const setDoneState = (v) => {
-    if (!detailKit) return;
-    if (v === "done") setDoneIntent(true);
-    else { setRec(detailKit.id, { buildDate: "" }); setDoneIntent(false); }
-    setRecMenu(null); haptic();
+    if (s === "none") { setRec(id, { owned: false, plan: false, purchaseDate: "", buildDate: "" }); setDoneIntent(false); }
+    else if (s === "plan") { setRec(id, { plan: true, owned: false, purchaseDate: "", buildDate: "" }); setDoneIntent(false); }
+    else if (s === "own") { setRec(id, { owned: true, plan: false, buildDate: "" }); setDoneIntent(false); }
+    else { setRec(id, { owned: true, plan: false }); setDoneIntent(true); }
+    setPillOpen(false); haptic();
   };
   /* 掃描線:開くたびに各ビームへランダムな負の animation-delay を与え、
      開始位置(=出現タイミング)を毎回ばらけさせる。2本も同期しない。
@@ -5090,39 +5085,26 @@ export default function App() {
                     {detailKit.base && <span className="line-chip base">{L("ベース","Base","基地")}</span>}
                     {lineBadge(detailKit)}
                   </span></div>
-                  <div className="dc-srow dc-srow-status"><span className="dc-k">{L("発売·定価", "Release·Price", "發售·定價")}</span><span className="dc-v">{detailKit.ym
-                    ? <button className="dc-link dc-gold" onClick={() => jumpToYear(detailKit.ym.slice(0, 4))}>{detailKit.ym.replace("-", ".")}</button>
-                    : <span className="dc-gold">—</span>}{detailKit.price ? <> · <span className="dc-mono">{fmtYen(detailKit.price)}</span></> : ""}</span>
-                    <span className="rec-pills">
-                      <span className="rec-cell">
-                        <button type="button" className={`rec-pill ${recStatus}`} onClick={() => setRecMenu((m) => (m === "status" ? null : "status"))} aria-expanded={recMenu === "status"}>
-                          <span className={`dc-statdot ${recStatus}`} />{REC_STATUS_LABEL[recStatus]}<span className="rec-chev">▾</span>
-                        </button>
-                        <span className={`rec-pop rec-pop-r ${recMenu === "status" ? "open" : ""}`}>
-                          {[["none", L("未入手", "Unowned", "未入手")], ["plan", L("予定", "Planned", "預定")], ["own", L("入手", "Owned", "入手")]].map(([v, lab]) => (
-                            <button key={v} type="button" className={`rec-pop-opt ${recStatus === v ? "sel" : ""}`} onClick={() => setRecStatus(v)}><span className={`dc-statdot ${v}`} />{lab}</button>
-                          ))}
-                        </span>
+                  <div className="dc-srow dc-srow-status"><span className="dc-k">{L("発売·定価", "Release·Price", "發售·定價")}</span><span className="dc-v dc-v-status">
+                    <span className="dc-price">{detailKit.ym
+                      ? <button className="dc-link dc-gold" onClick={() => jumpToYear(detailKit.ym.slice(0, 4))}>{detailKit.ym.replace("-", ".")}</button>
+                      : <span className="dc-gold">—</span>}{detailKit.price ? <> · <span className="dc-mono">{fmtYen(detailKit.price)}</span></> : ""}</span>
+                    <span className="rec-pill-cell">
+                      <button type="button" className={`rec-pill ${pillState}`} onClick={() => setPillOpen((o) => !o)} aria-expanded={pillOpen}>
+                        <span className={`dc-statdot ${pillState}`} />{PILL_LABEL[pillState]}<span className="rec-chev">▾</span>
+                      </button>
+                      <span className={`rec-pop ${pillOpen ? "open" : ""}`}>
+                        {PILL_MENU[pillState].map((v) => (
+                          <button key={v} type="button" className="rec-pop-opt" onClick={() => applyPill(v)}><span className={`dc-statdot ${v}`} />{PILL_LABEL[v]}</button>
+                        ))}
                       </span>
-                      {detailRec.owned && (
-                        <span className="rec-cell">
-                          <button type="button" className={`rec-pill ${doneState === "done" ? "done" : "none"}`} onClick={() => setRecMenu((m) => (m === "done" ? null : "done"))} aria-expanded={recMenu === "done"}>
-                            <span className={`dc-statdot ${doneState === "done" ? "done" : "none"}`} />{doneState === "done" ? L("完成", "Built", "完成") : L("未完成", "Unbuilt", "未完成")}<span className="rec-chev">▾</span>
-                          </button>
-                          <span className={`rec-pop rec-pop-r ${recMenu === "done" ? "open" : ""}`}>
-                            {[["undone", L("未完成", "Unbuilt", "未完成")], ["done", L("完成", "Built", "完成")]].map(([v, lab]) => (
-                              <button key={v} type="button" className={`rec-pop-opt ${doneState === v ? "sel" : ""}`} onClick={() => setDoneState(v)}><span className={`dc-statdot ${v === "done" ? "done" : "none"}`} />{lab}</button>
-                            ))}
-                          </span>
-                        </span>
-                      )}
-                    </span></div>
+                    </span></span></div>
                   {detailRec.owned && (
                     <div className="dc-srow dc-srow-rec"><span className="dc-k">{L("記録", "Records", "紀錄")}</span><span className="dc-v rec-field">
                       {detailRec.purchaseDate
                         ? <span className="rec-dateval">{L("購入", "Bought", "購入")} {fmtDate(detailRec.purchaseDate)}</span>
                         : <input type="date" className="rec-date" value="" onChange={(e) => setRec(detailKit.id, { purchaseDate: e.target.value, owned: true, plan: false })} aria-label={L("購入日", "Purchase date", "購入日")} />}
-                      {doneState === "done" && (detailRec.buildDate
+                      {pillState === "done" && (detailRec.buildDate
                         ? <span className="rec-dateval done">{L("完成", "Done", "完成")} {fmtDate(detailRec.buildDate)}</span>
                         : <input type="date" className="rec-date" value="" onChange={(e) => setRec(detailKit.id, { buildDate: e.target.value, owned: true, plan: false })} aria-label={L("完成日", "Built date", "完成日")} />)}
                     </span></div>
@@ -7372,8 +7354,8 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .rec-dateval{font-family:var(--mono);font-size:12.5px;color:var(--ink-mid)}
 .rec-dateval.done{color:var(--teal)}
 .dc-srow-status{align-items:center;flex-wrap:wrap;gap:8px 10px}
-.rec-pills{margin-left:auto;display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
-.rec-pop-r{left:auto;right:0;transform-origin:top right}
+.dc-v-status{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rec-pill-cell{position:relative;display:inline-flex}
 .dc-k{flex:none;width:64px;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--ink-dim);text-transform:uppercase}
 .dc-v{flex:1;font-size:13.5px;color:var(--ink-strong);min-width:0}
 .dc-v.dc-tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
