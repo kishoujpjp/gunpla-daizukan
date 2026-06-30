@@ -2488,7 +2488,7 @@ export default function App() {
   const [images, setImages] = useState({});
   const [extras, setExtras] = useState({});       // 追加画像 {xid: src}
   const [albumMeta, setAlbumMeta] = useState({});  // {kitId:{order,thumb,acquire,framing}}
-  const [settings, setSettings] = useState({ view: "list", compact: false, dimUnowned: true, showCode: false, showSeries: false, showPrice: false, showNo: false, showGrade: false, showYm: false, salonCols: 2, salonFit: "cover", listGrade: true, listSeries: false, listNo: true, listCode: true, listPrice: true, listPurchase: false, listBuild: false, theme: "dark", tabPad: "min", haptic: true, crtScan: true, vfFilter: true, lang: "ja", builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", openaiKey: "", geminiModel: "gemini-3-pro-image", aiStyle: "ukiyoe" });
+  const [settings, setSettings] = useState({ view: "list", compact: false, dimUnowned: true, showCode: false, showSeries: false, showPrice: false, showNo: false, showGrade: false, showYm: false, salonCols: 2, salonFit: "cover", listGrade: true, listTags: true, listSeries: false, listNo: true, listCode: true, listPrice: true, listPurchase: false, listBuild: false, theme: "dark", tabPad: "min", haptic: true, crtScan: true, vfFilter: true, lang: "ja", builderName: "", builderSince: "", supaUrl: "", supaKey: "", geminiKey: "", openaiKey: "", geminiModel: "gemini-3-pro-image", aiStyle: "ukiyoe" });
   // 設定の書込みは patchSettings 経由でフィールド級に時戳付け(records と同じ stamped LWW)。
   // patch はオブジェクト、または現在値を読むトグル用に (s) => patch の関数も可。
   // 変更したフィールドだけ時戳が進むため、別端末が別フィールドを変えても互いに潰さない。
@@ -4221,8 +4221,15 @@ export default function App() {
                 : <SeriesWatermark kit={kit} variant="list" />}
             </div>
             <div className="kz-rmain" {...textLP}>
+              {settings.listTags !== false && (
+                <div className="kz-rtags">
+                  <GradeChip grade={kit.grade} />
+                  {kit.base && <span className="line-chip base">{L("ベース","Base","基地")}</span>}
+                  {lineBadge(kit, true)}
+                </div>
+              )}
               <div className="kz-rno">{[
-                settings.listGrade !== false ? kit.grade : null,
+                (settings.listGrade !== false && settings.listTags === false) ? kit.grade : null,
                 settings.listNo && kit.no && kit.no !== "—" ? `No.${kit.no}` : null,
                 settings.listCode && kit.code ? kit.code : null,
               ].filter(Boolean).join(" · ")}</div>
@@ -4233,9 +4240,6 @@ export default function App() {
                 {settings.listPrice && kit.price ? <span className="kz-price">{fmtYen(kit.price)}</span> : null}
                 {settings.listPurchase && rec.purchaseDate && <span className="kz-date">{L("入手","Acquired","入手")} {fmtDate(rec.purchaseDate)}</span>}
                 {settings.listBuild && rec.buildDate && <span className="kz-date done">{L("完成","Done","完成")} {fmtDate(rec.buildDate)}</span>}
-                {kit.premium && <span className="line-chip pb">{L("プレバン","P-Bandai","魂商店")}</span>}
-                {kit.base && <span className="line-chip base">{L("ベース","Base","基地")}</span>}
-                {lineBadge(kit, false)}
               </div>
             </div>
             {rec.buildDate ? <span className="kz-rseal">済</span> : rec.plan ? <span className="kz-rplan">予</span> : null}
@@ -4858,6 +4862,7 @@ export default function App() {
                         ["showSeries", L("作品名を表示", "Show series", "顯示作品名")],
                       ]
                     : [
+                        ["listTags", L("分類CHIPSを表示", "Show category chips", "顯示分類標籤")],
                         ["listGrade", L("グレードを表示", "Show grade", "顯示等級")],
                         ["listSeries", L("作品名を表示", "Show series", "顯示作品名")],
                         ["listNo", L("No.番号を表示", "Show No.", "顯示編號")],
@@ -5158,7 +5163,11 @@ export default function App() {
             {!editing ? (
               <>
                 <div className="dc-head">
-                  <div className="dc-eye">{detailKit.grade}{detailKit.no !== "—" ? ` · No.${detailKit.no}` : ""}{detailKit.code ? ` · ${detailKit.code}` : ""}</div>
+                  <div className="dc-eye dc-eye-tags">
+                    <GradeChip grade={detailKit.grade} />
+                    {detailKit.base && <span className="line-chip base">{L("ベース","Base","基地")}</span>}
+                    {lineBadge(detailKit)}
+                  </div>
                   <div className="dc-name"><KitName name={detailKit.name} /></div>
                   <div className="dc-rule" />
                 </div>
@@ -5180,14 +5189,12 @@ export default function App() {
                   </button>
                 </div>
                 <div className="dc-spec">
-                  <div className="dc-srow"><span className="dc-k">{L("分類","Category","分類")}</span><span className="dc-v dc-tags">
-                    <GradeChip grade={detailKit.grade} />
-                    {detailKit.base && <span className="line-chip base">{L("ベース","Base","基地")}</span>}
-                    {lineBadge(detailKit)}
+                  <div className="dc-srow"><span className="dc-k">{L("型式番号","Model code","型式番號")}</span><span className="dc-v dc-mono">
+                    {detailKit.code || "—"}{detailKit.no !== "—" ? <span className="dc-subno"> · No.{detailKit.no}</span> : null}
                   </span></div>
-                  <div className="dc-srow"><span className="dc-k">{L("原作", "Series", "原作")}</span><span className="dc-v">
+                  <div className="dc-srow"><span className="dc-k">{L("原作", "Series", "原作")}</span><span className="dc-v dc-v-series">
                     {detailKit.series
-                      ? <button className="dc-link" onClick={() => jumpToSeries(detailKit.series)}>{detailKit.series}</button>
+                      ? <button className="dc-link dc-series" onClick={() => jumpToSeries(detailKit.series)}>{detailKit.series}</button>
                       : "—"}
                   </span></div>
                   <div className="dc-srow dc-srow-status"><span className="dc-k">{L("発売·定価", "Release·Price", "發售·定價")}</span><span className="dc-v dc-v-status">
@@ -7413,6 +7420,13 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .dc-x{position:absolute;top:11px;right:11px;z-index:8;width:30px;height:30px;display:flex;align-items:center;justify-content:center;color:var(--ink-dim);font-size:15px;line-height:1;border-radius:8px;background:rgba(8,10,14,.5);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);border:1px solid var(--hair)}
 .dc-x:active{background:rgba(255,255,255,.07);color:var(--ink-strong);transform:scale(.92)}
 .dc-eye{font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;color:var(--ink-mid);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dc-eye-tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center;white-space:normal;overflow:visible;text-overflow:clip;text-transform:none}
+.dc-eye-tags .grade-chip,.dc-eye-tags .line-chip{display:inline-flex;align-items:center;justify-content:center;height:22px;box-sizing:border-box;margin:0;vertical-align:0;line-height:1;border-radius:4px;border-width:1.5px;font-family:var(--sans);font-size:11.5px;font-weight:800;letter-spacing:.05em;padding:0 9px}
+.dc-subno{color:var(--ink-dim);font-weight:500}
+.dc-v-series{white-space:normal}
+.dc-series{word-break:keep-all;text-align:left;white-space:normal}
+.kz-rtags{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:5px}
+.kz-rtags .grade-chip,.kz-rtags .line-chip{display:inline-flex;align-items:center;justify-content:center;height:18px;box-sizing:border-box;margin:0;vertical-align:0;line-height:1;border-radius:4px;border-width:1.5px;font-family:var(--sans);font-size:9.5px;font-weight:800;letter-spacing:.05em;padding:0 6px}
 .dc-name{font-family:var(--serif);font-weight:800;font-size:25px;line-height:1.25;color:var(--ink-strong);margin-top:6px}
 .dc-rule{height:1px;margin:13px 0 0;background:linear-gradient(90deg,var(--gold),rgba(217,179,106,.05) 75%,transparent)}
 .dc-art{position:relative;margin-top:15px;aspect-ratio:1;border:1px solid var(--line);border-radius:3px;overflow:hidden;padding:2px;background:linear-gradient(160deg,#1b212e,#13171f);display:flex;align-items:center;justify-content:center}
