@@ -398,36 +398,71 @@ function FitName({ name, max, min = 12 }) {
 
 function DateSetField({ onPick, ph, cls = "" }) {
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState("day");
   const t = new Date();
   const [vy, setVy] = useState(t.getFullYear());
   const [vm, setVm] = useState(t.getMonth());
+  const [yBase, setYBase] = useState(t.getFullYear() - 6);
   const pad = (n) => String(n).padStart(2, "0");
-  const prev = () => { if (vm === 0) { setVy(vy - 1); setVm(11); } else setVm(vm - 1); };
-  const next = () => { if (vm === 11) { setVy(vy + 1); setVm(0); } else setVm(vm + 1); };
+  const prevM = () => { if (vm === 0) { setVy(vy - 1); setVm(11); } else setVm(vm - 1); };
+  const nextM = () => { if (vm === 11) { setVy(vy + 1); setVm(0); } else setVm(vm + 1); };
   const di = new Date(vy, vm + 1, 0).getDate();
   const fd = new Date(vy, vm, 1).getDay();
   const cells = [];
   for (let i = 0; i < fd; i++) cells.push(0);
   for (let d = 1; d <= di; d++) cells.push(d);
-  const pick = (d) => { onPick(`${vy}-${pad(vm + 1)}-${pad(d)}`); setOpen(false); };
+  const years = Array.from({ length: 12 }, (_, i) => yBase + i);
+  const pick = (d) => { onPick(`${vy}-${pad(vm + 1)}-${pad(d)}`); setOpen(false); setMode("day"); };
   return (
     <span className={`rec-dateset ${cls}`}>
-      <button type="button" className="rec-dateset-btn" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+      <button type="button" className="rec-dateset-btn" onClick={() => { setOpen((o) => !o); setMode("day"); }} aria-expanded={open}>
         <span className="rec-dateset-ph">{ph}</span><span className="rec-dateset-chev">▾</span>
       </button>
       {open && (
         <span className="rec-cal">
-          <span className="rec-cal-h">
-            <button type="button" className="rec-cal-nav" onClick={prev} aria-label="prev">‹</button>
-            <span className="rec-cal-mo">{vy}.{pad(vm + 1)}</span>
-            <button type="button" className="rec-cal-nav" onClick={next} aria-label="next">›</button>
-          </span>
-          <span className="rec-cal-grid">
-            {["日", "月", "火", "水", "木", "金", "土"].map((w) => <span key={"w" + w} className="rec-cal-wd">{w}</span>)}
-            {cells.map((d, i) => (d
-              ? <button key={i} type="button" className="rec-cal-d" onClick={() => pick(d)}>{d}</button>
-              : <span key={i} className="rec-cal-d rec-cal-x" />))}
-          </span>
+          {mode === "day" && (
+            <>
+              <span className="rec-cal-h">
+                <button type="button" className="rec-cal-nav" onClick={prevM} aria-label="prev">‹</button>
+                <button type="button" className="rec-cal-mo" onClick={() => setMode("month")}>{vy}.{pad(vm + 1)}</button>
+                <button type="button" className="rec-cal-nav" onClick={nextM} aria-label="next">›</button>
+              </span>
+              <span className="rec-cal-grid">
+                {["日", "月", "火", "水", "木", "金", "土"].map((w) => <span key={"w" + w} className="rec-cal-wd">{w}</span>)}
+                {cells.map((d, i) => (d
+                  ? <button key={i} type="button" className="rec-cal-d" onClick={() => pick(d)}>{d}</button>
+                  : <span key={i} className="rec-cal-d rec-cal-x" />))}
+              </span>
+            </>
+          )}
+          {mode === "month" && (
+            <>
+              <span className="rec-cal-h">
+                <button type="button" className="rec-cal-nav" onClick={() => setVy(vy - 1)} aria-label="prev year">‹</button>
+                <button type="button" className="rec-cal-mo" onClick={() => { setYBase(vy - 6); setMode("year"); }}>{vy}</button>
+                <button type="button" className="rec-cal-nav" onClick={() => setVy(vy + 1)} aria-label="next year">›</button>
+              </span>
+              <span className="rec-cal-mgrid">
+                {Array.from({ length: 12 }, (_, i) => (
+                  <button key={i} type="button" className={`rec-cal-cell ${i === vm ? "sel" : ""}`} onClick={() => { setVm(i); setMode("day"); }}>{i + 1}月</button>
+                ))}
+              </span>
+            </>
+          )}
+          {mode === "year" && (
+            <>
+              <span className="rec-cal-h">
+                <button type="button" className="rec-cal-nav" onClick={() => setYBase(yBase - 12)} aria-label="prev years">‹</button>
+                <span className="rec-cal-mo-static">{years[0]}–{years[11]}</span>
+                <button type="button" className="rec-cal-nav" onClick={() => setYBase(yBase + 12)} aria-label="next years">›</button>
+              </span>
+              <span className="rec-cal-mgrid">
+                {years.map((y) => (
+                  <button key={y} type="button" className={`rec-cal-cell ${y === vy ? "sel" : ""}`} onClick={() => { setVy(y); setMode("month"); }}>{y}</button>
+                ))}
+              </span>
+            </>
+          )}
         </span>
       )}
     </span>
@@ -5503,7 +5538,8 @@ input,textarea{font-family:var(--sans)}
 
 .toolbar{display:flex;gap:8px;padding:4px 0 6px}
 .search{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:8px;
-  color:var(--ink);padding:10px 12px;font-size:13px}
+  color:var(--ink);padding:10px 12px;font-size:13px;
+  -webkit-appearance:none;appearance:none;-webkit-tap-highlight-color:transparent}
 .search::placeholder{color:var(--ink-dim)}
 .search:focus,.adv-sel:focus,.adv-year-sel:focus,.adv-series-btn:focus,.sp-search:focus{
   outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(217,179,106,.14)}
@@ -7399,7 +7435,15 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .rec-cal{display:block;margin-top:7px;width:236px;max-width:100%;background:#1a2030;border:1px solid var(--line);
   border-radius:12px;padding:10px;box-shadow:0 12px 30px rgba(0,0,0,.45)}
 .rec-cal-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-.rec-cal-mo{font-family:var(--mono);font-size:13px;color:var(--ink-strong)}
+.rec-cal-mo{font-family:var(--mono);font-size:13px;color:var(--ink-strong);background:transparent;border:0;
+  cursor:pointer;padding:4px 10px;border-radius:6px;text-decoration:underline;text-decoration-color:var(--ink-dim);text-underline-offset:3px}
+.rec-cal-mo:active{background:#232c3d}
+.rec-cal-mo-static{font-family:var(--mono);font-size:13px;color:var(--ink-strong)}
+.rec-cal-mgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.rec-cal-cell{padding:11px 0;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink);
+  font-family:var(--mono);font-size:12.5px;cursor:pointer;text-align:center}
+.rec-cal-cell:active{background:#232c3d}
+.rec-cal-cell.sel{border-color:var(--gold);color:var(--gold)}
 .rec-cal-nav{width:28px;height:28px;border:1px solid var(--line);border-radius:7px;background:transparent;
   color:var(--ink-mid);cursor:pointer;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center}
 .rec-cal-nav:active{border-color:var(--gold);color:var(--ink-strong)}
