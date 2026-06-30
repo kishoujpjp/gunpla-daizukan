@@ -397,18 +397,39 @@ function FitName({ name, max, min = 12 }) {
 }
 
 function DateSetField({ onPick, ph, cls = "" }) {
-  const ref = useRef(null);
-  const open = () => {
-    const i = ref.current; if (!i) return;
-    if (typeof i.showPicker === "function") { try { i.showPicker(); return; } catch (e) { /* fall through */ } }
-    i.focus();
-  };
+  const [open, setOpen] = useState(false);
+  const t = new Date();
+  const [vy, setVy] = useState(t.getFullYear());
+  const [vm, setVm] = useState(t.getMonth());
+  const pad = (n) => String(n).padStart(2, "0");
+  const prev = () => { if (vm === 0) { setVy(vy - 1); setVm(11); } else setVm(vm - 1); };
+  const next = () => { if (vm === 11) { setVy(vy + 1); setVm(0); } else setVm(vm + 1); };
+  const di = new Date(vy, vm + 1, 0).getDate();
+  const fd = new Date(vy, vm, 1).getDay();
+  const cells = [];
+  for (let i = 0; i < fd; i++) cells.push(0);
+  for (let d = 1; d <= di; d++) cells.push(d);
+  const pick = (d) => { onPick(`${vy}-${pad(vm + 1)}-${pad(d)}`); setOpen(false); };
   return (
-    <span className={`rec-dateset ${cls}`} role="button" tabIndex={0} onClick={open}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } }}>
-      <span className="rec-dateset-ph">{ph}</span>
-      <input ref={ref} type="date" className="rec-date-hidden" defaultValue=""
-        onChange={(e) => { if (e.target.value) onPick(e.target.value); }} />
+    <span className={`rec-dateset ${cls}`}>
+      <button type="button" className="rec-dateset-btn" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        <span className="rec-dateset-ph">{ph}</span><span className="rec-dateset-chev">▾</span>
+      </button>
+      {open && (
+        <span className="rec-cal">
+          <span className="rec-cal-h">
+            <button type="button" className="rec-cal-nav" onClick={prev} aria-label="prev">‹</button>
+            <span className="rec-cal-mo">{vy}.{pad(vm + 1)}</span>
+            <button type="button" className="rec-cal-nav" onClick={next} aria-label="next">›</button>
+          </span>
+          <span className="rec-cal-grid">
+            {["日", "月", "火", "水", "木", "金", "土"].map((w) => <span key={"w" + w} className="rec-cal-wd">{w}</span>)}
+            {cells.map((d, i) => (d
+              ? <button key={i} type="button" className="rec-cal-d" onClick={() => pick(d)}>{d}</button>
+              : <span key={i} className="rec-cal-d rec-cal-x" />))}
+          </span>
+        </span>
+      )}
     </span>
   );
 }
@@ -7349,7 +7370,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .dc-statdot.done{background:var(--teal)}
 .dc-statdot.none{background:#41485a}
 .dc-srow-rec{align-items:flex-start}
-.rec-field{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.rec-field{display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px}
 .rec-cell{position:relative;display:inline-flex}
 .rec-pill{display:inline-flex;align-items:center;gap:7px;background:transparent;border:1px solid var(--line);
   border-radius:16px;padding:5px 11px;font-family:var(--serif);font-size:12.5px;color:var(--ink-mid);cursor:pointer;line-height:1}
@@ -7368,13 +7389,26 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .rec-pop-opt.sel{color:var(--ink-strong)}
 .rec-date{background:var(--panel);border:1px solid var(--line);border-radius:7px;color:var(--ink);
   padding:5px 8px;font-size:12px;font-family:var(--mono);color-scheme:dark;max-width:160px}
-.rec-dateset{position:relative;display:inline-flex;align-items:center;background:var(--panel);
-  border:1px solid var(--line);border-radius:7px;padding:6px 11px;cursor:pointer;overflow:hidden}
-.rec-dateset:active{border-color:var(--kin-deep)}
-.rec-dateset-ph{font-family:var(--serif);font-size:11.5px;color:var(--ink-dim);white-space:nowrap;letter-spacing:.02em}
+.rec-dateset{display:inline-block;vertical-align:top}
+.rec-dateset-btn{display:inline-flex;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--line);
+  border-radius:7px;padding:6px 11px;cursor:pointer;font-family:var(--serif)}
+.rec-dateset-btn:active{border-color:var(--kin-deep)}
+.rec-dateset-ph{font-size:11.5px;color:var(--ink-dim);white-space:nowrap;letter-spacing:.02em}
 .rec-dateset.done .rec-dateset-ph{color:#5a8f86}
-.rec-date-hidden{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:0;padding:0;margin:0;
-  pointer-events:none;background:transparent;color-scheme:dark}
+.rec-dateset-chev{font-size:9px;color:var(--ink-dim)}
+.rec-cal{display:block;margin-top:7px;width:236px;max-width:100%;background:#1a2030;border:1px solid var(--line);
+  border-radius:12px;padding:10px;box-shadow:0 12px 30px rgba(0,0,0,.45)}
+.rec-cal-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.rec-cal-mo{font-family:var(--mono);font-size:13px;color:var(--ink-strong)}
+.rec-cal-nav{width:28px;height:28px;border:1px solid var(--line);border-radius:7px;background:transparent;
+  color:var(--ink-mid);cursor:pointer;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center}
+.rec-cal-nav:active{border-color:var(--gold);color:var(--ink-strong)}
+.rec-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.rec-cal-wd{font-size:10px;color:var(--ink-dim);text-align:center;padding:2px 0;font-family:var(--mono)}
+.rec-cal-d{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:12.5px;color:var(--ink);
+  background:transparent;border:0;border-radius:7px;cursor:pointer;font-family:var(--mono)}
+.rec-cal-d:active{background:var(--teal);color:#06110f}
+.rec-cal-x{pointer-events:none}
 .rec-dateval{font-family:var(--mono);font-size:12.5px;color:var(--ink-mid)}
 .rec-dateval.done{color:var(--teal)}
 .dc-srow-status{align-items:center;flex-wrap:wrap;gap:8px 10px}
