@@ -4212,6 +4212,10 @@ export default function App() {
     }
     if (settings.view === "list") {
       const textLP = makeLongPress(() => { hapticStrong(); setQuickKit(kit); }); // 文字長押し→クイックメニュー
+      const noCode = [
+        settings.listNo && kit.no && kit.no !== "—" ? `No.${kit.no}` : null,
+        settings.listCode && kit.code ? kit.code : null,
+      ].filter(Boolean).join(" · ");
       return (
         <div key={kit.id} className="kz-rowscroll">
           <button className={`kz-row ${dim ? "dim" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""} ${rec.buildDate ? "built" : ""}`} onClick={onCardClick}>
@@ -4221,18 +4225,16 @@ export default function App() {
                 : <SeriesWatermark kit={kit} variant="list" />}
             </div>
             <div className="kz-rmain" {...textLP}>
-              {settings.listTags !== false && (
+              {settings.listTags !== false ? (
                 <div className="kz-rtags">
                   <GradeChip grade={kit.grade} />
                   {kit.base && <span className="line-chip base">{L("ベース","Base","基地")}</span>}
                   {lineBadge(kit, true)}
+                  {noCode && <span className="kz-rtno">{noCode}</span>}
                 </div>
+              ) : (
+                <div className="kz-rno">{[settings.listGrade !== false ? kit.grade : null, noCode].filter(Boolean).join(" · ")}</div>
               )}
-              <div className="kz-rno">{[
-                (settings.listGrade !== false && settings.listTags === false) ? kit.grade : null,
-                settings.listNo && kit.no && kit.no !== "—" ? `No.${kit.no}` : null,
-                settings.listCode && kit.code ? kit.code : null,
-              ].filter(Boolean).join(" · ")}</div>
               {settings.listSeries && kit.series && <div className="kz-rseries">{kit.series}</div>}
               <div className="kz-rname"><KitName name={kit.name} /></div>
               <div className="kz-rmeta">
@@ -4282,6 +4284,7 @@ export default function App() {
 
   const detailKit = useMemo(() => (detail ? allKits.find((k) => k.id === detail) : null), [detail, allKits]);
   const detailRec = detailKit ? getRec(detailKit.id) : null;
+  const detailEyeNo = detailKit ? [detailKit.no !== "—" ? `No.${detailKit.no}` : null, detailKit.code || null].filter(Boolean).join(" · ") : "";
   const pillState = detailRec ? (detailRec.buildDate || doneIntent ? "done" : detailRec.owned ? "own" : detailRec.plan ? "plan" : "none") : "none";
   const PILL_LABEL = { none: L("未入手", "Unowned", "未入手"), plan: L("予定", "Planned", "預定"), own: L("入手", "Owned", "入手"), done: L("完成", "Built", "完成") };
   const PILL_MENU = { none: ["plan", "own"], plan: ["none", "own"], own: ["none", "done"], done: ["none", "own"] };
@@ -5167,6 +5170,7 @@ export default function App() {
                     <GradeChip grade={detailKit.grade} />
                     {detailKit.base && <span className="line-chip base">{L("ベース","Base","基地")}</span>}
                     {lineBadge(detailKit)}
+                    {detailEyeNo && <span className="dc-eye-no">{detailEyeNo}</span>}
                   </div>
                   <div className="dc-name"><KitName name={detailKit.name} /></div>
                   <div className="dc-rule" />
@@ -5189,9 +5193,6 @@ export default function App() {
                   </button>
                 </div>
                 <div className="dc-spec">
-                  <div className="dc-srow"><span className="dc-k">{L("型式番号","Model code","型式番號")}</span><span className="dc-v dc-mono">
-                    {detailKit.code || "—"}{detailKit.no !== "—" ? <span className="dc-subno"> · No.{detailKit.no}</span> : null}
-                  </span></div>
                   <div className="dc-srow"><span className="dc-k">{L("原作", "Series", "原作")}</span><span className="dc-v dc-v-series">
                     {detailKit.series
                       ? <button className="dc-link dc-series" onClick={() => jumpToSeries(detailKit.series)}>{detailKit.series}</button>
@@ -7423,6 +7424,8 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .dc-eye-tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center;white-space:normal;overflow:visible;text-overflow:clip;text-transform:none}
 .dc-eye-tags .grade-chip,.dc-eye-tags .line-chip{display:inline-flex;align-items:center;justify-content:center;height:22px;box-sizing:border-box;margin:0;vertical-align:0;line-height:1;border-radius:4px;border-width:1.5px;font-family:var(--sans);font-size:11.5px;font-weight:800;letter-spacing:.05em;padding:0 9px}
 .dc-subno{color:var(--ink-dim);font-weight:500}
+.dc-eye-no{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--ink-mid);white-space:nowrap;margin-left:2px}
+.kz-rtno{font-family:var(--mono);font-size:9.5px;letter-spacing:.04em;color:var(--ink-mid);white-space:nowrap;margin-left:1px}
 .dc-v-series{white-space:normal}
 .dc-series{word-break:keep-all;text-align:left;white-space:normal}
 .kz-rtags{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:5px}
