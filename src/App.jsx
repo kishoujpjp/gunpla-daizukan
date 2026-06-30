@@ -50,6 +50,8 @@ import {
    ─────────────────────────────────────────────────────────── */
 const CATALOG_SCHEMA = 1;
 const CATALOG_CACHE_KEY = "mg_catalog";   // 本地キャッシュ鍵(同期対象外)
+const CATALOG_LOG_KEY = "mg_catalog_log"; // 更新履歴(本地のみ・同期対象外)
+const CATALOG_LOG_MAX = 30;               // 履歴保持件数
 const CATALOG_DEFAULT_BASE = "";          // 既定の配信元。例:
 //   "https://cdn.jsdelivr.net/gh/<user>/<repo>@main/catalog"
 //   (末尾に /version.json・/delta.json を付けて取得。空なら目錄更新は無効=ALL_BASE のみ)
@@ -61,6 +63,7 @@ function validateCatalog(d) {
   if (d.add != null && !Array.isArray(d.add)) return false;
   if (d.patch != null && (typeof d.patch !== "object" || Array.isArray(d.patch))) return false;
   if (d.retract != null && !Array.isArray(d.retract)) return false;
+  if (d.notes != null && typeof d.notes !== "string") return false;
   const seen = new Set();
   for (const k of (d.add || [])) {
     if (!k || typeof k.id !== "string" || !k.id) return false; // id は永久・必須
@@ -104,6 +107,30 @@ function applyCatalog(base, cat) {
     }
   }
   return out;
+}
+
+// 更新履歴用の差分:前回適用した delta(prev)と今回(next)を比べ、今回「新たに」
+// 追加/修正/下架/再公開された項目だけを名前付きで返す。delta はスナップショットのため、
+// 単純な件数ではなくこの差分が「今回の変化」を正確に表す。add から消えた項目
+// (= kits-data.js への折込み等)は利用者向けの「削除」ではないので意図的に無視する。
+function diffCatalog(prev, next) {
+  const nameMap = {};
+  for (const k of applyCatalog(ALL_BASE, next)) nameMap[k.id] = k.name;
+  const nameOf = (id) => nameMap[id] || id;
+  const prevAdd = new Set(((prev && prev.add) || []).map((k) => k.id));
+  const prevPatch = (prev && prev.patch) || {};
+  const prevRet = new Set((prev && prev.retract) || []);
+  const nextRet = new Set(next.retract || []);
+  const added = [], patched = [], retracted = [], restored = [];
+  for (const k of (next.add || [])) if (!prevAdd.has(k.id)) added.push({ id: k.id, name: k.name || k.id });
+  for (const id in (next.patch || {})) {
+    const nf = next.patch[id] || {}, of = prevPatch[id] || {};
+    const fields = Object.keys(nf).filter((f) => JSON.stringify(of[f]) !== JSON.stringify(nf[f]));
+    if (fields.length) patched.push({ id, name: nameOf(id), fields });
+  }
+  for (const id of nextRet) if (!prevRet.has(id)) retracted.push({ id, name: nameOf(id) });
+  for (const id of prevRet) if (!nextRet.has(id)) restored.push({ id, name: nameOf(id) });
+  return { added, patched, retracted, restored };
 }
 
 // ── 配信トランスポート(★商用化の差し替え点はここだけ)──
@@ -1951,7 +1978,7 @@ function NoteField({ note, onCommit, enterOnLongPress = false, L = (ja) => ja })
 /* ── アプリ内 通知/確認(native alert/confirm の置き換え。APP風) ── */
 let _toastSeq = 0;
 function notify(msg, opt) {
-  try { window.dispatchEvent(new CustomEvent("app-toast", { detail: { id: ++_toastSeq, msg, kind: (opt && opt.kind) || "ok", variant: (opt && opt.variant) || "", tag: (opt && opt.tag) || "", dur: (opt && opt.dur) || 2400 } })); }
+  try { window.dispatchEvent(new CustomEvent("app-toast", { detail: { id: ++_toastSeq, msg, kind: (opt && opt.kind) || "ok", variant: (opt && opt.variant) || "", tag: (opt && opt.tag) || "", tap: (opt && opt.tap) || "", dur: (opt && opt.dur) || 2400 } })); }
   catch (e) {}
 }
 function appConfirm(message, opt) {
@@ -1977,10 +2004,13 @@ function AppDialogHost() {
       <div className="toast-host">
         {toasts.map((t) => (
           t.variant === "decree" ? (
-            <div key={t.id} className="toast decree">
+            <div key={t.id} className="toast decree"
+              {...(t.tap ? { role: "button", style: { pointerEvents: "auto", cursor: "pointer" },
+                onClick: () => { window.dispatchEvent(new CustomEvent("app-toast-tap", { detail: t.tap })); setToasts((a) => a.filter((x) => x.id !== t.id)); } } : {})}>
               <span className="toast-hex"><svg viewBox="0 0 64 64" aria-hidden="true"><polygon points="32,8 50,18 50,40 32,52 14,40 14,18" fill="none" stroke="#d9b36a" strokeWidth="4" /></svg></span>
               <span className="tm">{t.msg}</span>
               {t.tag ? <span className="toast-tag">{t.tag}</span> : null}
+              {t.tap ? <span aria-hidden="true" style={{ flex: "none", color: "#d9b36a", fontSize: "13px", opacity: .7, marginLeft: "1px" }}>›</span> : null}
             </div>
           ) : (
             <div key={t.id} className={"toast " + t.kind}><span className="ti">{ic[t.kind] || "◈"}</span><span className="tm">{t.msg}</span></div>
@@ -2581,6 +2611,15 @@ export default function App() {
   const [overrides, setOverrides] = useState({});
   const [catalog, setCatalog] = useState(null);   // クラウド配信の目錄 delta(検証済み or null)
   const catalogRef = useRef(null);                // 最新版判定用(load effect の単発クロージャ回避)
+  const [catalogLog, setCatalogLog] = useState([]);       // 更新履歴(本地のみ・同期しない)
+  const catalogLogRef = useRef([]);
+  const [catalogLogOpen, setCatalogLogOpen] = useState(false);
+  // トースト(decree)のタップ→更新履歴を開く連携
+  useEffect(() => {
+    const onTap = (e) => { if (e && e.detail === "catalog-log") setCatalogLogOpen(true); };
+    window.addEventListener("app-toast-tap", onTap);
+    return () => window.removeEventListener("app-toast-tap", onTap);
+  }, []);
   const [customKits, setCustomKits] = useState([]);
   const [images, setImages] = useState({});
   const [extras, setExtras] = useState({});       // 追加画像 {xid: src}
@@ -2814,6 +2853,10 @@ export default function App() {
         const cr = await window.storage.get(CATALOG_CACHE_KEY);
         if (cr && cr.value) { const cv = JSON.parse(cr.value); if (validateCatalog(cv)) { catalogRef.current = cv; setCatalog(cv); } }
       } catch (e) { /* 初回はキャッシュ無し:ALL_BASE のみで起動 */ }
+      try {
+        const lr = await window.storage.get(CATALOG_LOG_KEY);
+        if (lr && lr.value) { const lg = JSON.parse(lr.value); if (Array.isArray(lg)) { catalogLogRef.current = lg; setCatalogLog(lg); } }
+      } catch (e) { /* 履歴なし */ }
       setLoaded(true); // UI 立即顯示,圖像分片於背景逐片載入
       for (let i = 0; i < IMG_SHARDS; i++) {
         window.storage.get("mg_imgs_" + i)
@@ -3265,22 +3308,41 @@ export default function App() {
       const d = await fetchCatalogDelta(base);
       if (!d) return 0;
       if (typeof d.catalogVersion === "number" && d.catalogVersion <= curVer) return 0;
-      const addN = (d.add || []).length;
-      const patchN = d.patch ? Object.keys(d.patch).length : 0;
-      const retractN = (d.retract || []).length;
-      const total = addN + patchN + retractN;
+      const prev = catalogRef.current;
+      const isFirst = !prev;
+      const diff = diffCatalog(prev, d);
+      const total = diff.added.length + diff.patched.length + diff.retracted.length + diff.restored.length;
       catalogRef.current = d;
       setCatalog(d);
       persist(CATALOG_CACHE_KEY, JSON.stringify(d)); // 同期対象外の本地キャッシュ
       if (total > 0) {
-        // 通知は「絞り込み解除」と同じ decree 様式(金六角章 + tag)に揃える。
-        // 追加/修正/下架を区別し、0 の項目は出さない(下架のみでも通知する)。
-        const parts = [];
-        if (addN)     parts.push(L("追加 " + addN, addN + " added", "新增 " + addN));
-        if (patchN)   parts.push(L("修正 " + patchN, patchN + " updated", "修正 " + patchN));
-        if (retractN) parts.push(L("取り下げ " + retractN, retractN + " removed", "下架 " + retractN));
-        notify(L("機体データ更新", "Catalog updated", "機體資料已更新") + L("：", ": ", "：") + parts.join(" · "),
-          { variant: "decree", tag: L("更新", "UPDATED", "更新") });
+        // 更新履歴(log):本地のみ・同期しない。最近 CATALOG_LOG_MAX 件を保持。
+        const entry = { ts: new Date().toISOString(), version: d.catalogVersion,
+          notes: (typeof d.notes === "string" ? d.notes : ""),
+          added: diff.added, patched: diff.patched, retracted: diff.retracted, restored: diff.restored };
+        const nextLog = [entry, ...catalogLogRef.current].slice(0, CATALOG_LOG_MAX);
+        catalogLogRef.current = nextLog; setCatalogLog(nextLog);
+        persist(CATALOG_LOG_KEY, JSON.stringify(nextLog));
+        // 通知は「絞り込み解除」と同じ decree 様式。代表名+件数を出し、タップで更新履歴を開く。
+        // 初回適用(prev 無し)は全件が新規扱いになり大量表示になるため通知は出さない(履歴には残す)。
+        if (!isFirst) {
+          const cats = [
+            { arr: diff.added,     lab: L("追加", "added", "新增") },
+            { arr: diff.patched,   lab: L("修正", "updated", "修正") },
+            { arr: diff.retracted, lab: L("取り下げ", "removed", "下架") },
+            { arr: diff.restored,  lab: L("再公開", "restored", "重新上架") },
+          ].filter((c) => c.arr.length);
+          let body;
+          if (cats.length === 1) {
+            const c = cats[0];
+            body = c.lab + " " + c.arr[0].name +
+              (c.arr.length > 1 ? L("　他" + (c.arr.length - 1) + "件", " +" + (c.arr.length - 1), " 等 " + c.arr.length + " 件") : "");
+          } else {
+            body = cats.map((c) => c.lab + " " + c.arr.length).join(" · ");
+          }
+          notify(L("機体データ更新", "Catalog updated", "機體資料已更新") + L("：", ": ", "：") + body,
+            { variant: "decree", tag: L("更新", "UPDATED", "更新"), tap: "catalog-log", dur: 3600 });
+        }
       }
       return total;
     } catch (e) { /* オフライン/取得失敗/検証失敗:無感で現行データ続行 */ return 0; }
@@ -4551,10 +4613,52 @@ export default function App() {
     </div>
   );
 
+  // 更新履歴モーダルの 1 カテゴリ行(該当なしは描画しない)
+  const catLogRow = (label, arr, color, withFields) => {
+    if (!arr || !arr.length) return null;
+    return (
+      <div style={{ marginBottom: 6 }}>
+        <span style={{ fontFamily: "ui-monospace,Menlo,monospace", fontSize: 10, letterSpacing: ".14em", color, textTransform: "uppercase", marginRight: 8 }}>{label}</span>
+        <span style={{ fontFamily: "var(--serif)", fontSize: 12.5, color: "var(--ink)", lineHeight: 1.7 }}>
+          {arr.map((x) => x.name + (withFields && x.fields && x.fields.length ? "（" + x.fields.join("・") + "）" : "")).join("、")}
+        </span>
+      </div>
+    );
+  };
+
   return (
     <div className={"app lang-" + lang + " " + (settings.theme === "light" ? "light" : "") + (detailKit || adding || promptEdit || profileOpen || setupOpen || titleDetail || searchOpen || filterOpen || fixOpen || quizOpen || identifyOpen || sortMenuOpen || imgEdit ? " lock" : "")}>
       <style>{CSS}</style>
       <AppDialogHost />
+
+      {catalogLogOpen && (
+        <div className="cf-bg" onClick={() => setCatalogLogOpen(false)}>
+          <div className="cf-card" style={{ maxWidth: 480, width: "92vw", maxHeight: "80vh", display: "flex", flexDirection: "column" }} onClick={(e) => e.stopPropagation()}>
+            <div className="cf-line" />
+            <div className="cf-h">{L("機体データ更新履歴", "Catalog changelog", "機體資料更新履歷")}</div>
+            <div style={{ overflowY: "auto", marginTop: 4 }}>
+              {catalogLog.length === 0 ? (
+                <div className="cf-m" style={{ opacity: .7 }}>{L("まだ更新履歴はありません", "No updates yet", "尚無更新紀錄")}</div>
+              ) : catalogLog.map((e, i) => (
+                <div key={i} style={{ borderTop: i ? "1px solid var(--line)" : "none", padding: "12px 2px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
+                    <span style={{ fontFamily: "ui-monospace,Menlo,monospace", fontSize: 11, letterSpacing: ".12em", color: "var(--gold)" }}>v{e.version}</span>
+                    <span style={{ fontFamily: "ui-monospace,Menlo,monospace", fontSize: 11, color: "var(--ink)", opacity: .55 }}>{String(e.ts).slice(0, 10)}</span>
+                  </div>
+                  {e.notes ? <div style={{ fontFamily: "var(--serif)", fontSize: 13, color: "var(--ink-strong)", marginBottom: 8, lineHeight: 1.6 }}>{e.notes}</div> : null}
+                  {catLogRow(L("追加", "Added", "新增"), e.added, "var(--teal)")}
+                  {catLogRow(L("修正", "Updated", "修正"), e.patched, "var(--gold)", true)}
+                  {catLogRow(L("取り下げ", "Removed", "下架"), e.retracted, "var(--shu)")}
+                  {catLogRow(L("再公開", "Restored", "重新上架"), e.restored, "var(--teal)")}
+                </div>
+              ))}
+            </div>
+            <div className="cf-acts">
+              <button className="cf-btn ok" onClick={() => setCatalogLogOpen(false)}>{L("閉じる", "Close", "關閉")}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {storageErr && (
         <div
@@ -5115,6 +5219,9 @@ export default function App() {
                     { variant: "decree", tag: L("最新", "CURRENT", "最新") });
                 }}><span>{L("機体データを今すぐ確認","Check for catalog updates","立即檢查機體資料更新")}</span><i>⟳</i></button>
                 {catalog && <p className="ana-note">{L("目錄版本 v","Catalog v","目錄版本 v") + catalog.catalogVersion + (catalog.generatedAt ? " · " + String(catalog.generatedAt).slice(0, 10) : "")}</p>}
+                <button className="opt" onClick={() => { haptic(); setCatalogLogOpen(true); }}>
+                  <span>{L("機体データ更新履歴", "Catalog changelog", "機體資料更新履歷") + (catalogLog.length ? "（" + catalogLog.length + "）" : "")}</span><i>›</i>
+                </button>
               </div>
             )}
 
