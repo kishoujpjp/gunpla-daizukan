@@ -41,7 +41,7 @@ import {
 
 /* ───────────────────────────────────────────────────────────
    機体目錄(クラウド配信)── 選項1:静的 delta JSON を CDN/Repo から取得
-   ・ALL_BASE(bundle)は「離線地板」。雲端は add/patch/discontinue の増量のみ。
+   ・ALL_BASE(bundle)は「離線地板」。雲端は add/patch/retract の増量のみ。
    ・合併順:ALL_BASE → 雲端 delta → overrides(端末) → customKits(端末)。
    ・本地キャッシュは saveKey を通さない(= per-user 同期に混ぜない・上雲しない)。
    ・★商用化の差し替え点はこの 2 つの fetch 関数だけ。applyCatalog 以上は不変。
@@ -60,7 +60,7 @@ function validateCatalog(d) {
   if (typeof d.catalogVersion !== "number") return false;
   if (d.add != null && !Array.isArray(d.add)) return false;
   if (d.patch != null && (typeof d.patch !== "object" || Array.isArray(d.patch))) return false;
-  if (d.discontinue != null && !Array.isArray(d.discontinue)) return false;
+  if (d.retract != null && !Array.isArray(d.retract)) return false;
   const seen = new Set();
   for (const k of (d.add || [])) {
     if (!k || typeof k.id !== "string" || !k.id) return false; // id は永久・必須
@@ -94,11 +94,13 @@ function applyCatalog(base, cat) {
       if (i != null) out[i] = { ...out[i], ...cat.patch[id] };
     }
   }
-  // discontinue:削除せずフラグのみ(収藏記録・画像を孤児化させない)
-  if (cat.discontinue && cat.discontinue.length) {
-    for (const id of cat.discontinue) {
+  // retract(下架/撤回):重大な誤りの緊急取り下げ用。削除せず retracted フラグを立てる
+  // だけ(収藏記録・画像を孤児化させない)。表示は allKits 側で隠す。再公開は retract
+  // から外せば、記録が残っているのでそのまま復活する。
+  if (cat.retract && cat.retract.length) {
+    for (const id of cat.retract) {
       const i = pos.get(id);
-      if (i != null) out[i] = { ...out[i], discontinued: true };
+      if (i != null) out[i] = { ...out[i], retracted: true };
     }
   }
   return out;
@@ -3265,14 +3267,22 @@ export default function App() {
       if (typeof d.catalogVersion === "number" && d.catalogVersion <= curVer) return 0;
       const addN = (d.add || []).length;
       const patchN = d.patch ? Object.keys(d.patch).length : 0;
+      const retractN = (d.retract || []).length;
+      const total = addN + patchN + retractN;
       catalogRef.current = d;
       setCatalog(d);
       persist(CATALOG_CACHE_KEY, JSON.stringify(d)); // 同期対象外の本地キャッシュ
-      if (addN + patchN > 0) {
-        setSyncMsg(L("機体データ更新:+","Catalog updated: +","機體資料已更新:+") + (addN + patchN) + L(" 件 "," items "," 筆 ") + new Date().toLocaleTimeString());
-        notify(L("機体データを更新しました(+","Catalog updated (+","已更新機體資料(+") + (addN + patchN) + L("件)","items)","筆)"), { kind: "ok" });
+      if (total > 0) {
+        // 通知は「絞り込み解除」と同じ decree 様式(金六角章 + tag)に揃える。
+        // 追加/修正/下架を区別し、0 の項目は出さない(下架のみでも通知する)。
+        const parts = [];
+        if (addN)     parts.push(L("追加 " + addN, addN + " added", "新增 " + addN));
+        if (patchN)   parts.push(L("修正 " + patchN, patchN + " updated", "修正 " + patchN));
+        if (retractN) parts.push(L("取り下げ " + retractN, retractN + " removed", "下架 " + retractN));
+        notify(L("機体データ更新", "Catalog updated", "機體資料已更新") + L("：", ": ", "：") + parts.join(" · "),
+          { variant: "decree", tag: L("更新", "UPDATED", "更新") });
       }
-      return addN + patchN;
+      return total;
     } catch (e) { /* オフライン/取得失敗/検証失敗:無感で現行データ続行 */ return 0; }
   }, [settings.catalogUrl, persist]);
 
@@ -3691,7 +3701,9 @@ export default function App() {
   /* ── 合成機體清單(基礎 + 雲端目錄 + 覆寫 + 自訂) ── */
   const baseCatalog = useMemo(() => applyCatalog(ALL_BASE, catalog), [catalog]);
   const allKits = useMemo(() => {
-    const merged = baseCatalog.map((k) => (overrides[k.id] ? { ...k, ...overrides[k.id] } : k));
+    const merged = baseCatalog
+      .map((k) => (overrides[k.id] ? { ...k, ...overrides[k.id] } : k))
+      .filter((k) => !k.retracted); // 下架した機体は一覧・検索・統計から隠す(記録は保持・復活可)
     return merged.concat(customKits.filter((c) => !c.deleted).map((c) => ({ line: "CUSTOM", no: "—", code: "", series: "", note: "", ...c })));
   }, [baseCatalog, overrides, customKits]);
 
@@ -5098,8 +5110,9 @@ export default function App() {
                   const base = (settings.catalogUrl || "").trim() || CATALOG_DEFAULT_BASE;
                   if (!base) { notify(L("目錄 URL を設定してください","Set the catalog URL first","請先設定目錄 URL"), { kind: "warn" }); return; }
                   const n = await refreshCatalog();
-                  notify(n ? (L("機体データ更新:+","Catalog updated: +","機體資料已更新:+") + n + L("件","items","筆"))
-                           : L("最新です(更新なし)","Already up to date","已是最新(無更新)"), { kind: "ok" });
+                  // 更新があった時は refreshCatalog 側が decree トーストを出すので、ここは「最新」のみ。
+                  if (!n) notify(L("機体データは最新です", "Catalog is up to date", "機體資料已是最新"),
+                    { variant: "decree", tag: L("最新", "CURRENT", "最新") });
                 }}><span>{L("機体データを今すぐ確認","Check for catalog updates","立即檢查機體資料更新")}</span><i>⟳</i></button>
                 {catalog && <p className="ana-note">{L("目錄版本 v","Catalog v","目錄版本 v") + catalog.catalogVersion + (catalog.generatedAt ? " · " + String(catalog.generatedAt).slice(0, 10) : "")}</p>}
               </div>
