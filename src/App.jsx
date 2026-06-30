@@ -90,6 +90,8 @@ function validateCatalog(d) {
   if (d.retract != null && !Array.isArray(d.retract)) return false;
   if (d.notes != null && typeof d.notes !== "string") return false;
   if (d.minAppVersion != null && typeof d.minAppVersion !== "string") return false;
+  if (d.checksum != null && typeof d.checksum !== "string") return false;
+  if (d.schema != null && typeof d.schema !== "number") return false;
   const seen = new Set();
   for (const k of (d.add || [])) {
     if (!k || typeof k.id !== "string" || !k.id) return false; // id は永久・必須
@@ -159,6 +161,36 @@ function diffCatalog(prev, next) {
   return { added, patched, retracted, restored };
 }
 
+/* ── ④ 目錄完整性 + schema 互換シーム ──
+   checksum / schema は「在る時だけ」検証。無ければ true=現状不変。
+   canonical: キーを再帰ソート(配列順は保持)した決定的 JSON。生成側と検証側で一致させる。
+   ※ checksum は add/patch/retract/notes のみを対象(version/generatedAt/checksum 自体は除外)。 */
+function canonicalCatalog(d) {
+  const sort = (v) => {
+    if (Array.isArray(v)) return v.map(sort);
+    if (v && typeof v === "object") {
+      const o = {};
+      for (const k of Object.keys(v).sort()) o[k] = sort(v[k]);
+      return o;
+    }
+    return v;
+  };
+  return JSON.stringify(sort({ add: d.add || [], patch: d.patch || {}, retract: d.retract || [], notes: d.notes || "" }));
+}
+// FNV-1a 32bit(Math.imul で正しい 32bit 乗算)→ 8桁hex。破損/半端ダウンロード/不一致の
+// 検出に十分。暗号強度はない(改竄対策の署名は将来の別案件)。
+function catalogChecksum(d) {
+  const s = canonicalCatalog(d);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return (h >>> 0).toString(16).padStart(8, "0");
+}
+function verifyCatalogIntegrity(d) {
+  if (typeof d.schema === "number" && d.schema > CATALOG_SCHEMA) return false; // client が古すぎて解釈不可→拒否
+  if (typeof d.checksum === "string" && d.checksum && d.checksum !== catalogChecksum(d)) return false; // 破損/不一致→拒否
+  return true;
+}
+
 // ── 配信トランスポート(★商用化の差し替え点はここだけ)──
 async function fetchCatalogVersion(base) {
   const root = String(base || "").trim().replace(/\/+$/, "");
@@ -174,8 +206,52 @@ async function fetchCatalogDelta(base) {
   if (!res.ok) throw new Error("HTTP " + res.status);
   const d = await res.json();
   if (!validateCatalog(d)) throw new Error("catalog schema invalid");
+  if (!verifyCatalogIntegrity(d)) throw new Error("catalog integrity/compat failed"); // 破損/非互換→失敗扱い=快取へ退避
   return d;
 }
+
+// ── ③ 同期トランスポート抽象 + userId 名前空間(★将来の差し替え点)──
+// 現状:使用者自带 Supabase(kv テーブル / anon key)、userId="" で名前空間なし=現行の挙動。
+// 将来:托管バックエンド + 認証へ移行する際、この 1 オブジェクトと userId の供給元だけ差し替える。
+// LWW・dirty キュー・各キー変換(META/SETTINGS)等、pushKey/pullCloud 以上のロジックは不変。
+function syncNsKey(userId, k) { return userId ? userId + ":" + k : k; } // userId 無し=識別子そのまま
+const SYNC_TRANSPORT = {
+  // cfg = { url, key, userId? }。戻り:行配列 [{key,value,updated_at}](名前空間は剥がした論理キー)。
+  async pull(cfg) {
+    const res = await fetch(`${cfg.url}/rest/v1/kv?select=key,value,updated_at`, {
+      headers: { apikey: cfg.key, Authorization: `Bearer ${cfg.key}` },
+    });
+    if (!res.ok) {
+      let detail = "";
+      try { const j = await res.json(); detail = j.message || j.hint || ""; } catch (e) {}
+      throw new Error("HTTP " + res.status + (detail ? " — " + detail : "") +
+        (res.status === 404 ? "(kvテーブル未作成、またはURLがプロジェクトAPI URLでない可能性)" : ""));
+    }
+    const rows = await res.json();
+    const uid = cfg.userId || "";
+    if (!uid) return rows; // 名前空間なし=全行そのまま(現行)
+    const pre = uid + ":";
+    return rows.filter((r) => r.key && r.key.indexOf(pre) === 0).map((r) => ({ ...r, key: r.key.slice(pre.length) }));
+  },
+  // items = [{key,value,updated_at}](論理キー)。戻り:{ok} | {ok:false,status,message} | {ok:false,offline:true}
+  async push(cfg, items) {
+    const uid = cfg.userId || "";
+    const body = uid ? items.map((it) => ({ ...it, key: syncNsKey(uid, it.key) })) : items;
+    try {
+      const res = await fetch(`${cfg.url}/rest/v1/kv?on_conflict=key`, {
+        method: "POST",
+        headers: { apikey: cfg.key, Authorization: `Bearer ${cfg.key}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates" },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) return { ok: true };
+      let detail = "";
+      try { const j = await res.json(); detail = j.message || ""; } catch (e) {}
+      return { ok: false, status: res.status, message: detail };
+    } catch (e) {
+      return { ok: false, offline: true };
+    }
+  },
+};
 
 /* settings / albumMeta / serifs を mg_meta から独立した雲端鍵へ分離。
    各キーが独自の updated_at を持つため、粗粒度の単一META gate を回避でき、
@@ -2988,21 +3064,11 @@ export default function App() {
       }
     }
     const updated_at = syncTsRef.current[k] || new Date().toISOString();
-    try {
-      const res = await fetch(`${url}/rest/v1/kv?on_conflict=key`, {
-        method: "POST",
-        headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates" },
-        body: JSON.stringify([{ key: k, value: pushVal, updated_at }]),
-      });
-      if (res.ok) { unmarkDirty(k); setSyncMsg(L("クラウド同期済み ","Cloud-synced ","已雲端同步 ") + new Date().toLocaleTimeString()); return true; }
-      let detail = "";
-      try { const j = await res.json(); detail = j.message || ""; } catch (e2) {}
-      setSyncMsg(L("同期エラー HTTP ","Sync error HTTP ","同步錯誤 HTTP ") + res.status + (detail ? " — " + detail : "") + L("(後で再送します)"," (will retry later)","(稍後重送)"));
-      return false;
-    } catch (e) {
-      setSyncMsg(L("オフライン — 接続回復後に再送します","Offline — will retry when reconnected","離線 — 連線恢復後重送"));
-      return false;
-    }
+    const r = await SYNC_TRANSPORT.push({ url, key, userId: supaRef.current.userId }, [{ key: k, value: pushVal, updated_at }]);
+    if (r.ok) { unmarkDirty(k); setSyncMsg(L("クラウド同期済み ","Cloud-synced ","已雲端同步 ") + new Date().toLocaleTimeString()); return true; }
+    if (r.offline) { setSyncMsg(L("オフライン — 接続回復後に再送します","Offline — will retry when reconnected","離線 — 連線恢復後重送")); return false; }
+    setSyncMsg(L("同期エラー HTTP ","Sync error HTTP ","同步錯誤 HTTP ") + r.status + (r.message ? " — " + r.message : "") + L("(後で再送します)"," (will retry later)","(稍後重送)"));
+    return false;
   }, [unmarkDirty]);
 
   /* ── 本地保存 + 雲端推送(防抖) ── */
@@ -3152,7 +3218,7 @@ export default function App() {
   const paintLimit = gridReady ? limit : Math.min(limit, FIRST_BATCH);
 
   useEffect(() => {
-    supaRef.current = { url: (settings.supaUrl || "").trim().replace(/\/+$/, ""), key: (settings.supaKey || "").trim() };
+    supaRef.current = { url: (settings.supaUrl || "").trim().replace(/\/+$/, ""), key: (settings.supaKey || "").trim(), userId: (settings.userId || "") };
   }, [settings.supaUrl, settings.supaKey]);
 
   useEffect(() => {
@@ -3229,16 +3295,7 @@ export default function App() {
   const pullCloud = useCallback(async (cfg, force) => {
     const url = cfg.url, key = cfg.key;
     if (!url || !key) return 0;
-    const res = await fetch(`${url}/rest/v1/kv?select=key,value,updated_at`, {
-      headers: { apikey: key, Authorization: `Bearer ${key}` },
-    });
-    if (!res.ok) {
-      let detail = "";
-      try { const j = await res.json(); detail = j.message || j.hint || ""; } catch (e) {}
-      throw new Error("HTTP " + res.status + (detail ? " — " + detail : "") +
-        (res.status === 404 ? "(kvテーブル未作成、またはURLがプロジェクトAPI URLでない可能性)" : ""));
-    }
-    const rows = await res.json();
+    const rows = await SYNC_TRANSPORT.pull({ url, key, userId: cfg.userId });
     let applied = 0;
     for (const row of rows) {
       const lts = syncTsRef.current[row.key];
