@@ -5103,10 +5103,10 @@ export default function App() {
                     <div className="dc-srow dc-srow-rec"><span className="dc-k">{L("記録", "Records", "紀錄")}</span><span className="dc-v rec-field">
                       {detailRec.purchaseDate
                         ? <span className="rec-dateval">{L("入手", "Acquired", "入手")} {fmtDate(detailRec.purchaseDate)}</span>
-                        : <input type="date" className="rec-date" value="" onChange={(e) => setRec(detailKit.id, { purchaseDate: e.target.value, owned: true, plan: false })} aria-label={L("入手日", "Acquired date", "入手日")} />}
+                        : <input type="date" className="rec-date" defaultValue="" onChange={(e) => setRec(detailKit.id, { purchaseDate: e.target.value, owned: true, plan: false })} aria-label={L("入手日", "Acquired date", "入手日")} />}
                       {pillState === "done" && (detailRec.buildDate
                         ? <span className="rec-dateval done">{L("完成", "Done", "完成")} {fmtDate(detailRec.buildDate)}</span>
-                        : <input type="date" className="rec-date" value="" onChange={(e) => setRec(detailKit.id, { buildDate: e.target.value, owned: true, plan: false })} aria-label={L("完成日", "Built date", "完成日")} />)}
+                        : <input type="date" className="rec-date" defaultValue="" onChange={(e) => setRec(detailKit.id, { buildDate: e.target.value, owned: true, plan: false })} aria-label={L("完成日", "Built date", "完成日")} />)}
                     </span></div>
                   )}
                   <div className="dc-srow dc-srow-memo"><span className="dc-k">{L("メモ", "Memo", "備註")}</span><span className="dc-v"><NoteField note={detailKit.note} onCommit={(v) => setNote(detailKit, v)} enterOnLongPress L={L} /></span></div>
