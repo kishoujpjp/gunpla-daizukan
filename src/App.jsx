@@ -7544,9 +7544,9 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .dc-srow-status{align-items:center;flex-wrap:wrap;gap:8px 10px}
 .dc-v-status{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .rec-pill-cell{position:relative;display:inline-flex}
-.dc-srow-duo{display:grid;grid-template-columns:56px 76px auto minmax(0,1fr);align-items:center;column-gap:10px}
+.dc-srow-duo{display:grid;grid-template-columns:56px 88px auto minmax(0,1fr);align-items:center;column-gap:10px}
 .dc-srow-duo .dc-k2{width:auto;white-space:nowrap}
-.dc-duo-rel{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dc-duo-rel{min-width:0;white-space:nowrap;overflow:visible}
 .dc-duo-price{min-width:0;display:flex;align-items:center;gap:8px;flex-wrap:nowrap}
 .dc-duo-price .dc-mono{flex:none;white-space:nowrap}
 .dc-duo-price .rec-pill-cell{margin-left:auto;flex:none}
