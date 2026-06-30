@@ -396,6 +396,23 @@ function FitName({ name, max, min = 12 }) {
   return <span ref={ref} className="sl-name-fit" style={{ fontSize: max }}>{name}</span>;
 }
 
+function DateSetField({ onPick, ph, cls = "" }) {
+  const ref = useRef(null);
+  const open = () => {
+    const i = ref.current; if (!i) return;
+    if (typeof i.showPicker === "function") { try { i.showPicker(); return; } catch (e) { /* fall through */ } }
+    i.focus();
+  };
+  return (
+    <span className={`rec-dateset ${cls}`} role="button" tabIndex={0} onClick={open}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } }}>
+      <span className="rec-dateset-ph">{ph}</span>
+      <input ref={ref} type="date" className="rec-date-hidden" defaultValue=""
+        onChange={(e) => { if (e.target.value) onPick(e.target.value); }} />
+    </span>
+  );
+}
+
 function GradeBracket({ grade }) {
   const g = (grade || "MG").toUpperCase();
   const cls = { MG: "mg", HG: "hg", RG: "rg", PG: "pg", HIRM: "hirm", RE: "re", FM: "fm", MGSD: "sd", EXTRA: "ex" }[g] || "ex";
@@ -5103,10 +5120,10 @@ export default function App() {
                     <div className="dc-srow dc-srow-rec"><span className="dc-k">{L("記録", "Records", "紀錄")}</span><span className="dc-v rec-field">
                       {detailRec.purchaseDate
                         ? <span className="rec-dateval">{L("入手", "Acquired", "入手")} {fmtDate(detailRec.purchaseDate)}</span>
-                        : <input type="date" className="rec-date" defaultValue="" onChange={(e) => setRec(detailKit.id, { purchaseDate: e.target.value, owned: true, plan: false })} aria-label={L("入手日", "Acquired date", "入手日")} />}
+                        : <DateSetField ph={L("タップで時間を入力", "Tap to enter date", "點擊輸入時間")} onPick={(v) => setRec(detailKit.id, { purchaseDate: v, owned: true, plan: false })} />}
                       {pillState === "done" && (detailRec.buildDate
                         ? <span className="rec-dateval done">{L("完成", "Done", "完成")} {fmtDate(detailRec.buildDate)}</span>
-                        : <input type="date" className="rec-date" defaultValue="" onChange={(e) => setRec(detailKit.id, { buildDate: e.target.value, owned: true, plan: false })} aria-label={L("完成日", "Built date", "完成日")} />)}
+                        : <DateSetField ph={L("タップで時間を入力", "Tap to enter date", "點擊輸入時間")} cls="done" onPick={(v) => setRec(detailKit.id, { buildDate: v, owned: true, plan: false })} />)}
                     </span></div>
                   )}
                   <div className="dc-srow dc-srow-memo"><span className="dc-k">{L("メモ", "Memo", "備註")}</span><span className="dc-v"><NoteField note={detailKit.note} onCommit={(v) => setNote(detailKit, v)} enterOnLongPress L={L} /></span></div>
@@ -7351,6 +7368,13 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .rec-pop-opt.sel{color:var(--ink-strong)}
 .rec-date{background:var(--panel);border:1px solid var(--line);border-radius:7px;color:var(--ink);
   padding:5px 8px;font-size:12px;font-family:var(--mono);color-scheme:dark;max-width:160px}
+.rec-dateset{position:relative;display:inline-flex;align-items:center;background:var(--panel);
+  border:1px solid var(--line);border-radius:7px;padding:6px 11px;cursor:pointer;overflow:hidden}
+.rec-dateset:active{border-color:var(--kin-deep)}
+.rec-dateset-ph{font-family:var(--serif);font-size:11.5px;color:var(--ink-dim);white-space:nowrap;letter-spacing:.02em}
+.rec-dateset.done .rec-dateset-ph{color:#5a8f86}
+.rec-date-hidden{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:0;padding:0;margin:0;
+  pointer-events:none;background:transparent;color-scheme:dark}
 .rec-dateval{font-family:var(--mono);font-size:12.5px;color:var(--ink-mid)}
 .rec-dateval.done{color:var(--teal)}
 .dc-srow-status{align-items:center;flex-wrap:wrap;gap:8px 10px}
