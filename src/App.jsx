@@ -5180,15 +5180,15 @@ export default function App() {
                   </button>
                 </div>
                 <div className="dc-spec">
-                  <div className="dc-srow"><span className="dc-k">{L("原作", "Series", "原作")}</span><span className="dc-v">
-                    {detailKit.series
-                      ? <button className="dc-link" onClick={() => jumpToSeries(detailKit.series)}>{detailKit.series}</button>
-                      : "—"}
-                  </span></div>
                   <div className="dc-srow"><span className="dc-k">{L("分類","Category","分類")}</span><span className="dc-v dc-tags">
                     <GradeChip grade={detailKit.grade} />
                     {detailKit.base && <span className="line-chip base">{L("ベース","Base","基地")}</span>}
                     {lineBadge(detailKit)}
+                  </span></div>
+                  <div className="dc-srow"><span className="dc-k">{L("原作", "Series", "原作")}</span><span className="dc-v">
+                    {detailKit.series
+                      ? <button className="dc-link" onClick={() => jumpToSeries(detailKit.series)}>{detailKit.series}</button>
+                      : "—"}
                   </span></div>
                   <div className="dc-srow dc-srow-status"><span className="dc-k">{L("発売·定価", "Release·Price", "發售·定價")}</span><span className="dc-v dc-v-status">
                     <span className="dc-price">{detailKit.ym
@@ -5877,7 +5877,8 @@ input,textarea{font-family:var(--sans)}
   color:var(--ink);padding:8px 9px;font-size:12.5px;color-scheme:dark}
 .adv-seg{flex:1;display:flex;gap:5px}
 .adv-search{flex:1;min-width:0;display:flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--line);border-radius:7px;padding:0 8px 0 9px}
-.adv-search-input{flex:1;min-width:0;background:none;border:none;color:var(--ink);padding:8px 0;font-size:12.5px;color-scheme:dark}
+.adv-search-input{flex:1;min-width:0;background:none;border:none;color:var(--ink);padding:8px 0;font-size:12.5px;color-scheme:dark;-webkit-appearance:none;appearance:none;outline:none;-webkit-tap-highlight-color:transparent}
+.adv-search-input:focus,.adv-search-input:focus-visible{outline:none;box-shadow:none}
 .adv-search-input::placeholder{color:var(--ink-dim)}
 .adv-search-x{flex:none;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border:none;background:none;color:var(--ink-dim);font-size:11px;cursor:pointer}
 .adv-search-x:active{color:var(--gold)}
@@ -7519,6 +7520,9 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .dc-k{flex:none;width:64px;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--ink-dim);text-transform:uppercase}
 .dc-v{flex:1;font-size:13.5px;color:var(--ink-strong);min-width:0}
 .dc-v.dc-tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.dc-v.dc-tags .grade-chip,.dc-v.dc-tags .line-chip{display:inline-flex;align-items:center;justify-content:center;
+  height:22px;box-sizing:border-box;margin:0;vertical-align:0;line-height:1;
+  border-radius:4px;border-width:1.5px;font-family:var(--sans);font-size:11.5px;font-weight:800;letter-spacing:.05em;padding:0 9px}
 .dc-gold{color:var(--gold);font-family:ui-monospace,"SF Mono",Menlo,monospace;font-weight:600;font-size:12.5px;letter-spacing:.02em}
 .dc-mono{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:12.5px;letter-spacing:.01em;color:var(--ink-mid)}.dc-mono.done{color:var(--gold)}
 .dc-memo{font-size:12.5px;color:var(--ink-mid);line-height:1.7;cursor:text;display:block;width:100%}
