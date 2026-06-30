@@ -2201,7 +2201,7 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
         </div>
       </div>
       <div className="form-dates">
-        <div className="fld"><span>{L("購入日", "Purchase date", "購入日")}</span>
+        <div className="fld"><span>{L("入手日", "Acquired date", "入手日")}</span>
           <span className="date-wrap">
             <input type="date" value={dates.purchaseDate} onChange={(e) => setDates((d) => ({ ...d, purchaseDate: e.target.value }))} />
             <button type="button" className="date-clear" disabled={!dates.purchaseDate} aria-label={L("クリア", "Clear", "清除")} style={{ visibility: dates.purchaseDate ? "visible" : "hidden" }} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDates((d) => ({ ...d, purchaseDate: "" })); }}>✕</button>
@@ -3733,7 +3733,7 @@ export default function App() {
     return [...m.entries()];
   }, [visible, sortKey]);
 
-  const sortLabel = { year: L("発売年月","Release","發售年月"), name: L("名称(五十音)","Name","名稱"), purchase: L("購入日","Purchase","購入日"), build: L("制作完了日","Completion","完成日"), price: L("定価","Price","定價") };
+  const sortLabel = { year: L("発売年月","Release","發售年月"), name: L("名称(五十音)","Name","名稱"), purchase: L("入手日","Acquired","入手日"), build: L("制作完了日","Completion","完成日"), price: L("定価","Price","定價") };
 
   const GF_OPTS = [["", "全部"], ["MG", "MG"], ["HG", "HG"], ["RG", "RG"], ["PG", "PG"], ["HIRM", "HIRM"], ["RE", "RE"], ["FM", "FM"], ["EXTRA", "EXTRA"]];
   const GfRow = ({ skey }) => {
@@ -4119,7 +4119,7 @@ export default function App() {
               <div className="kz-rmeta">
                 <span className="kz-year">{kit.ym ? kit.ym.replace("-", ".") : "—"}</span>
                 {settings.listPrice && kit.price ? <span className="kz-price">{fmtYen(kit.price)}</span> : null}
-                {settings.listPurchase && rec.purchaseDate && <span className="kz-date">{L("購入","Bought","購入")} {fmtDate(rec.purchaseDate)}</span>}
+                {settings.listPurchase && rec.purchaseDate && <span className="kz-date">{L("入手","Acquired","入手")} {fmtDate(rec.purchaseDate)}</span>}
                 {settings.listBuild && rec.buildDate && <span className="kz-date done">{L("完成","Done","完成")} {fmtDate(rec.buildDate)}</span>}
                 {kit.premium && <span className="line-chip pb">{L("プレバン","P-Bandai","魂商店")}</span>}
                 {kit.base && <span className="line-chip base">{L("ベース","Base","基地")}</span>}
@@ -4168,7 +4168,7 @@ export default function App() {
   const detailRec = detailKit ? getRec(detailKit.id) : null;
   const pillState = detailRec ? (detailRec.buildDate || doneIntent ? "done" : detailRec.owned ? "own" : detailRec.plan ? "plan" : "none") : "none";
   const PILL_LABEL = { none: L("未入手", "Unowned", "未入手"), plan: L("予定", "Planned", "預定"), own: L("入手", "Owned", "入手"), done: L("完成", "Built", "完成") };
-  const PILL_MENU = { none: ["plan", "own"], plan: ["none", "own"], own: ["none", "done"], done: ["none"] };
+  const PILL_MENU = { none: ["plan", "own"], plan: ["none", "own"], own: ["none", "done"], done: ["none", "own"] };
   const applyPill = (s) => {
     if (!detailKit) return;
     const id = detailKit.id;
@@ -4651,9 +4651,9 @@ export default function App() {
               </section>
 
               <section className="ana-sec">
-                <div className="year-head"><span className="year-num">{L("購入年別","By purchase year","依購入年")}</span><span className="year-rule" /><span className="year-count">{L("購入数推移","Purchases over time","購入數推移")}</span></div>
+                <div className="year-head"><span className="year-num">{L("入手年別","By acquired year","依入手年")}</span><span className="year-rule" /><span className="year-count">{L("入手数推移","Acquisitions over time","入手數推移")}</span></div>
                 {yearData.length === 0
-                  ? <p className="ana-note">{L("購入日が記録された機体がまだありません。","No kits with a purchase date yet.","尚無記錄購入日的機體。")}</p>
+                  ? <p className="ana-note">{L("入手日が記録された機体がまだありません。","No kits with an acquired date yet.","尚無記錄入手日的機體。")}</p>
                   : (
                     <div className="bars">
                       {yearData.map((d) => (
@@ -4751,7 +4751,7 @@ export default function App() {
                         ["listNo", L("No.番号を表示", "Show No.", "顯示編號")],
                         ["listCode", L("型式番号を表示", "Show model code", "顯示型式番號")],
                         ["listPrice", L("定価を表示", "Show price", "顯示定價")],
-                        ["listPurchase", L("購入日を表示", "Show purchase date", "顯示購入日")],
+                        ["listPurchase", L("入手日を表示", "Show acquired date", "顯示入手日")],
                         ["listBuild", L("完成日を表示", "Show completion date", "顯示完成日")],
                       ]
                   ).map(([key, label]) => (
@@ -5102,8 +5102,8 @@ export default function App() {
                   {detailRec.owned && (
                     <div className="dc-srow dc-srow-rec"><span className="dc-k">{L("記録", "Records", "紀錄")}</span><span className="dc-v rec-field">
                       {detailRec.purchaseDate
-                        ? <span className="rec-dateval">{L("購入", "Bought", "購入")} {fmtDate(detailRec.purchaseDate)}</span>
-                        : <input type="date" className="rec-date" value="" onChange={(e) => setRec(detailKit.id, { purchaseDate: e.target.value, owned: true, plan: false })} aria-label={L("購入日", "Purchase date", "購入日")} />}
+                        ? <span className="rec-dateval">{L("入手", "Acquired", "入手")} {fmtDate(detailRec.purchaseDate)}</span>
+                        : <input type="date" className="rec-date" value="" onChange={(e) => setRec(detailKit.id, { purchaseDate: e.target.value, owned: true, plan: false })} aria-label={L("入手日", "Acquired date", "入手日")} />}
                       {pillState === "done" && (detailRec.buildDate
                         ? <span className="rec-dateval done">{L("完成", "Done", "完成")} {fmtDate(detailRec.buildDate)}</span>
                         : <input type="date" className="rec-date" value="" onChange={(e) => setRec(detailKit.id, { buildDate: e.target.value, owned: true, plan: false })} aria-label={L("完成日", "Built date", "完成日")} />)}
