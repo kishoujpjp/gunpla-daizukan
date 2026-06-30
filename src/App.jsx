@@ -413,7 +413,9 @@ function DateSetField({ value, onPick, ph, cls = "", mode = "date", clearLabel =
     setView(mode === "month" ? "month" : "day");
     const r = ref.current.getBoundingClientRect();
     const up = r.bottom > window.innerHeight - 330;
-    setPos({ left: Math.max(8, r.left), up, top: r.bottom + 4, bottom: window.innerHeight - r.top + 4 });
+    const calW = Math.min(236, window.innerWidth * 0.92);
+    const left = Math.min(Math.max(8, r.left), window.innerWidth - calW - 8);
+    setPos({ left, up, top: r.bottom + 4, bottom: window.innerHeight - r.top + 4 });
     setOpen(true);
   };
   const prevM = () => { if (vm === 0) { setVy(vy - 1); setVm(11); } else setVm(vm - 1); };
@@ -7428,14 +7430,14 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 /* ═══ 入手頁(機密档案) ═══ */
 .dc-head{padding:2px 0 0}
 .dc-modal{position:relative;scrollbar-gutter:stable}
-.dc-x{position:absolute;top:11px;right:11px;z-index:8;width:30px;height:30px;display:flex;align-items:center;justify-content:center;color:var(--ink-dim);font-size:15px;line-height:1;border-radius:8px;background:rgba(8,10,14,.5);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);border:1px solid var(--hair)}
+.dc-x{position:absolute;top:26px;right:26px;z-index:8;width:30px;height:30px;display:flex;align-items:center;justify-content:center;color:var(--ink-dim);font-size:15px;line-height:1;border-radius:8px;background:rgba(8,10,14,.5);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);border:1px solid var(--hair)}
 .dc-x:active{background:rgba(255,255,255,.07);color:var(--ink-strong);transform:scale(.92)}
 .dc-eye{font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;color:var(--ink-mid);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dc-eye-tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center;white-space:normal;overflow:visible;text-overflow:clip;text-transform:none}
 .dc-eye-tags .grade-chip,.dc-eye-tags .line-chip{display:inline-flex;align-items:center;justify-content:center;height:22px;box-sizing:border-box;margin:0;vertical-align:0;line-height:1;border-radius:4px;border-width:1.5px;font-family:var(--sans);font-size:11.5px;font-weight:800;letter-spacing:.05em;padding:0 9px}
 .dc-subno{color:var(--ink-dim);font-weight:500}
 .dc-eye-no{font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;color:var(--ink-mid);text-transform:uppercase;white-space:nowrap;margin-left:2px}
-.kz-rtno{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;letter-spacing:.18em;color:var(--ink-dim);text-transform:uppercase;white-space:nowrap;margin-left:1px}
+.kz-rtno{font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;color:var(--ink-mid);text-transform:uppercase;white-space:nowrap;margin-left:1px}
 .dc-v-series{white-space:normal}
 .dc-series{word-break:keep-all;text-align:left;white-space:normal}
 .kz-rtags{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:5px}
