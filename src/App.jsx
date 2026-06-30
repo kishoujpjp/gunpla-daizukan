@@ -2527,12 +2527,16 @@ export default function App() {
   // 称号の名称・説明を言語別オーバーレイから取得(未訳は原文へフォールバック)
   const achName = (t) => { const o = t && ACH_I18N[t.id]; return (o && o[lang] && o[lang].name) || (t && t.name); };
   const achSub = (t) => { const o = t && ACH_I18N[t.id]; return (o && o[lang] && o[lang].sub) || (t && t.sub); };
-  const [sortKey, setSortKey] = useState("year");
-  const [sortDir, setSortDir] = useState("asc");
+  const [sortKeyMap, setSortKeyMap] = useState({ zukan: "year", gallery: "year" });
+  const [sortDirMap, setSortDirMap] = useState({ zukan: "asc", gallery: "asc" });
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [advMap, setAdvMap] = useState({ zukan: EMPTY_ADV, gallery: EMPTY_ADV }); // 図鑑/画廊で独立した絞り込み
   const advTab = tab === "gallery" ? "gallery" : "zukan";
   const adv = advMap[advTab];
+  const sortKey = sortKeyMap[advTab];
+  const sortDir = sortDirMap[advTab];
+  const setSortKey = (v) => setSortKeyMap((m) => ({ ...m, [advTab]: typeof v === "function" ? v(m[advTab]) : v }));
+  const setSortDir = (v) => setSortDirMap((m) => ({ ...m, [advTab]: typeof v === "function" ? v(m[advTab]) : v }));
   const setAdv = (updater) =>
     setAdvMap((m) => ({ ...m, [advTab]: typeof updater === "function" ? updater(m[advTab]) : updater }));
   const [queries, setQueries] = useState({ zukan: "", gallery: "" });
@@ -2557,7 +2561,6 @@ export default function App() {
   const [viewerDel, setViewerDel] = useState(false); // 鑑賞内の削除確認
   const [frameEdit, setFrameEdit] = useState(null); // 構図調整: {kitId, ref} | null
   const [imgEdit, setImgEdit] = useState(null); // 画像編集ウィンドウ対象 kitId | null
-  const [quickKit, setQuickKit] = useState(null); // リスト文字長押しの予定/入手クイックメニュー対象
   const [ownConfirm, setOwnConfirm] = useState(null); // 入手取消確認 kit
   const [loaded, setLoaded] = useState(false);
   // 初回起動のみ:ブラウザ言語から日/英/中を自動選択(以後はユーザー設定を尊重)
@@ -2686,8 +2689,10 @@ export default function App() {
           if (d.overrides) setOverrides(d.overrides);
           if (d.customKits) setCustomKits(d.customKits);
           if (d.settings) { setSettings((s) => ({ ...s, ...d.settings })); metaSettings = d.settings; }
-          if (d.sortKey) setSortKey(d.sortKey);
-          if (d.sortDir) setSortDir(d.sortDir);
+          if (d.sortKeyMap) setSortKeyMap((m) => ({ ...m, ...d.sortKeyMap }));
+          else if (d.sortKey) setSortKeyMap({ zukan: d.sortKey, gallery: d.sortKey });
+          if (d.sortDirMap) setSortDirMap((m) => ({ ...m, ...d.sortDirMap }));
+          else if (d.sortDir) setSortDirMap({ zukan: d.sortDir, gallery: d.sortDir });
           if (d.achvSeen) setAchvSeen(d.achvSeen);
           if (d.albumMeta) setAlbumMeta(d.albumMeta);
           if (d.serifs) setSerifs(d.serifs);
@@ -2922,11 +2927,11 @@ export default function App() {
   // META 本体(settings / albumMeta / serifs は独立鍵へ分離したので含めない)
   useEffect(() => {
     if (!loaded) return;
-    const payload = JSON.stringify({ schemaVersion: SCHEMA_VERSION, records, overrides, customKits, sortKey, sortDir, achvSeen, kitTags });
+    const payload = JSON.stringify({ schemaVersion: SCHEMA_VERSION, records, overrides, customKits, sortKey: sortKeyMap.zukan, sortDir: sortDirMap.zukan, sortKeyMap, sortDirMap, achvSeen, kitTags });
     latestMetaRef.current = payload; // 背景化/終了時に debounce を待たず即落とすための最新版
     const t = setTimeout(() => { saveKey(META_KEY, payload); }, 350);
     return () => clearTimeout(t);
-  }, [records, overrides, customKits, sortKey, sortDir, achvSeen, kitTags, loaded, saveKey]);
+  }, [records, overrides, customKits, sortKeyMap, sortDirMap, achvSeen, kitTags, loaded, saveKey]);
   // settings 独立鍵(秘密鍵は push 時に剝離)。設定変更で META 全体を再送しなくなる。
   useEffect(() => {
     if (!loaded) return;
@@ -3046,8 +3051,10 @@ export default function App() {
     if (d.customKits) setCustomKits((prev) => mergeArrStamped(prev, d.customKits));
     if (d.kitTags) setKitTags((prev) => mergeRecMap(prev, d.kitTags));
     if (d.settings) setSettings((s) => mergeSettings(s, d.settings));
-    if (d.sortKey) setSortKey(d.sortKey);
-    if (d.sortDir) setSortDir(d.sortDir);
+    if (d.sortKeyMap) setSortKeyMap((m) => ({ ...m, ...d.sortKeyMap }));
+    else if (d.sortKey) setSortKeyMap({ zukan: d.sortKey, gallery: d.sortKey });
+    if (d.sortDirMap) setSortDirMap((m) => ({ ...m, ...d.sortDirMap }));
+    else if (d.sortDir) setSortDirMap({ zukan: d.sortDir, gallery: d.sortDir });
     if (d.achvSeen) setAchvSeen(d.achvSeen);
     // albumMeta は {kitId: record} 構造 → kit ごとにフィールド級 LWW(構図/縮圖/順序/imeta を各々時戳比較)。
     // 以前の {...prev,...incoming} は kit 単位の丸ごと上書きで、別端末の新しい編集を消し、削除済みの画像を復活させていた。
@@ -3494,7 +3501,7 @@ export default function App() {
   const importRef = useRef(null);
   const exportData = async () => {
     // バックアップにも機密キーは含めない(端末ローカルにのみ残す)
-    const data = { schemaVersion: SCHEMA_VERSION, exportedAt: new Date().toISOString(), records, overrides, customKits, settings: stripSecrets(settings), sortKey, sortDir, images, extras, albumMeta, kitTags, serifs };
+    const data = { schemaVersion: SCHEMA_VERSION, exportedAt: new Date().toISOString(), records, overrides, customKits, settings: stripSecrets(settings), sortKey: sortKeyMap.zukan, sortDir: sortDirMap.zukan, sortKeyMap, sortDirMap, images, extras, albumMeta, kitTags, serifs };
     const json = JSON.stringify(data);
     const name = `mg_zukan_backup_${new Date().toISOString().slice(0, 10)}.json`;
     const file = new File([json], name, { type: "application/json" });
@@ -3530,8 +3537,10 @@ export default function App() {
       if (d.customKits) setCustomKits((prev) => mergeArrStamped(prev, d.customKits.map((c) => ({ ...c, t: now }))));
       if (d.kitTags) setKitTags((prev) => mergeRecMap(prev, stampMap(d.kitTags)));
       if (d.settings) setSettings((s) => mergeRec(s, stampRecAll(d.settings, now)));
-      if (d.sortKey && SORT_KEYS.includes(d.sortKey)) setSortKey(d.sortKey);
-      if (d.sortDir === "asc" || d.sortDir === "desc") setSortDir(d.sortDir);
+      if (d.sortKeyMap) setSortKeyMap((m) => ({ ...m, ...d.sortKeyMap }));
+      else if (d.sortKey && SORT_KEYS.includes(d.sortKey)) setSortKeyMap({ zukan: d.sortKey, gallery: d.sortKey });
+      if (d.sortDirMap) setSortDirMap((m) => ({ ...m, ...d.sortDirMap }));
+      else if (d.sortDir === "asc" || d.sortDir === "desc") setSortDirMap({ zukan: d.sortDir, gallery: d.sortDir });
       if (d.images) {
         setImages(d.images);
         for (let i = 0; i < IMG_SHARDS; i++) {
@@ -4221,7 +4230,6 @@ export default function App() {
       );
     }
     if (settings.view === "list") {
-      const textLP = makeLongPress(() => { hapticStrong(); setQuickKit(kit); }); // 文字長押し→クイックメニュー
       const noCode = [
         settings.listNo && kit.no && kit.no !== "—" ? `No.${kit.no}` : null,
         settings.listCode && kit.code ? kit.code : null,
@@ -4234,7 +4242,7 @@ export default function App() {
                 ? <KitImage kit={kit} img={img} owned={rec.owned} built={!!rec.buildDate} size={88} cls="sm" frame={thumbFrameStyle(kit.id)} />
                 : <SeriesWatermark kit={kit} variant="list" />}
             </div>
-            <div className="kz-rmain" {...textLP}>
+            <div className="kz-rmain">
               {settings.listTags !== false ? (
                 <div className="kz-rtags">
                   <GradeChip grade={kit.grade} />
@@ -4298,9 +4306,20 @@ export default function App() {
   const pillState = detailRec ? (detailRec.buildDate || doneIntent ? "done" : detailRec.owned ? "own" : detailRec.plan ? "plan" : "none") : "none";
   const PILL_LABEL = { none: L("未入手", "Unowned", "未入手"), plan: L("予定", "Planned", "預定"), own: L("入手", "Owned", "入手"), done: L("完成", "Built", "完成") };
   const PILL_MENU = { none: ["plan", "own"], plan: ["none", "own"], own: ["none", "done"], done: ["none", "own"] };
-  const applyPill = (s) => {
+  const applyPill = async (s) => {
     if (!detailKit) return;
     const id = detailKit.id;
+    const cur = getRec(id);
+    const losesPurchase = (s === "none" || s === "plan") && !!cur.purchaseDate;
+    const losesBuild = (s === "none" || s === "plan" || s === "own") && !!cur.buildDate;
+    if (losesPurchase || losesBuild) {
+      const lost = [losesPurchase ? L("入手日", "the acquired date", "入手日期") : null, losesBuild ? L("完成日", "the completion date", "完成日期") : null].filter(Boolean).join(L("・", " and ", "、"));
+      const ok = await appConfirm(
+        L(`${lost}が削除されます。状態を変更しますか？`, `${lost} will be cleared. Change the status?`, `將清除${lost}。要變更狀態嗎？`),
+        { okText: L("変更する", "Change", "變更"), cancelText: L("キャンセル", "Cancel", "取消"), danger: true }
+      );
+      if (!ok) { setPillOpen(false); return; }
+    }
     if (s === "none") { setRec(id, { owned: false, plan: false, purchaseDate: "", buildDate: "" }); setDoneIntent(false); }
     else if (s === "plan") { setRec(id, { plan: true, owned: false, purchaseDate: "", buildDate: "" }); setDoneIntent(false); }
     else if (s === "own") { setRec(id, { owned: true, plan: false, buildDate: "" }); setDoneIntent(false); }
@@ -4329,7 +4348,6 @@ export default function App() {
   const overlayLayersRef = useRef([]);
   const overlayLayers = [
     { open: serifEdit != null, close: () => setSerifEdit(null) },
-    { open: quickKit != null, close: () => setQuickKit(null) },
     { open: ownConfirm != null, close: () => setOwnConfirm(null) },
     { open: seriesPickerOpen, close: () => setSeriesPickerOpen(false) },
     { open: uniPickerOpen, close: () => setUniPickerOpen(false) },
@@ -5047,25 +5065,6 @@ export default function App() {
       )}
 
       {/* ── 詳細 / 編輯彈窗 ── */}
-      {quickKit && (() => {
-        const qr = getRec(quickKit.id);
-        return (
-          <div className="modal-bg qm-bg" onClick={() => setQuickKit(null)} style={{ zIndex: 92 }}>
-            <div className="qm-card" onClick={(e) => e.stopPropagation()}>
-              <div className="qm-name"><KitName name={quickKit.name} /></div>
-              <div className="qm-btns">
-                <button className={"qm-btn own" + (qr.owned ? " on" : "")}
-                  onClick={() => { haptic(); toggleOwned(quickKit.id); setQuickKit(null); }}>
-                  <span className="qm-ico">{qr.owned ? "✓" : "◎"}</span>{qr.owned ? L("入手済", "Owned", "已入手") : L("入手", "Own", "入手")}</button>
-                <button className={"qm-btn plan" + (qr.plan ? " on" : "")}
-                  onClick={() => { haptic(); togglePlan(quickKit.id); setQuickKit(null); }}>
-                  <span className="qm-ico">{qr.plan ? "✓" : "◆"}</span>{qr.plan ? L("予定中", "Planned", "規劃中") : L("予定", "Plan", "規劃")}</button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
       {ownConfirm && (
         <div className="modal-bg confirm-bg" onClick={() => setOwnConfirm(null)} style={{ zIndex: 90 }}>
           <div className="confirm-card" onClick={(e) => e.stopPropagation()}>
@@ -5242,8 +5241,8 @@ export default function App() {
                           : <span className="rec-dateval">—</span>}</span>
                     </div>
                   )}
-                  <div className="dc-srow dc-srow-memo"><span className="dc-k">{L("メモ", "Memo", "備註")}</span><span className="dc-v"><NoteField note={detailKit.note} onCommit={(v) => setNote(detailKit, v)} enterOnLongPress L={L} /></span></div>
                   <div className="dc-srow dc-srow-tag"><span className="dc-k">{L("タグ", "Tags", "標籤")}</span><span className="dc-v"><TagField tags={getTags(detailKit.id)} onCommit={(next) => setTags(detailKit.id, next)} enterOnLongPress onTagTap={jumpToTag} L={L} /></span></div>
+                  <div className="dc-srow dc-srow-memo"><span className="dc-k">{L("メモ", "Memo", "備註")}</span><span className="dc-v"><NoteField note={detailKit.note} onCommit={(v) => setNote(detailKit, v)} enterOnLongPress L={L} /></span></div>
                 </div>
 
                 <button className="edit-link" onClick={() => setEditing(true)}>{L("✎ 機体情報を編集", "✎ Edit kit info", "✎ 編輯機體資訊")}</button>
@@ -5977,10 +5976,10 @@ input,textarea{font-family:var(--sans)}
 .tab.salon-tab.on .tab-icon,.tab.salon-tab.on .tab-label{color:var(--gold);filter:brightness(1.12)}
 .salon-ico .pal-body{stroke-width:1.6}
 .salon-ico circle{stroke:none}
-.salon-ico .pd1{fill:#f0dcab}
-.salon-ico .pd2{fill:var(--gold)}
-.salon-ico .pd3{fill:var(--kin-deep)}
-.salon-ico .pd4{fill:#e3bf7d}
+.salon-ico .pd1{fill:currentColor;opacity:.5}
+.salon-ico .pd2{fill:currentColor;opacity:.9}
+.salon-ico .pd3{fill:currentColor;opacity:.35}
+.salon-ico .pd4{fill:currentColor;opacity:.7}
 .tab.set-tab .tab-bar{background:var(--ink-strong)}
 .head-stats b.kin{color:var(--kin)}
 
