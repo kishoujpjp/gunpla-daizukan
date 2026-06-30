@@ -5223,12 +5223,12 @@ export default function App() {
                       <span className="dc-k">{L("入手", "Acquired", "入手")}</span>
                       <span className="dc-v dc-duo-rel">{detailRec.purchaseDate
                         ? <span className="rec-dateval">{fmtDate(detailRec.purchaseDate)}</span>
-                        : <DateSetField ph={L("タップで時間を入力", "Tap to enter date", "點擊輸入時間")} onPick={(v) => setRec(detailKit.id, { purchaseDate: v, owned: true, plan: false })} />}</span>
+                        : <DateSetField ph={L("日付", "Date", "日期")} onPick={(v) => setRec(detailKit.id, { purchaseDate: v, owned: true, plan: false })} />}</span>
                       <span className="dc-k dc-k2">{L("完成", "Done", "完成")}</span>
                       <span className="dc-v dc-duo-price">{detailRec.buildDate
                         ? <span className="rec-dateval done">{fmtDate(detailRec.buildDate)}</span>
                         : pillState === "done"
-                          ? <DateSetField ph={L("タップで時間を入力", "Tap to enter date", "點擊輸入時間")} cls="done" onPick={(v) => setRec(detailKit.id, { buildDate: v, owned: true, plan: false })} />
+                          ? <DateSetField ph={L("日付", "Date", "日期")} cls="done" onPick={(v) => setRec(detailKit.id, { buildDate: v, owned: true, plan: false })} />
                           : <span className="rec-dateval">—</span>}</span>
                     </div>
                   )}
@@ -7458,7 +7458,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .dc-unsub{font-family:var(--mono);font-size:9px;letter-spacing:.22em;color:#3c4452}
 .dc-unref{position:absolute;bottom:11px;font-family:var(--mono);font-size:8px;letter-spacing:.18em;color:#3c4452}
 .dc-spec{margin-top:15px}
-.dc-srow{display:flex;align-items:baseline;gap:14px;padding:11px 0;border-bottom:1px solid var(--line)}
+.dc-srow{display:flex;align-items:baseline;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
 .dc-statdot{width:6px;height:6px;border-radius:50%;background:var(--ink-dim);flex:none;display:inline-block}
 .dc-statdot.plan{background:var(--gold)}
 .dc-statdot.own{background:var(--shu)}
@@ -7544,12 +7544,13 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .dc-srow-status{align-items:center;flex-wrap:wrap;gap:8px 10px}
 .dc-v-status{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .rec-pill-cell{position:relative;display:inline-flex}
-.dc-srow-duo{align-items:center;gap:12px;flex-wrap:wrap}
-.dc-srow-duo .dc-k2{width:auto;flex:none}
-.dc-duo-rel{flex:none;min-width:0}
-.dc-duo-price{flex:1;min-width:0;display:flex;align-items:center;gap:8px}
-.dc-duo-price .rec-pill-cell{margin-left:auto}
-.dc-k{flex:none;width:64px;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--ink-dim);text-transform:uppercase}
+.dc-srow-duo{display:grid;grid-template-columns:56px 76px auto minmax(0,1fr);align-items:center;column-gap:10px}
+.dc-srow-duo .dc-k2{width:auto;white-space:nowrap}
+.dc-duo-rel{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dc-duo-price{min-width:0;display:flex;align-items:center;gap:8px;flex-wrap:nowrap}
+.dc-duo-price .dc-mono{flex:none;white-space:nowrap}
+.dc-duo-price .rec-pill-cell{margin-left:auto;flex:none}
+.dc-k{flex:none;width:56px;white-space:nowrap;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--ink-dim);text-transform:uppercase}
 .dc-v{flex:1;font-size:13.5px;color:var(--ink-strong);min-width:0}
 .dc-v.dc-tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .dc-v.dc-tags .grade-chip,.dc-v.dc-tags .line-chip{display:inline-flex;align-items:center;justify-content:center;
