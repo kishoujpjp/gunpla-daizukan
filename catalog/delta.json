@@ -1,12 +1,8 @@
 {
-  "catalogVersion": 2,
+  "catalogVersion": 3,
   "generatedAt": "2026-06-30",
-  "count": 1,
-  "add": [
-    { "id": "test001", "no": "TEST", "code": "X-00", "name": "テスト機体(削除予定)",
-      "ym": "2026-12", "price": 1000, "series": "テスト",
-      "line": "", "grade": "HG", "premium": false, "base": false }
-  ],
+  "count": 0,
+  "add": [],
   "patch": {},
   "discontinue": []
 }
