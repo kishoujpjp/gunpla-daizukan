@@ -396,14 +396,26 @@ function FitName({ name, max, min = 12 }) {
   return <span ref={ref} className="sl-name-fit" style={{ fontSize: max }}>{name}</span>;
 }
 
-function DateSetField({ onPick, ph, cls = "" }) {
+function DateSetField({ value, onPick, ph, cls = "", mode = "date", clearLabel = "クリア" }) {
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState("day");
-  const t = new Date();
-  const [vy, setVy] = useState(t.getFullYear());
-  const [vm, setVm] = useState(t.getMonth());
-  const [yBase, setYBase] = useState(t.getFullYear() - 6);
+  const [pos, setPos] = useState(null);
+  const [view, setView] = useState(mode === "month" ? "month" : "day");
+  const ref = useRef(null);
+  const today = new Date();
+  const [vy, setVy] = useState(today.getFullYear());
+  const [vm, setVm] = useState(today.getMonth());
+  const [yBase, setYBase] = useState(today.getFullYear() - 6);
   const pad = (n) => String(n).padStart(2, "0");
+  const toggle = () => {
+    if (open) { setOpen(false); return; }
+    const mt = value && /^(\d{4})-(\d{2})/.exec(value);
+    if (mt) { setVy(+mt[1]); setVm(+mt[2] - 1); setYBase(+mt[1] - 6); }
+    setView(mode === "month" ? "month" : "day");
+    const r = ref.current.getBoundingClientRect();
+    const up = r.bottom > window.innerHeight - 330;
+    setPos({ left: Math.max(8, r.left), up, top: r.bottom + 4, bottom: window.innerHeight - r.top + 4 });
+    setOpen(true);
+  };
   const prevM = () => { if (vm === 0) { setVy(vy - 1); setVm(11); } else setVm(vm - 1); };
   const nextM = () => { if (vm === 11) { setVy(vy + 1); setVm(0); } else setVm(vm + 1); };
   const di = new Date(vy, vm + 1, 0).getDate();
@@ -412,58 +424,105 @@ function DateSetField({ onPick, ph, cls = "" }) {
   for (let i = 0; i < fd; i++) cells.push(0);
   for (let d = 1; d <= di; d++) cells.push(d);
   const years = Array.from({ length: 12 }, (_, i) => yBase + i);
-  const pick = (d) => { onPick(`${vy}-${pad(vm + 1)}-${pad(d)}`); setOpen(false); setMode("day"); };
+  const commit = (v) => { onPick(v); setOpen(false); };
+  const disp = value ? value.replace(/-/g, ".") : ph;
   return (
-    <span className={`rec-dateset ${cls}`}>
-      <button type="button" className="rec-dateset-btn" onClick={() => { setOpen((o) => !o); setMode("day"); }} aria-expanded={open}>
-        <span className="rec-dateset-ph">{ph}</span><span className="rec-dateset-chev">▾</span>
+    <span className={`rec-dateset ${cls} ${value ? "has" : ""}`} ref={ref}>
+      <button type="button" className="rec-dateset-btn" onClick={toggle} aria-expanded={open}>
+        <span className="rec-dateset-ph">{disp}</span><span className="rec-dateset-chev">▾</span>
       </button>
-      {open && (
-        <span className="rec-cal">
-          {mode === "day" && (
-            <>
-              <span className="rec-cal-h">
-                <button type="button" className="rec-cal-nav" onClick={prevM} aria-label="prev">‹</button>
-                <button type="button" className="rec-cal-mo" onClick={() => setMode("month")}>{vy}.{pad(vm + 1)}</button>
-                <button type="button" className="rec-cal-nav" onClick={nextM} aria-label="next">›</button>
-              </span>
-              <span className="rec-cal-grid">
-                {["日", "月", "火", "水", "木", "金", "土"].map((w) => <span key={"w" + w} className="rec-cal-wd">{w}</span>)}
-                {cells.map((d, i) => (d
-                  ? <button key={i} type="button" className="rec-cal-d" onClick={() => pick(d)}>{d}</button>
-                  : <span key={i} className="rec-cal-d rec-cal-x" />))}
-              </span>
-            </>
-          )}
-          {mode === "month" && (
-            <>
-              <span className="rec-cal-h">
-                <button type="button" className="rec-cal-nav" onClick={() => setVy(vy - 1)} aria-label="prev year">‹</button>
-                <button type="button" className="rec-cal-mo" onClick={() => { setYBase(vy - 6); setMode("year"); }}>{vy}</button>
-                <button type="button" className="rec-cal-nav" onClick={() => setVy(vy + 1)} aria-label="next year">›</button>
-              </span>
-              <span className="rec-cal-mgrid">
-                {Array.from({ length: 12 }, (_, i) => (
-                  <button key={i} type="button" className={`rec-cal-cell ${i === vm ? "sel" : ""}`} onClick={() => { setVm(i); setMode("day"); }}>{i + 1}月</button>
+      {open && pos ? (
+        <>
+          <div className="picker-back" onClick={() => setOpen(false)} />
+          <div className="rec-cal" style={{ left: pos.left, ...(pos.up ? { bottom: pos.bottom } : { top: pos.top }) }}>
+            {value ? <button type="button" className="rec-cal-clear" onClick={() => commit("")}>× {clearLabel}</button> : null}
+            {mode === "date" && view === "day" ? (
+              <>
+                <div className="rec-cal-h">
+                  <button type="button" className="rec-cal-nav" onClick={prevM} aria-label="prev">‹</button>
+                  <button type="button" className="rec-cal-mo" onClick={() => setView("month")}>{vy}.{pad(vm + 1)}</button>
+                  <button type="button" className="rec-cal-nav" onClick={nextM} aria-label="next">›</button>
+                </div>
+                <div className="rec-cal-grid">
+                  {["日", "月", "火", "水", "木", "金", "土"].map((w) => <span key={"w" + w} className="rec-cal-wd">{w}</span>)}
+                  {cells.map((d, i) => (d
+                    ? <button key={i} type="button" className="rec-cal-d" onClick={() => commit(`${vy}-${pad(vm + 1)}-${pad(d)}`)}>{d}</button>
+                    : <span key={i} className="rec-cal-d rec-cal-x" />))}
+                </div>
+              </>
+            ) : null}
+            {view === "month" ? (
+              <>
+                <div className="rec-cal-h">
+                  <button type="button" className="rec-cal-nav" onClick={() => setVy(vy - 1)} aria-label="prev year">‹</button>
+                  <button type="button" className="rec-cal-mo" onClick={() => { setYBase(vy - 6); setView("year"); }}>{vy}</button>
+                  <button type="button" className="rec-cal-nav" onClick={() => setVy(vy + 1)} aria-label="next year">›</button>
+                </div>
+                <div className="rec-cal-mgrid">
+                  {Array.from({ length: 12 }, (_, i) => (
+                    <button key={i} type="button" className={`rec-cal-cell ${(mode === "month" ? value === `${vy}-${pad(i + 1)}` : i === vm) ? "sel" : ""}`} onClick={() => { if (mode === "month") commit(`${vy}-${pad(i + 1)}`); else { setVm(i); setView("day"); } }}>{i + 1}月</button>
+                  ))}
+                </div>
+              </>
+            ) : null}
+            {view === "year" ? (
+              <>
+                <div className="rec-cal-h">
+                  <button type="button" className="rec-cal-nav" onClick={() => setYBase(yBase - 12)} aria-label="prev years">‹</button>
+                  <span className="rec-cal-mo-static">{years[0]}–{years[11]}</span>
+                  <button type="button" className="rec-cal-nav" onClick={() => setYBase(yBase + 12)} aria-label="next years">›</button>
+                </div>
+                <div className="rec-cal-mgrid">
+                  {years.map((y) => (
+                    <button key={y} type="button" className={`rec-cal-cell ${y === vy ? "sel" : ""}`} onClick={() => { setVy(y); setView("month"); }}>{y}</button>
+                  ))}
+                </div>
+              </>
+            ) : null}
+          </div>
+        </>
+      ) : null}
+    </span>
+  );
+}
+
+function Picker({ value, options, groups, onChange, className = "", placeholder }) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState(null);
+  const ref = useRef(null);
+  const openIt = () => {
+    const el = ref.current; if (!el) return;
+    const r = el.getBoundingClientRect();
+    const up = r.bottom > window.innerHeight - 300;
+    setPos({ left: Math.max(8, r.left), width: r.width, up, top: r.bottom + 4, bottom: window.innerHeight - r.top + 4 });
+    setOpen(true);
+  };
+  let curLabel = placeholder != null ? placeholder : value;
+  if (groups) { for (const g of groups) { const it = g.items.find((m) => m.id === value); if (it) { curLabel = it.label; break; } } }
+  else if (options) { const o = options.find((x) => x[0] === value); if (o) curLabel = o[1]; }
+  return (
+    <span className={`picker ${className}`} ref={ref}>
+      <button type="button" className="picker-btn" onClick={openIt} aria-expanded={open}>
+        <span className="picker-cur">{curLabel}</span><span className="picker-chev">▾</span>
+      </button>
+      {open && pos && (
+        <>
+          <div className="picker-back" onClick={() => setOpen(false)} />
+          <div className="picker-menu" style={{ left: pos.left, minWidth: pos.width, ...(pos.up ? { bottom: pos.bottom } : { top: pos.top }) }}>
+            {groups
+              ? groups.map((g) => (
+                  <div key={g.group}>
+                    <span className="picker-grp-h">{g.group}</span>
+                    {g.items.map((m) => (
+                      <button key={m.id} type="button" className={`picker-opt ${m.id === value ? "sel" : ""}`} onClick={() => { onChange(m.id); setOpen(false); }}><span>{m.label}</span>{m.id === value && <span className="picker-ck">✓</span>}</button>
+                    ))}
+                  </div>
+                ))
+              : options.map(([v, l]) => (
+                  <button key={v} type="button" className={`picker-opt ${v === value ? "sel" : ""}`} onClick={() => { onChange(v); setOpen(false); }}><span>{l}</span>{v === value && <span className="picker-ck">✓</span>}</button>
                 ))}
-              </span>
-            </>
-          )}
-          {mode === "year" && (
-            <>
-              <span className="rec-cal-h">
-                <button type="button" className="rec-cal-nav" onClick={() => setYBase(yBase - 12)} aria-label="prev years">‹</button>
-                <span className="rec-cal-mo-static">{years[0]}–{years[11]}</span>
-                <button type="button" className="rec-cal-nav" onClick={() => setYBase(yBase + 12)} aria-label="next years">›</button>
-              </span>
-              <span className="rec-cal-mgrid">
-                {years.map((y) => (
-                  <button key={y} type="button" className={`rec-cal-cell ${y === vy ? "sel" : ""}`} onClick={() => { setVy(y); setMode("month"); }}>{y}</button>
-                ))}
-              </span>
-            </>
-          )}
-        </span>
+          </div>
+        </>
       )}
     </span>
   );
@@ -1141,7 +1200,7 @@ function KitFixModal({ allKits, onClose, L = (ja) => ja }) {
             <label className="fld pad"><span>{L("名称","Name","名稱")}</span><input value={form.name} onChange={set("name")} /></label>
             <label className="fld pad"><span>{L("型式番号","Model code","型式番號")}</span><input value={form.code} onChange={set("code")} placeholder="RX-78-2" /></label>
             <label className="fld pad"><span>{L("原作","Series","原作")}</span><input value={form.series} onChange={set("series")} /></label>
-            <label className="fld pad"><span>{L("発売年月","Release","發售年月")}</span><input type="month" value={form.ym} onChange={set("ym")} /></label>
+            <label className="fld pad"><span>{L("発売年月","Release","發售年月")}</span><DateSetField mode="month" value={form.ym} ph={L("タップで選択", "Tap to set", "點擊選擇")} clearLabel={L("クリア", "Clear", "清除")} onPick={(v) => set("ym")({ target: { value: v } })} /></label>
             <label className="fld pad"><span>{L("定価(円)","Price (JPY)","定價(日圓)")}</span><input type="number" inputMode="numeric" value={form.price} onChange={set("price")} /></label>
             <label className="fld pad"><span>{L("グレード","Grade","等級")}</span><input value={form.grade} onChange={set("grade")} placeholder="HG / MG / RG ..." /></label>
             <label className="fld pad"><span>{L("ブランド","Brand","品牌")}</span><input value={form.line} onChange={set("line")} /></label>
@@ -2247,13 +2306,7 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
       <div className="fld-row name-row">
         <label className="fld grow2"><span>{L("機体名 *", "Name *", "機體名 *")}</span><input value={f.name} onChange={set("name")} placeholder={L("例: νガンダム Ver.Ka", "e.g. ν Gundam Ver.Ka", "例: ν鋼彈 Ver.Ka")} /></label>
         <label className="fld"><span>Grade</span>
-          <select value={f.grade} onChange={set("grade")}>
-            <option value="MG">MG</option>
-            <option value="HG">HG</option>
-            <option value="RG">RG</option>
-            <option value="MGSD">MGSD</option>
-            <option value="EXTRA">EXTRA</option>
-          </select>
+          <Picker value={f.grade} onChange={(v) => set("grade")({ target: { value: v } })} options={[["MG", "MG"], ["HG", "HG"], ["RG", "RG"], ["MGSD", "MGSD"], ["EXTRA", "EXTRA"]]} />
         </label>
       </div>
       <label className="fld"><span>{L("原作", "Series", "原作")}</span>
@@ -2262,7 +2315,7 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
       </label>
       <div className="fld-row">
         <label className="fld"><span>{L("型式番号", "Model code", "型式番號")}</span><input value={f.code} onChange={set("code")} placeholder="RX-93" /></label>
-        <label className="fld"><span>{L("発売年月", "Release", "發售年月")}</span><input type="month" value={f.ym} onChange={set("ym")} /></label>
+        <label className="fld"><span>{L("発売年月", "Release", "發售年月")}</span><DateSetField mode="month" value={f.ym} ph={L("タップで選択", "Tap to set", "點擊選擇")} clearLabel={L("クリア", "Clear", "清除")} onPick={(v) => set("ym")({ target: { value: v } })} /></label>
       </div>
       <div className="fld-row">
         <label className="fld"><span>{L("定価(円・税込)", "Price (JPY, incl. tax)", "定價(日圓・含稅)")}</span><input type="number" value={f.price} onChange={set("price")} placeholder="7700" /></label>
@@ -2275,16 +2328,10 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
       </div>
       <div className="form-dates">
         <div className="fld"><span>{L("入手日", "Acquired date", "入手日")}</span>
-          <span className="date-wrap">
-            <input type="date" value={dates.purchaseDate} onChange={(e) => setDates((d) => ({ ...d, purchaseDate: e.target.value }))} />
-            <button type="button" className="date-clear" disabled={!dates.purchaseDate} aria-label={L("クリア", "Clear", "清除")} style={{ visibility: dates.purchaseDate ? "visible" : "hidden" }} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDates((d) => ({ ...d, purchaseDate: "" })); }}>✕</button>
-          </span>
+          <DateSetField value={dates.purchaseDate} ph={L("タップで選択", "Tap to set", "點擊選擇")} clearLabel={L("クリア", "Clear", "清除")} onPick={(v) => setDates((d) => ({ ...d, purchaseDate: v }))} />
         </div>
         <div className="fld"><span>{L("制作完了日", "Completion date", "完成日")}</span>
-          <span className="date-wrap">
-            <input type="date" value={dates.buildDate} onChange={(e) => setDates((d) => ({ ...d, buildDate: e.target.value }))} />
-            <button type="button" className="date-clear" disabled={!dates.buildDate} aria-label={L("クリア", "Clear", "清除")} style={{ visibility: dates.buildDate ? "visible" : "hidden" }} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDates((d) => ({ ...d, buildDate: "" })); }}>✕</button>
-          </span>
+          <DateSetField value={dates.buildDate} ph={L("タップで選択", "Tap to set", "點擊選擇")} clearLabel={L("クリア", "Clear", "清除")} onPick={(v) => setDates((d) => ({ ...d, buildDate: v }))} />
         </div>
       </div>
       <label className="fld"><span>{L("メモ", "Memo", "備註")}</span><textarea rows={2} value={f.note} onChange={set("note")} placeholder={L("改修予定、塗装レシピ、保管場所など", "build plans, paint recipe, storage…", "改修計畫、塗裝配方、保管位置等")} /></label>
@@ -3880,9 +3927,7 @@ export default function App() {
 
   const SortBar = () => (
     <div className="sort-bar">
-      <select value={sortKey} onChange={(e) => setSortKey(e.target.value)}>
-        {Object.entries(sortLabel).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-      </select>
+      <Picker className="sort-pick" value={sortKey} onChange={(v) => setSortKey(v)} options={Object.entries(sortLabel)} />
       <button onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}>{sortDir === "asc" ? "↑" : "↓"}</button>
     </div>
   );
@@ -4050,15 +4095,9 @@ export default function App() {
       <div className="adv-row">
         <span className="adv-lbl">{L("年代","Years","年代")}</span>
         <div className="adv-years">
-          <select className="adv-sel adv-year-sel" value={adv.yFrom} onChange={(e) => setAdv((a) => ({ ...a, yFrom: e.target.value }))}>
-            <option value="">{L("最古","Earliest","最早")}</option>
-            {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
-          </select>
+          <Picker className="adv-pick" value={adv.yFrom} onChange={(v) => setAdv((a) => ({ ...a, yFrom: v }))} options={[["", L("最古", "Earliest", "最早")], ...YEARS.map((y) => [String(y), String(y)])]} />
           <span className="adv-tilde">〜</span>
-          <select className="adv-sel adv-year-sel" value={adv.yTo} onChange={(e) => setAdv((a) => ({ ...a, yTo: e.target.value }))}>
-            <option value="">{L("最新","Latest","最新")}</option>
-            {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
-          </select>
+          <Picker className="adv-pick" value={adv.yTo} onChange={(v) => setAdv((a) => ({ ...a, yTo: v }))} options={[["", L("最新", "Latest", "最新")], ...YEARS.map((y) => [String(y), String(y)])]} />
         </div>
       </div>
       <div className="adv-foot">
@@ -4854,14 +4893,7 @@ export default function App() {
                     onChange={(e) => patchSettings({ openaiKey: e.target.value })} />
                 </label>
                 <label className="fld pad"><span>{L("画像生成モデル(選択した提供元のキーを使用)","Image model (uses the selected provider's key)","影像生成模型(使用所選供應商金鑰)")}</span>
-                  <select value={settings.geminiModel || "gemini-3-pro-image"}
-                    onChange={(e) => patchSettings({ geminiModel: e.target.value })}>
-                    {AI_MODELS.map((g) => (
-                      <optgroup key={g.group} label={g.group}>
-                        {g.items.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
-                      </optgroup>
-                    ))}
-                  </select>
+                  <Picker value={settings.geminiModel || "gemini-3-pro-image"} onChange={(v) => patchSettings({ geminiModel: v })} groups={AI_MODELS} />
                 </label>
                 <div className="fld pad"><span>{L("スタイル別プロンプト(タップで編集・点灯=カスタム済み)","Per-style prompts (tap to edit · lit = customized)","各風格提示詞(點擊編輯・亮起=已自訂)")}</span>
                   <div className="prompt-chips">
@@ -5283,8 +5315,7 @@ export default function App() {
             </label>
             <div style={{ height: 8 }} />
             <label className="fld pad"><span>{L("ガンプラ歴 開始日","Building since","模型資歷起始日")}</span>
-              <input type="date" value={settings.builderSince || ""}
-                onChange={(e) => patchSettings({ builderSince: e.target.value })} />
+              <DateSetField value={settings.builderSince || ""} ph={L("タップで選択", "Tap to set", "點擊選擇")} clearLabel={L("クリア", "Clear", "清除")} onPick={(v) => patchSettings({ builderSince: v })} />
             </label>
             <div className="form-actions" style={{ marginTop: 12 }}>
               <button className="btn primary" onClick={() => setProfileOpen(false)}>{L("保存して閉じる","Save & close","儲存並關閉")}</button>
@@ -7432,8 +7463,14 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .rec-dateset-ph{font-size:11.5px;color:var(--ink-dim);white-space:nowrap;letter-spacing:.02em}
 .rec-dateset.done .rec-dateset-ph{color:#5a8f86}
 .rec-dateset-chev{font-size:9px;color:var(--ink-dim)}
-.rec-cal{display:block;margin-top:7px;width:236px;max-width:100%;background:#1a2030;border:1px solid var(--line);
-  border-radius:12px;padding:10px;box-shadow:0 12px 30px rgba(0,0,0,.45)}
+.rec-cal{position:fixed;z-index:201;width:236px;max-width:92vw;background:#1a2030;border:1px solid var(--line);
+  border-radius:12px;padding:10px;box-shadow:0 16px 40px rgba(0,0,0,.55)}
+.rec-cal-clear{display:block;width:100%;text-align:left;padding:8px 4px 10px;margin-bottom:4px;border:0;
+  border-bottom:1px solid var(--line-soft);background:transparent;color:var(--ink-mid);font-family:var(--serif);font-size:12px;cursor:pointer}
+.rec-cal-clear:active{color:#f0a18f}
+.rec-dateset.has .rec-dateset-ph{color:var(--ink);font-family:var(--mono);font-size:12.5px;letter-spacing:0}
+.fld .rec-dateset{display:block}
+.fld .rec-dateset-btn{width:100%}
 .rec-cal-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .rec-cal-mo{font-family:var(--mono);font-size:13px;color:var(--ink-strong);background:transparent;border:0;
   cursor:pointer;padding:4px 10px;border-radius:6px;text-decoration:underline;text-decoration-color:var(--ink-dim);text-underline-offset:3px}
@@ -7444,6 +7481,27 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
   font-family:var(--mono);font-size:12.5px;cursor:pointer;text-align:center}
 .rec-cal-cell:active{background:#232c3d}
 .rec-cal-cell.sel{border-color:var(--gold);color:var(--gold)}
+.picker{position:relative;display:inline-flex;max-width:100%;min-width:0}
+.fld .picker{width:100%}
+.adv-pick{flex:1;min-width:0;width:auto}
+.adv-pick .picker-btn{background:var(--bg2);padding:8px 9px;font-size:12.5px}
+.drawer-tools .sort-bar .sort-pick{flex:1;min-width:0}
+.sort-pick .picker-btn{border-radius:6px;font-size:11.5px;padding:6px 8px}
+.picker-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;
+  background:var(--panel);border:1px solid var(--line);border-radius:7px;color:var(--ink);
+  padding:9px 10px;font-size:13px;font-family:var(--sans);cursor:pointer;text-align:left;min-width:0}
+.picker-btn:active{border-color:var(--kin-deep)}
+.picker-cur{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.picker-chev{flex:none;font-size:9px;color:var(--ink-dim)}
+.picker-back{position:fixed;inset:0;z-index:200;background:transparent}
+.picker-menu{position:fixed;z-index:201;background:#1a2030;border:1px solid var(--line);border-radius:10px;
+  padding:6px;max-height:300px;overflow-y:auto;box-shadow:0 16px 40px rgba(0,0,0,.55);min-width:120px;max-width:min(86vw,340px)}
+.picker-opt{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;
+  padding:9px 11px;border:0;background:transparent;color:var(--ink-mid);font-size:13px;font-family:var(--sans);cursor:pointer;border-radius:7px}
+.picker-opt:active{background:#232c3d;color:var(--ink)}
+.picker-opt.sel{color:var(--ink-strong)}
+.picker-ck{flex:none;color:var(--gold);font-size:12px}
+.picker-grp-h{display:block;font-size:10px;letter-spacing:.1em;color:var(--ink-dim);padding:8px 11px 4px;font-family:var(--mono)}
 .rec-cal-nav{width:28px;height:28px;border:1px solid var(--line);border-radius:7px;background:transparent;
   color:var(--ink-mid);cursor:pointer;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center}
 .rec-cal-nav:active{border-color:var(--gold);color:var(--ink-strong)}
