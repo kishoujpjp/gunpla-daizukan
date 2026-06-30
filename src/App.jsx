@@ -1866,7 +1866,7 @@ function NoteField({ note, onCommit, enterOnLongPress = false, L = (ja) => ja })
 /* ── アプリ内 通知/確認(native alert/confirm の置き換え。APP風) ── */
 let _toastSeq = 0;
 function notify(msg, opt) {
-  try { window.dispatchEvent(new CustomEvent("app-toast", { detail: { id: ++_toastSeq, msg, kind: (opt && opt.kind) || "ok", dur: (opt && opt.dur) || 2400 } })); }
+  try { window.dispatchEvent(new CustomEvent("app-toast", { detail: { id: ++_toastSeq, msg, kind: (opt && opt.kind) || "ok", variant: (opt && opt.variant) || "", tag: (opt && opt.tag) || "", dur: (opt && opt.dur) || 2400 } })); }
   catch (e) {}
 }
 function appConfirm(message, opt) {
@@ -1891,7 +1891,15 @@ function AppDialogHost() {
     <>
       <div className="toast-host">
         {toasts.map((t) => (
-          <div key={t.id} className={"toast " + t.kind}><span className="ti">{ic[t.kind] || "◈"}</span><span className="tm">{t.msg}</span></div>
+          t.variant === "decree" ? (
+            <div key={t.id} className="toast decree">
+              <span className="toast-hex"><svg viewBox="0 0 64 64" aria-hidden="true"><polygon points="32,8 50,18 50,40 32,52 14,40 14,18" fill="none" stroke="#d9b36a" strokeWidth="4" /></svg></span>
+              <span className="tm">{t.msg}</span>
+              {t.tag ? <span className="toast-tag">{t.tag}</span> : null}
+            </div>
+          ) : (
+            <div key={t.id} className={"toast " + t.kind}><span className="ti">{ic[t.kind] || "◈"}</span><span className="tm">{t.msg}</span></div>
+          )
         ))}
       </div>
       {cf ? (
@@ -4038,7 +4046,7 @@ export default function App() {
             <button type="button" className="sb-sort-dir" onClick={() => { haptic(); setSortDir((d) => (d === "asc" ? "desc" : "asc")); }} aria-label={L("昇順・降順","Ascending / descending","升冪・降冪")}>{sortDir === "asc" ? "↑" : "↓"}</button>
           </div>
           <button type="button" className={"sb-icon" + ((advActive || !!queries[advTab]) ? " on" : "")} aria-label={L("絞り込み・検索(長押しで解除)","Filter & search (long-press to clear)","篩選・搜尋(長按解除)")}
-            {...longPress(openFilter, () => { clearAllConds(); notify(L("絞り込みを解除しました", "Filters cleared", "已清除篩選"), { kind: "ok" }); })}>
+            {...longPress(openFilter, () => { clearAllConds(); notify(L("絞り込みを解除しました", "Filters cleared", "已清除篩選"), { variant: "decree", tag: L("解除", "CLEARED", "解除") }); })}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 5h18M6 12h12M10 19h4" />
             </svg>
@@ -4655,7 +4663,7 @@ export default function App() {
                       <span className="av-head-r">
                         <span className="av-count"><b>{got}</b> / {pool.length} {L("叙勲","awarded","敘勳")}{newN > 0 ? ` · NEW ${newN}` : ""}</span>
                         <button type="button" className={"sb-icon" + (segOpen || titleUniverse !== "all" ? " on" : "")} aria-label={L("世界観で絞り込み(長押しで解除)","Filter by universe (long-press to clear)","依世界觀篩選(長按解除)")}
-                          {...longPress(() => { haptic(); setSegOpen((o) => !o); }, () => { setTitleUniverse("all"); setSegOpen(false); notify(L("世界観の絞り込みを解除しました", "Universe filter cleared", "已清除世界觀篩選"), { kind: "ok" }); })}>
+                          {...longPress(() => { haptic(); setSegOpen((o) => !o); }, () => { setTitleUniverse("all"); setSegOpen(false); notify(L("世界観の絞り込みを解除しました", "Universe filter cleared", "已清除世界觀篩選"), { variant: "decree", tag: L("解除", "CLEARED", "解除") }); })}>
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M3 5h18M6 12h12M10 19h4" />
                           </svg>
@@ -7697,6 +7705,13 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 /* 朱印風の角型アイコン */
 .toast .ti{flex:none;width:22px;height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;line-height:1;font-family:var(--sans);border:1px solid currentColor;background:rgba(255,255,255,.02)}
 .toast.ok .ti{color:var(--teal)} .toast.err .ti{color:var(--shu)} .toast.warn .ti{color:var(--gold)} .toast.info .ti{color:var(--blue)}
+.toast.decree{gap:10px;min-width:0;padding:9px 15px 9px 13px;border-radius:4px;letter-spacing:.04em;
+  background:linear-gradient(120deg,rgba(34,29,18,.92),rgba(15,18,26,.95));border:1px solid rgba(217,179,106,.30);box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.toast.decree::before{left:0;right:auto;top:0;bottom:0;width:3px;height:auto;background:linear-gradient(#f2dca0,#9c7838)}
+.toast.decree .tm{font-family:var(--serif);font-weight:700;font-size:13.5px;color:var(--ink-strong)}
+.toast-hex{flex:none;width:16px;height:16px;display:flex}
+.toast-hex svg{width:100%;height:100%}
+.toast-tag{flex:none;font-family:var(--mono);font-size:8.5px;letter-spacing:.2em;color:var(--gold);text-transform:uppercase;border:1px solid rgba(217,179,106,.3);border-radius:2px;padding:2px 6px;line-height:1}
 .toast .tm{line-height:1.55;font-family:var(--serif);letter-spacing:.045em;color:var(--ink-strong)}
 @keyframes toast-in{from{transform:translateY(-12px);opacity:0}to{transform:translateY(0);opacity:1}}
 /* ── アプリ内 確認ダイアログ ── */
