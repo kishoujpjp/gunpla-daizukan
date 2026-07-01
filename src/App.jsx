@@ -2757,6 +2757,8 @@ export default function App() {
   const [imgMsg, setImgMsg] = useState("");
   const localImgRef = useRef(null);                     // ローカル画像一括取り込み用
   const moreRef = useRef(null);
+  const [honLimit, setHonLimit] = useState(60);   // 称号一覧の遅延ロード上限
+  const honMoreRef = useRef(null);                // 称号のセンチネル(無限スクロール)
   const scrollPosRef = useRef({});
   /* 分頁切換時保留各自捲動位置 */
   const changeTab = (next) => {
@@ -4061,6 +4063,24 @@ export default function App() {
     return () => ob.disconnect();
   }, [moreVisible, tab, limit]);
 
+  /* 称号一覧の遅延ロード。IIFE 内の list.length は pool(=絞り込み後)長と一致するため
+     App スコープで honTotal を再計算し、observer の依存/ガードに使う。 */
+  const honTotal = useMemo(
+    () => titles.filter((t) => titleUniverse === "all" || (t.universe || "UC") === titleUniverse).length,
+    [titles, titleUniverse]);
+  useEffect(() => { setHonLimit(60); }, [titleUniverse, tab]); // 世界観切替・タブ切替でリセット
+  const honMoreVisible = tab === "honors" && honTotal > honLimit;
+  useEffect(() => {
+    const el = honMoreRef.current;
+    if (!el || !honMoreVisible || typeof IntersectionObserver === "undefined") return;
+    const ob = new IntersectionObserver(
+      (es) => es.forEach((e) => { if (e.isIntersecting) setHonLimit((n) => n + 80); }),
+      { rootMargin: "200px" }
+    );
+    ob.observe(el);
+    return () => ob.disconnect();
+  }, [honMoreVisible, tab, honLimit]);
+
   const seriesList = useMemo(() => {
     const s = new Set();
     for (const k of allKits) if (k.series) s.add(k.series);
@@ -4850,8 +4870,9 @@ export default function App() {
                 </div>
               </div>
               <div className="av-reg">
-                {/* 切替直後(gridReady=false)は先頭のみ描画→2フレーム後に全件へ。407件の一括マウント由来のカク付き対策。 */}
-                {(gridReady ? list : list.slice(0, 40)).map((t) => {
+                {/* 遅延ロード:切替直後(gridReady=false)は先頭40件、以降は honLimit 件まで描画。
+                    末尾センチネルが視界に入るたび +80。407件の一括マウント/長リスト由来のカク付き対策。 */}
+                {list.slice(0, gridReady ? honLimit : 40).map((t) => {
                   const isNew = titleIsNew(t);
                   const hiddenLocked = t.hidden && !t.unlocked;
                   const remain = Math.max(0, t.need - t.cur);
@@ -4876,6 +4897,11 @@ export default function App() {
                   );
                 })}
                 {list.length === 0 && <div className="av-empty">{L("この世界の称号は準備中…","Titles for this universe are coming soon…","此世界觀的稱號準備中…")}</div>}
+                {list.length > honLimit && (
+                  <button ref={honMoreRef} className="more-btn" onClick={() => setHonLimit((n) => n + 80)}>
+                    {L(`さらに表示(残り ${list.length - honLimit} 件)`, `Show more (${list.length - honLimit} left)`, `顯示更多(剩餘 ${list.length - honLimit} 件)`)}
+                  </button>
+                )}
               </div>
             </section>
           );
@@ -5722,7 +5748,6 @@ export default function App() {
           return (
             <button key={k}
               className={`tab ${tab === k ? "on" : ""} `
-                + (k === "analysis" ? "ana-tab " : "")
                 + (k === "settings" ? "set-tab " : "")}
               onClick={() => { changeTab(k); setConfirmReset(false); }}>
               <span className="tab-icon">{icon}</span>
@@ -6186,9 +6211,6 @@ input,textarea{font-family:var(--sans)}
 .tab.plan-tab .tab-icon,.tab.plan-tab .tab-label{color:var(--kin)}
 .tab.plan-tab.on .tab-icon,.tab.plan-tab.on .tab-label{color:var(--kin);filter:brightness(1.1)}
 .tab.plan-tab .tab-bar{background:var(--kin)}
-.tab.ana-tab .tab-icon,.tab.ana-tab .tab-label{color:var(--gold)}
-.tab.ana-tab.on .tab-icon,.tab.ana-tab.on .tab-label{color:var(--gold);filter:brightness(1.12)}
-.tab.ana-tab .tab-bar{background:var(--gold)}
 .tab-line-ico{width:1em;height:1em;display:block}
 /* 設定タブ:アクセント色を使わず、文字も図標と同じ灰白系で統一 */
 .tab.set-tab .tab-icon,.tab.set-tab .tab-label{color:var(--ink)}
