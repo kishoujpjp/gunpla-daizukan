@@ -2487,7 +2487,7 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
         <button className="btn primary" disabled={!f.name.trim()}
           onClick={() => { if (onSaveRec) onSaveRec(dates); onSave({ ...f, price: f.price ? Number(f.price) : "" }, imgVal, pendingMeta, tagsLocal); }}>{L("保存", "Save", "儲存")}</button>
         <button className="btn" onClick={onCancel}>{L("やめる", "Cancel", "取消")}</button>
-        {isCustom && onDelete && <button className="btn danger" onClick={onDelete}>{L("この機体を削除", "Delete this kit", "刪除此機體")}</button>}
+        {isCustom && onDelete && <button className="btn danger" onClick={async () => { if (await appConfirm(L("この機体を完全に削除します。記録・画像も消え、元に戻せません。", "Delete this kit permanently. Its records and images will be erased and cannot be recovered.", "將永久刪除此機體，收藏紀錄與圖片一併清除，無法復原。"), { title: L("機体を削除", "Delete kit", "刪除機體"), okText: L("削除する", "Delete", "刪除"), cancelText: L("やめる", "Cancel", "取消"), danger: true })) onDelete(); }}>{L("この機体を削除", "Delete this kit", "刪除此機體")}</button>}
       </div>
       {cropSrc && <CropModal src={cropSrc} onCancel={() => setCropSrc(null)} L={L}
         onDone={(out) => { applyNewImage(out); setCropSrc(null); }} />}
@@ -4469,7 +4469,7 @@ export default function App() {
   const detailEyeNo = detailKit ? [detailKit.no !== "—" ? `No.${detailKit.no}` : null, detailKit.code || null].filter(Boolean).join(" · ") : "";
   const pillState = detailRec ? (detailRec.buildDate || doneIntent ? "done" : detailRec.owned ? "own" : detailRec.plan ? "plan" : "none") : "none";
   const PILL_LABEL = { none: L("未入手", "Unowned", "未入手"), plan: L("予定", "Planned", "預定"), own: L("入手", "Owned", "入手"), done: L("完成", "Built", "完成") };
-  const PILL_MENU = { none: ["plan", "own"], plan: ["none", "own"], own: ["none", "done"], done: ["none", "own"] };
+  const PILL_MENU = { none: ["plan", "own", "done"], plan: ["none", "own", "done"], own: ["none", "plan", "done"], done: ["none", "plan", "own"] };
   const applyPill = async (s) => {
     if (!detailKit) return;
     const id = detailKit.id;
@@ -5077,9 +5077,10 @@ export default function App() {
 
             {secWrap("disp", L("表示", "Display", "顯示"), "DISPLAY",
               <>
+                <div className="set-sublabel">{L("表示する項目(カード/リスト別に設定)", "Fields to show (set per view)", "顯示項目(卡片/列表分別設定)")}</div>
                 <div className="opt-group horizontal">
-                  <button className={`opt ${dispTarget === "card" ? "on" : ""}`} onClick={() => setDispTarget("card")}>{L("カード表示", "Card view", "卡片檢視")}</button>
-                  <button className={`opt ${dispTarget === "list" ? "on" : ""}`} onClick={() => setDispTarget("list")}>{L("リスト表示", "List view", "列表檢視")}</button>
+                  <button className={`opt ${dispTarget === "card" ? "on" : ""}`} onClick={() => setDispTarget("card")}>{L("カード", "Card", "卡片")}</button>
+                  <button className={`opt ${dispTarget === "list" ? "on" : ""}`} onClick={() => setDispTarget("list")}>{L("リスト", "List", "列表")}</button>
                 </div>
                 <div className="opt-group" style={{ marginTop: 8 }}>
                   {(dispTarget === "card"
