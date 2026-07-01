@@ -4461,13 +4461,16 @@ export default function App() {
                   <GradeChip grade={kit.grade} />
                   {kit.base && <span className="line-chip base">{L("ベース","Base","基地")}</span>}
                   {lineBadge(kit, true)}
-                  {noCode && <span className="kz-rtno">{noCode}</span>}
+                  {settings.listSeries && kit.series && <span className="kz-rtno">{kit.series}</span>}
                 </div>
               ) : (
-                <div className="kz-rno">{[settings.listGrade !== false ? kit.grade : null, noCode].filter(Boolean).join(" · ")}</div>
+                <>
+                  <div className="kz-rno">{[settings.listGrade !== false ? kit.grade : null, noCode].filter(Boolean).join(" · ")}</div>
+                  {settings.listSeries && kit.series && <div className="kz-rseries">{kit.series}</div>}
+                </>
               )}
-              {settings.listSeries && kit.series && <div className="kz-rseries">{kit.series}</div>}
               <div className="kz-rname"><KitName name={kit.name} /></div>
+              {settings.listTags !== false && noCode && <div className="kz-rseries">{noCode}</div>}
               <div className="kz-rmeta">
                 <span className="kz-year">{kit.ym ? kit.ym.replace("-", ".") : "—"}</span>
                 {settings.listPrice && kit.price ? <span className="kz-price">{fmtYen(kit.price)}</span> : null}
