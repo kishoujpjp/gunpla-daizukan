@@ -2699,7 +2699,6 @@ export default function App() {
   const [doneIntent, setDoneIntent] = useState(false);
   useEffect(() => { setPillOpen(false); setDoneIntent(false); }, [detail]);
   const [adding, setAdding] = useState(false);
-  const [anaMode, setAnaMode] = useState("record");  // record=記録(記錄) / analysis=分析
   const [seriesPickerOpen, setSeriesPickerOpen] = useState(false);
   const [viewer, setViewer] = useState(null); // 画像鑑賞: {kitId, idx} | null
   const [viewerDel, setViewerDel] = useState(false); // 鑑賞内の削除確認
@@ -4370,11 +4369,13 @@ export default function App() {
     const dim = settings.dimUnowned && !rec.owned && !rec.plan;
     const img = thumbSrc(kit.id);
     const onCardClick = () => { if (consumeLP()) return; setDetail(kit.id); setEditing(false); };
+    // 画廊: タップ=作品(写真)を見る。写真あり→鑑賞ビューア / 写真なし→詳細(そこから追加へ)。長押し=工房(ATELIER)。
+    const onSalonClick = () => { if (consumeLP()) return; if (img) openViewer(kit.id, "salon"); else { setDetail(kit.id); setEditing(false); } };
     const sketchCrt = !rec.owned && !img; // 未入手かつ画像なし=ベクター→CRT風に
     if (salonView) {
       return (
-        <button key={kit.id} className={`sl-card ${dim ? "dim" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""} ${rec.buildDate ? "built" : ""}`} onClick={onCardClick}>
-          <div className="sl-frame" {...imgPress(kit.id, () => openViewer(kit.id, "salon"))}>
+        <button key={kit.id} className={`sl-card ${dim ? "dim" : ""} ${rec.owned ? "owned" : ""} ${rec.plan ? "planned" : ""} ${rec.buildDate ? "built" : ""}`} onClick={onSalonClick}>
+          <div className="sl-frame" {...imgPress(kit.id)}>
             {settings.showGrade && kit.grade ? <span className="sl-grade">{kit.grade}</span> : null}
             {img
               ? <img className="sl-img" src={img} alt={kit.name} loading="lazy" decoding="async"
@@ -4657,9 +4658,10 @@ export default function App() {
         {(() => {
           const arc = tab === "zukan" ? { en: "REGISTRY" }
             : tab === "gallery" ? { en: "GALLERY" }
-            : tab === "analysis" ? (anaMode === "analysis" ? { en: "ANALYSIS" } : { en: "DECORATIONS" })
+            : tab === "honors" ? { en: "DECORATIONS" }
+            : tab === "analysis" ? { en: "ANALYSIS" }
             : { en: "ADMINISTRATION" };
-          const isDecor = tab === "analysis" && anaMode === "record";
+          const isDecor = tab === "honors";
           const isSalon = tab === "gallery";
           const titlesGot = titles.filter((t) => t.unlocked).length;
           const titlesPct = Math.round((titlesGot / Math.max(1, titles.length)) * 100);
@@ -4794,6 +4796,90 @@ export default function App() {
           </>
         )}
 
+        {tab === "honors" && (() => {
+          const UNIVERSES = [["all", "すべて"], ["UC", "U.C."], ["SEED", "SEED"], ["W", "W"], ["X", "X"], ["G", "G"], ["00", "00"], ["AGE", "A.G."], ["IBO", "P.D."], ["AS", "A.S."], ["RC", "R.C."], ["CC", "C.C."], ["GQX", "GQX"], ["BF", "BF"], ["other", "その他"]];
+          const UNI_PREFIX = { UC: "U.C.", SEED: "C.E.", W: "A.C.", X: "A.W.", G: "F.C.", "00": "A.D.", AGE: "A.G.", IBO: "P.D.", AS: "A.S.", RC: "R.C.", CC: "C.C.", GQX: "GQX", BF: "BF", other: "" };
+          const inUni = (t) => titleUniverse === "all" ? true : (t.universe || "UC") === titleUniverse;
+          const rank = (t) => (t.tier === 1 ? 0 : (t.tier === 0 ? (t.cur > 0 ? 1 : 2) : 3));
+          const pool = titles.filter(inUni);
+          const list = pool.slice().sort((a, b) => {
+            const na = titleIsNew(a) ? 0 : 1, nb = titleIsNew(b) ? 0 : 1;
+            if (na !== nb) return na - nb;
+            const r = rank(a) - rank(b);
+            if (r !== 0) return r;
+            if (rank(a) === 1) return (b.cur / b.need) - (a.cur / a.need);
+            return (a.no || 0) - (b.no || 0);
+          });
+          const got = pool.filter((t) => t.unlocked).length;
+          const newN = pool.filter(titleIsNew).length;
+          const curUni = UNIVERSES.find(([v]) => v === titleUniverse);
+          /* 称号メダルは <Emblem universe tier/> で描画 */
+          return (
+            <section className="ana-sec av-sec">
+              <svg className="av-defs" width="0" height="0" aria-hidden="true"><defs>
+                <linearGradient id="avGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="var(--gold-hi)" /><stop offset="1" stopColor="var(--gold-lo)" /></linearGradient>
+              </defs></svg>
+              <div className="av-head">
+                <div className="sb-switch sb-static">
+                  <span className="av-eyebrow">{(curUni && curUni[0] !== "all" ? (UNI_PREFIX[curUni[0]] || curUni[1]) + " " : "") + L("DECORATIONS · 称号","DECORATIONS","DECORATIONS · 稱號")}</span>
+                  <span className="sb-titlewrap">
+                    <LedgerTitle scheme="slide" akey="record" dir={-1} title={L(<>叙<em>勲</em>録</>,<>Honors</>,<>敘<em>勳</em>錄</>)} />
+                  </span>
+                </div>
+                <span className="av-head-r">
+                  <span className="av-count"><b>{got}</b> / {pool.length} {L("叙勲","awarded","敘勳")}{newN > 0 ? ` · NEW ${newN}` : ""}</span>
+                  <button type="button" className={"sb-icon" + (segOpen || titleUniverse !== "all" ? " on" : "")} aria-label={L("世界観で絞り込み(長押しで解除)","Filter by universe (long-press to clear)","依世界觀篩選(長按解除)")}
+                    {...longPress(() => { haptic(); setSegOpen((o) => !o); }, () => { setTitleUniverse("all"); setSegOpen(false); notify(L("世界観の絞り込みを解除しました", "Universe filter cleared", "已清除世界觀篩選"), { variant: "decree", tag: L("解除", "CLEARED", "解除") }); })}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 5h18M6 12h12M10 19h4" />
+                    </svg>
+                  </button>
+                </span>
+              </div>
+              <div className="av-rule" />
+              <div className={"av-drop" + (segOpen ? " open" : "")}>
+                <div className="av-drop-inner av-unitabs">
+                  {UNIVERSES.map(([v, l]) => {
+                    const n = v === "all" ? titles.length : titles.filter((t) => (t.universe || "UC") === v).length;
+                    const label = v === "all" ? "ALL" : (UNI_PREFIX[v] || l);
+                    return (
+                      <button key={v} className={"av-unitab" + (titleUniverse === v ? " on" : "") + (n === 0 ? " empty" : "")}
+                        onClick={() => { haptic(); setTitleUniverse(v); setSegOpen(false); }}>{label}</button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="av-reg">
+                {list.map((t) => {
+                  const isNew = titleIsNew(t);
+                  const hiddenLocked = t.hidden && !t.unlocked;
+                  const remain = Math.max(0, t.need - t.cur);
+                  const cls = t.tier === 2 ? "gold" : (t.tier === 1 ? "silver" : "locked");
+                  return (
+                    <button key={t.id} className={"av-entry " + cls + (isNew ? " new" : "") + (achvPop === "t:" + t.id ? " pop" : "")}
+                      onClick={() => { haptic(); ackTitle(t.id); setTitleDetail(t); }}>
+                      <span className={"av-medal " + cls}><Emblem universe={t.universe || "UC"} tier={t.tier} /></span>
+                      <span className="av-ebody">
+                        <span className="av-eno">{(UNI_PREFIX[t.universe] || t.universe || "U.C.")} · No.{String(t.no || 0).padStart(3, "0")}</span>
+                        <span className="av-ename">{hiddenLocked ? "？？？" : achName(t)}</span>
+                        {t.tier >= 1 && <span className="av-ehair" />}
+                        {t.tier >= 1 && <span className="av-eflavor">{achSub(t)}</span>}
+                        {t.tier === 1 && <span className="av-etag silver">{L("あと ","","還差 ")}{Math.max(0, (t.builtNeed || 1) - (t.builtCur || 0))}{L(" 体完成で金章"," builds to gold"," 體完成得金章")}</span>}
+                        {t.tier === 0 && t.need > 1 && (
+                          <span className="av-eprog"><span className="av-ebar"><i style={{ width: `${Math.round(t.cur / t.need * 100)}%` }} /></span><span className="av-erem">{L("あと ","","還差 ")}{remain}{L("","  left","")}</span></span>
+                        )}
+                        {t.tier === 0 && t.need === 1 && <span className="av-etag locked">{L("未叙勲","Locked","未敘勳")}</span>}
+                      </span>
+                      {isNew && <i className="av-dot" />}
+                    </button>
+                  );
+                })}
+                {list.length === 0 && <div className="av-empty">{L("この世界の称号は準備中…","Titles for this universe are coming soon…","此世界觀的稱號準備中…")}</div>}
+              </div>
+            </section>
+          );
+        })()}
+
         {tab === "analysis" && (() => {
           const owned = allKits.filter((k) => getRec(k.id).owned);
           if (owned.length === 0) return (
@@ -4845,104 +4931,14 @@ export default function App() {
 
           return (
             <>
-              {anaMode === "record" ? (
-              <>
-              {(() => {
-                const UNIVERSES = [["all", "すべて"], ["UC", "U.C."], ["SEED", "SEED"], ["W", "W"], ["X", "X"], ["G", "G"], ["00", "00"], ["AGE", "A.G."], ["IBO", "P.D."], ["AS", "A.S."], ["RC", "R.C."], ["CC", "C.C."], ["GQX", "GQX"], ["BF", "BF"], ["other", "その他"]];
-                const UNI_PREFIX = { UC: "U.C.", SEED: "C.E.", W: "A.C.", X: "A.W.", G: "F.C.", "00": "A.D.", AGE: "A.G.", IBO: "P.D.", AS: "A.S.", RC: "R.C.", CC: "C.C.", GQX: "GQX", BF: "BF", other: "" };
-                const inUni = (t) => titleUniverse === "all" ? true : (t.universe || "UC") === titleUniverse;
-                const rank = (t) => (t.tier === 1 ? 0 : (t.tier === 0 ? (t.cur > 0 ? 1 : 2) : 3));
-                const pool = titles.filter(inUni);
-                const list = pool.slice().sort((a, b) => {
-                  const na = titleIsNew(a) ? 0 : 1, nb = titleIsNew(b) ? 0 : 1;
-                  if (na !== nb) return na - nb;
-                  const r = rank(a) - rank(b);
-                  if (r !== 0) return r;
-                  if (rank(a) === 1) return (b.cur / b.need) - (a.cur / a.need);
-                  return (a.no || 0) - (b.no || 0);
-                });
-                const got = pool.filter((t) => t.unlocked).length;
-                const newN = pool.filter(titleIsNew).length;
-                const curUni = UNIVERSES.find(([v]) => v === titleUniverse);
-                /* 称号メダルは <Emblem universe tier/> で描画 */
-                return (
-                  <section className="ana-sec av-sec">
-                    <svg className="av-defs" width="0" height="0" aria-hidden="true"><defs>
-                      <linearGradient id="avGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="var(--gold-hi)" /><stop offset="1" stopColor="var(--gold-lo)" /></linearGradient>
-                    </defs></svg>
-                    <div className="av-head">
-                      <button type="button" className="sb-switch" onClick={() => { hapticStrong(); setAnaMode("analysis"); }}
-                        aria-label={L("「解題書」へ切り替え","Switch to Analysis","切換至解題書")}>
-                        <span className="av-eyebrow">{(curUni && curUni[0] !== "all" ? (UNI_PREFIX[curUni[0]] || curUni[1]) + " " : "") + L("DECORATIONS · 称号","DECORATIONS","DECORATIONS · 稱號")}</span>
-                        <span className="sb-titlewrap">
-                          <LedgerTitle scheme="slide" akey="record" dir={-1} title={L(<>叙<em>勲</em>録</>,<>Honors</>,<>敘<em>勳</em>錄</>)} alt={L("解題書","Analysis","解題書")} />
-                        </span>
-                      </button>
-                      <span className="av-head-r">
-                        <span className="av-count"><b>{got}</b> / {pool.length} {L("叙勲","awarded","敘勳")}{newN > 0 ? ` · NEW ${newN}` : ""}</span>
-                        <button type="button" className={"sb-icon" + (segOpen || titleUniverse !== "all" ? " on" : "")} aria-label={L("世界観で絞り込み(長押しで解除)","Filter by universe (long-press to clear)","依世界觀篩選(長按解除)")}
-                          {...longPress(() => { haptic(); setSegOpen((o) => !o); }, () => { setTitleUniverse("all"); setSegOpen(false); notify(L("世界観の絞り込みを解除しました", "Universe filter cleared", "已清除世界觀篩選"), { variant: "decree", tag: L("解除", "CLEARED", "解除") }); })}>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M3 5h18M6 12h12M10 19h4" />
-                          </svg>
-                        </button>
-                      </span>
-                    </div>
-                    <div className="av-rule" />
-                    <div className={"av-drop" + (segOpen ? " open" : "")}>
-                      <div className="av-drop-inner av-unitabs">
-                        {UNIVERSES.map(([v, l]) => {
-                          const n = v === "all" ? titles.length : titles.filter((t) => (t.universe || "UC") === v).length;
-                          const label = v === "all" ? "ALL" : (UNI_PREFIX[v] || l);
-                          return (
-                            <button key={v} className={"av-unitab" + (titleUniverse === v ? " on" : "") + (n === 0 ? " empty" : "")}
-                              onClick={() => { haptic(); setTitleUniverse(v); setSegOpen(false); }}>{label}</button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    <div className="av-reg">
-                      {list.map((t) => {
-                        const isNew = titleIsNew(t);
-                        const hiddenLocked = t.hidden && !t.unlocked;
-                        const remain = Math.max(0, t.need - t.cur);
-                        const cls = t.tier === 2 ? "gold" : (t.tier === 1 ? "silver" : "locked");
-                        return (
-                          <button key={t.id} className={"av-entry " + cls + (isNew ? " new" : "") + (achvPop === "t:" + t.id ? " pop" : "")}
-                            onClick={() => { haptic(); ackTitle(t.id); setTitleDetail(t); }}>
-                            <span className={"av-medal " + cls}><Emblem universe={t.universe || "UC"} tier={t.tier} /></span>
-                            <span className="av-ebody">
-                              <span className="av-eno">{(UNI_PREFIX[t.universe] || t.universe || "U.C.")} · No.{String(t.no || 0).padStart(3, "0")}</span>
-                              <span className="av-ename">{hiddenLocked ? "？？？" : achName(t)}</span>
-                              {t.tier >= 1 && <span className="av-ehair" />}
-                              {t.tier >= 1 && <span className="av-eflavor">{achSub(t)}</span>}
-                              {t.tier === 1 && <span className="av-etag silver">{L("あと ","","還差 ")}{Math.max(0, (t.builtNeed || 1) - (t.builtCur || 0))}{L(" 体完成で金章"," builds to gold"," 體完成得金章")}</span>}
-                              {t.tier === 0 && t.need > 1 && (
-                                <span className="av-eprog"><span className="av-ebar"><i style={{ width: `${Math.round(t.cur / t.need * 100)}%` }} /></span><span className="av-erem">{L("あと ","","還差 ")}{remain}{L("","  left","")}</span></span>
-                              )}
-                              {t.tier === 0 && t.need === 1 && <span className="av-etag locked">{L("未叙勲","Locked","未敘勳")}</span>}
-                            </span>
-                            {isNew && <i className="av-dot" />}
-                          </button>
-                        );
-                      })}
-                      {list.length === 0 && <div className="av-empty">{L("この世界の称号は準備中…","Titles for this universe are coming soon…","此世界觀的稱號準備中…")}</div>}
-                    </div>
-                  </section>
-                );
-              })()}
-              </>
-              ) : (
-              <>
               <div className="sb-band">
                 <div className="sb-head">
-                  <button type="button" className="sb-switch" onClick={() => { hapticStrong(); setAnaMode("record"); }}
-                    aria-label={L("「叙勲録」へ切り替え","Switch to Honors","切換至叙勲録")}>
-                    <span className="sb-eyebrow">{L("ANALYSIS · 紀録","ANALYSIS","ANALYSIS · 紀錄")}</span>
+                  <div className="sb-switch sb-static">
+                    <span className="sb-eyebrow">{L("ANALYSIS · 分析","ANALYSIS","ANALYSIS · 分析")}</span>
                     <span className="sb-titlewrap">
-                      <LedgerTitle scheme="slide" akey="analysis" dir={1} title={L(<>解<em>題</em>書</>,<>Analysis</>,<>解<em>題</em>書</>)} alt={L("叙勲録","Honors","叙勲録")} />
+                      <LedgerTitle scheme="slide" akey="analysis" dir={1} title={L(<>解<em>題</em>書</>,<>Analysis</>,<>解<em>題</em>書</>)} />
                     </span>
-                  </button>
+                  </div>
                   <span className="sb-head-r">
                     <button type="button" className="quiz-entry" onClick={(e) => { e.stopPropagation(); setQuizOpen(true); }}>{L("知識試験","Quiz","知識測驗")}<i>◇</i></button>
                   </span>
@@ -5039,8 +5035,6 @@ export default function App() {
                 </div>
               </section>
               <p className="footnote">{L("※ 金額は税込定価ベースの集計です(実購入額ではありません)。発売数推移のみ図鑑収録データ全体、その他は「入手済み」記録のみから算出。","* Amounts are tallied from tax-included list prices (not actual paid amounts). Only the release trend uses the full registry; everything else is computed from owned records.","* 金額以含稅定價統計(非實際購入額)。僅發售數趨勢採用全圖鑑資料，其餘均由「已入手」紀錄計算。")}</p>
-              </>
-              )}
             </>
           );
         })()}
@@ -5327,6 +5321,11 @@ export default function App() {
         };
         return (
           <div className="viewer-bg" onClick={close}>
+            {vfrom === "salon" && (
+              <button className="sv-info" onClick={(e) => { e.stopPropagation(); viewerGuard.current = Date.now(); setSerifEdit(null); setViewerDel(false); setViewer(null); setDetail(curKitId); setEditing(false); }}>
+                {L("資料", "Info", "資料")}
+              </button>
+            )}
             <SwipeViewer slides={flat} index={gi} resetKey={String(curRef)}
               resolveSrc={(sl) => (sl.ref ? refSrc(sl.ref, sl.kitId, images, extras) : null)}
               serifOf={(sl) => (sl.ref ? (serifs[sl.ref] || "") : "")}
@@ -5710,33 +5709,25 @@ export default function App() {
           ["zukan", L("図鑑", "Registry", "圖鑑"), "▦"],
           ["gallery", L("画廊", "Gallery", "畫廊"),
             (<svg className="tab-line-ico salon-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path className="pal-body" d="M12 4.6C16.8 4.6 20.4 7.5 20.4 11.3C20.4 13.7 18.7 14.5 17.3 14.5C16.4 14.5 15.6 14.3 15.6 13.5C15.6 12.8 16 12.5 16 11.9C16 11.2 15.4 10.7 14.5 10.7C12.9 10.7 12 12.4 12 14.1C12 16 12.9 17.2 12.2 18.1C11.8 18.5 11.3 18.7 10.7 18.7C6.7 18.7 4 15.1 4 11.3C4 7.5 7.4 4.6 12 4.6Z" strokeWidth="1.6" strokeLinejoin="round" /><circle className="pd1" cx="7.1" cy="10.4" r="1.25" /><circle className="pd2" cx="8.7" cy="7.6" r="1.25" /><circle className="pd3" cx="11.8" cy="6.7" r="1.25" /><circle className="pd4" cx="15" cy="7.6" r="1.25" /></svg>)],
-          ["analysis", anaMode === "analysis" ? L("紀録", "Records", "紀錄") : L("称号", "Honors", "稱號"), anaMode === "analysis"
-            ? (<svg className="tab-line-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 4 V19 H20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><polyline points="6.5 14.5 10.5 10.5 13.5 12.5 18.5 6.5" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>)
-            : (<svg className="tab-line-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 4h10v7a5 5 0 0 1-10 0V4z" /><path d="M7 6H4v2a3 3 0 0 0 3 3" /><path d="M17 6h3v2a3 3 0 0 1-3 3" /><path d="M12 16v3" /><path d="M8.5 21h7l-1-2h-5z" /></svg>)],
+          ["honors", L("称号", "Honors", "稱號"),
+            (<svg className="tab-line-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 4h10v7a5 5 0 0 1-10 0V4z" /><path d="M7 6H4v2a3 3 0 0 0 3 3" /><path d="M17 6h3v2a3 3 0 0 1-3 3" /><path d="M12 16v3" /><path d="M8.5 21h7l-1-2h-5z" /></svg>)],
+          ["analysis", L("分析", "Analysis", "分析"),
+            (<svg className="tab-line-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 4 V19 H20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><polyline points="6.5 14.5 10.5 10.5 13.5 12.5 18.5 6.5" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>)],
           ["settings", L("設定", "Settings", "設定"), "⚙"],
         ].map(([k, label, icon]) => {
-          // 紀錄タブのみ:長押しで 称号↔紀録(該当タブへ移動)。図鑑/画廊は独立タブで副モードなし。
-          const lp = k === "analysis"
-            ? makeLongPress(() => { hapticStrong(); setAnaMode((m) => (m === "analysis" ? "record" : "analysis")); changeTab("analysis"); })
-            : {};
           return (
             <button key={k}
               className={`tab ${tab === k ? "on" : ""} `
-                + (k === "analysis" && anaMode === "analysis" ? "ana-tab " : "")
+                + (k === "analysis" ? "ana-tab " : "")
                 + (k === "settings" ? "set-tab " : "")}
-              onClick={() => {
-                if (k === "analysis" && consumeLP()) return;
-                if (k === "analysis" && tab === "analysis") { hapticStrong(); setAnaMode((m) => (m === "analysis" ? "record" : "analysis")); return; }
-                changeTab(k); setConfirmReset(false);
-              }}
-              {...lp}>
+              onClick={() => { changeTab(k); setConfirmReset(false); }}>
               <span className="tab-icon">{icon}</span>
               <span className="tab-label">{label}</span>
             </button>
           );
         })}
         {(() => {
-          const order = ["zukan", "gallery", "analysis", "settings"];
+          const order = ["zukan", "gallery", "honors", "analysis", "settings"];
           const idx = Math.max(0, order.indexOf(tab));
           const col = tab === "settings" ? "var(--ink-strong)" : "var(--gold)";
           return <i className="tab-slider" style={{ transform: `translateX(${idx * 100}%)` }}><b style={{ background: col }} /></i>;
@@ -6214,6 +6205,16 @@ input,textarea{font-family:var(--sans)}
 /* ── 画像鑑賞モード ── */
 .viewer-bg{position:fixed;inset:0;background:rgba(2,3,6,.94);z-index:120;
   display:flex;align-items:center;justify-content:center;padding:20px;animation:bgfade .2s ease-out;cursor:zoom-out}
+/* 画廊の鑑賞ビューアから「資料(詳細)」へ。左上・タップは背景の閉じるへ伝播させない。 */
+.sv-info{position:fixed;top:calc(14px + env(safe-area-inset-top));left:16px;z-index:130;
+  display:flex;align-items:center;gap:6px;padding:8px 15px;border-radius:var(--r-pill);
+  background:rgba(28,34,48,.72);border:1px solid var(--line);color:var(--ink-strong);
+  font-family:var(--serif);font-size:13px;letter-spacing:.1em;cursor:pointer;
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  transition:transform .12s,background .14s,border-color .14s}
+.sv-info::before{content:"◈";font-size:11px;color:var(--gold);opacity:.85}
+.sv-info:active{transform:scale(.94);border-color:var(--gold);background:rgba(28,34,48,.9)}
+.app.light .sv-info{background:rgba(251,246,234,.82);color:var(--ink-strong)}
 .viewer-img{max-width:100%;max-height:100%;object-fit:contain;border-radius:var(--r-sm);
   box-shadow:0 0 40px rgba(0,0,0,.6);animation:up .26s cubic-bezier(.2,.9,.3,1.1)}
 .viewer-x{position:fixed;top:calc(14px + env(safe-area-inset-top));right:16px;
@@ -7907,7 +7908,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .av-toast-medal::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 40%,rgba(242,220,160,.6) 50%,transparent 60%);transform:translateX(-140%);pointer-events:none;animation:medalGlint1 .9s ease-out .25s}
 @keyframes medalGlint1{from{transform:translateX(-140%)}to{transform:translateX(170%)}}
 /* タブ:共用スライド下線 */
-.tab-slider{position:absolute;top:0;left:0;width:25%;height:2px;display:flex;justify-content:center;pointer-events:none;z-index:2;transition:transform .34s cubic-bezier(.4,0,.2,1)}
+.tab-slider{position:absolute;top:0;left:0;width:20%;height:2px;display:flex;justify-content:center;pointer-events:none;z-index:2;transition:transform .34s cubic-bezier(.4,0,.2,1)}
 .tab-slider b{width:46%;height:100%;border-radius:0 0 var(--r-xs) var(--r-xs);background:var(--gold);transition:background .25s;box-shadow:0 0 8px rgba(217,179,106,.4)}
 /* タブ切替:檔案名/部品コードの差し替え */
 .hf-vbar{animation:hfVbarIn .7s ease}
