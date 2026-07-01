@@ -4683,6 +4683,7 @@ export default function App() {
             : { en: "ADMINISTRATION" };
           const isDecor = tab === "honors";
           const isSalon = tab === "gallery";
+          const isAnalysis = tab === "analysis";
           const titlesGot = titles.filter((t) => t.unlocked).length;
           const titlesPct = Math.round((titlesGot / Math.max(1, titles.length)) * 100);
           const pct = isDecor ? titlesPct
@@ -4710,17 +4711,25 @@ export default function App() {
                       <>
                         <div className="s"><b><Roll value={titles.length} resetKey={arc.en} /></b><span>{L("称号","Titles","稱號")}</span></div>
                         <div className="hf-div" />
-                        <div className="s"><b className="kin"><Roll value={titlesGot} resetKey={arc.en} /></b><span>{L("叙勲","Awarded","敘勳")}</span></div>
+                        <div className="s"><b className="kin"><Roll value={titlesGot} resetKey={arc.en} /></b><span>{L("獲得","Earned","獲得")}</span></div>
                         <div className="hf-div" />
-                        <div className="s"><b className="kin"><Roll value={titlesPct} resetKey={arc.en} />%</b><span>{L("完成率","Complete","完成率")}</span></div>
+                        <div className="s"><b className="kin"><Roll value={titlesPct} resetKey={arc.en} />%</b><span>{L("叙勲率","Decorated %","敘勳率")}</span></div>
                       </>
                     ) : isSalon ? (
                       <>
                         <div className="s"><b><Roll value={allKits.length} resetKey={arc.en} /></b><span>{L("収録","Listed","收錄")}</span></div>
                         <div className="hf-div" />
-                        <div className="s"><b className="kin"><Roll value={imgStats.total} resetKey={arc.en} /></b><span>{L("撮影数","Photos","拍攝數")}</span></div>
+                        <div className="s"><b className="kin"><Roll value={imgStats.kitsWith} resetKey={arc.en} /></b><span>{L("目撃数","Sighted","目擊數")}</span></div>
                         <div className="hf-div" />
                         <div className="s"><b className="kin"><Roll value={imgStats.pct} resetKey={arc.en} />%</b><span>{L("撮影率","Shot %","拍攝率")}</span></div>
+                      </>
+                    ) : isAnalysis ? (
+                      <>
+                        <div className="s"><b><Roll value={collectPct} resetKey={arc.en} />%</b><span>{L("収集率","Collected","收集率")}</span></div>
+                        <div className="hf-div" />
+                        <div className="s"><b className="kin"><Roll value={imgStats.pct} resetKey={arc.en} />%</b><span>{L("撮影率","Shot %","拍攝率")}</span></div>
+                        <div className="hf-div" />
+                        <div className="s"><b className="kin"><Roll value={titlesPct} resetKey={arc.en} />%</b><span>{L("叙勲率","Decorated %","敘勳率")}</span></div>
                       </>
                     ) : (
                       <>
