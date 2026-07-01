@@ -906,89 +906,6 @@ function SwipeViewer({ slides, index, onIndex, onClose, resolveSrc, resetKey, se
   );
 }
 
-function PinchZoom({ src, alt = "", className = "", imgClassName = "", imgStyle, onTap, onSwipe, resetKey, maxScale = 5 }) {
-  const box = useRef(null);
-  const cur = useRef({ scale: 1, x: 0, y: 0 });
-  const [view, setView] = useState({ scale: 1, x: 0, y: 0 });
-  const pts = useRef(new Map());
-  const g = useRef(null);
-  const moved = useRef(false);
-  const startPt = useRef({ x: 0, y: 0 });
-
-  useEffect(() => {
-    cur.current = { scale: 1, x: 0, y: 0 };
-    setView({ scale: 1, x: 0, y: 0 });
-  }, [resetKey, src]);
-
-  const clamp = (s, x, y) => {
-    s = Math.max(1, Math.min(maxScale, s));
-    const el = box.current;
-    if (el) {
-      const mx = (el.clientWidth * (s - 1)) / 2;
-      const my = (el.clientHeight * (s - 1)) / 2;
-      x = Math.max(-mx, Math.min(mx, x));
-      y = Math.max(-my, Math.min(my, y));
-    }
-    if (s <= 1.001) { x = 0; y = 0; }
-    return { scale: s, x, y };
-  };
-  const set = (r) => { cur.current = r; setView(r); };
-  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
-
-  const down = (e) => {
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
-    pts.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    moved.current = false;
-    const arr = [...pts.current.values()];
-    if (arr.length >= 2) {
-      g.current = { mode: "pinch", d: dist(arr[0], arr[1]) || 1, s: cur.current.scale, x: cur.current.x, y: cur.current.y };
-    } else {
-      g.current = { mode: "pan", px: arr[0].x, py: arr[0].y, x: cur.current.x, y: cur.current.y };
-      startPt.current = { x: e.clientX, y: e.clientY };
-    }
-  };
-  const move = (e) => {
-    if (!pts.current.has(e.pointerId)) return;
-    pts.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    const arr = [...pts.current.values()];
-    const gg = g.current;
-    if (!gg) return;
-    if (gg.mode === "pinch" && arr.length >= 2) {
-      moved.current = true;
-      set(clamp(gg.s * (dist(arr[0], arr[1]) / gg.d), gg.x, gg.y));
-    } else if (gg.mode === "pan" && arr.length === 1 && cur.current.scale > 1) {
-      const dx = arr[0].x - gg.px, dy = arr[0].y - gg.py;
-      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved.current = true;
-      set(clamp(cur.current.scale, gg.x + dx, gg.y + dy));
-    }
-  };
-  const up = (e) => {
-    pts.current.delete(e.pointerId);
-    const arr = [...pts.current.values()];
-    if (arr.length === 1) {
-      g.current = { mode: "pan", px: arr[0].x, py: arr[0].y, x: cur.current.x, y: cur.current.y };
-    } else if (arr.length === 0) {
-      const wasMoved = moved.current;
-      g.current = null;
-      const dx = e.clientX - startPt.current.x, dy = e.clientY - startPt.current.y;
-      if (onSwipe && cur.current.scale <= 1.01 && Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.3) {
-        onSwipe(dx < 0 ? 1 : -1);
-      } else if (!wasMoved && onTap) {
-        onTap(e);
-      }
-    }
-  };
-
-  return (
-    <div ref={box} className={"pz " + className} style={{ touchAction: "none" }}
-      onClick={(e) => e.stopPropagation()}
-      onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
-      <img src={src} alt={alt} className={imgClassName} draggable={false}
-        style={{ ...imgStyle, transform: `translate(${view.x}px,${view.y}px) scale(${view.scale})`, transformOrigin: "center center", willChange: "transform", touchAction: "none" }} />
-    </div>
-  );
-}
-
 /* ── 構図調整モーダル: ドラッグ平移 + ピンチ/ホイール拡大 + 中央リセット ──
    方形ビューポート内で object-fit:cover の画像を pan/zoom。保存値は {scale,x,y}。原画像は無加工。 */
 function FramingEditor({ src, initial, onSave, onCancel, L = (ja) => ja }) {
@@ -2783,7 +2700,6 @@ export default function App() {
   useEffect(() => { setPillOpen(false); setDoneIntent(false); }, [detail]);
   const [adding, setAdding] = useState(false);
   const [anaMode, setAnaMode] = useState("record");  // record=記録(記錄) / analysis=分析
-  const [advOpen, setAdvOpen] = useState(false);
   const [seriesPickerOpen, setSeriesPickerOpen] = useState(false);
   const [viewer, setViewer] = useState(null); // 画像鑑賞: {kitId, idx} | null
   const [viewerDel, setViewerDel] = useState(false); // 鑑賞内の削除確認
@@ -2805,8 +2721,6 @@ export default function App() {
   const toggleSec = (k) => { haptic(); setOpenSec((s) => ({ ...s, [k]: !s[k] })); };
   const [promptEdit, setPromptEdit] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchDraft, setSearchDraft] = useState(""); // 検索の下書き(候補表示用)。確定で query(リスト反映)へ。
   const [uniPickerOpen, setUniPickerOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [fixOpen, setFixOpen] = useState(false);
@@ -2885,8 +2799,8 @@ export default function App() {
     };
   };
   const consumeLP = () => { if (lpRef.current.fired) { lpRef.current.fired = false; return true; } return false; };
-  /* 画像領域の長押し=工房(編集室)へ直行。stopPropagation でカード本体の長押し(予定切替)を抑止。
-     短タップは伝播させてカードの onClick(詳細表示)に委ねる。 */
+  /* 画像領域の長押し=工房(編集室)へ直行。stopPropagation で下層(カード/行)への伝播を止め、
+     短タップのみカードの onClick(詳細表示)へ委ねる。 */
   const imgPress = (kitId, action) => {
     const lp = makeLongPress(() => { hapticStrong(); (action || (() => setImgEdit(kitId)))(); });
     return {
@@ -3462,27 +3376,6 @@ export default function App() {
       return total;
     } catch (e) { /* オフライン/取得失敗/検証失敗:無感で現行データ続行 */ return 0; }
   }, [settings.catalogUrl, persist, processCatalogMeta]);
-
-  /* ── 下滾自動收回搜尋列:完全滑過後才瞬間收合 + 補償捲動位置,內容零跳動 ── */
-  const drawerClosingRef = useRef(false);
-  const onBodyScroll = (e) => {
-    const el = e.currentTarget;
-    if (!searchOpen || drawerClosingRef.current) return;
-    const drawer = el.querySelector(".search-drawer.open");
-    const h = drawer ? drawer.offsetHeight : 0;
-    if (h === 0 || el.scrollTop <= h - 4) return; // 尚未完全滑過搜尋列就保留
-    drawerClosingRef.current = true;
-    drawer.style.transition = "none"; // 本次收合不走動畫
-    setSearchOpen(false);
-    setAdvOpen(false);
-    requestAnimationFrame(() => {
-      el.scrollTop = Math.max(0, el.scrollTop - h); // 扣掉收合高度,畫面內容不動
-      requestAnimationFrame(() => {
-        if (drawer) drawer.style.transition = ""; // 還原動畫供下次下拉開啟
-        drawerClosingRef.current = false;
-      });
-    });
-  };
 
   const setImage = (id, val) => {
     setImages((prev) => {
@@ -4286,13 +4179,6 @@ export default function App() {
   );
 
   const advActive = adv.series || adv.uni || adv.prem || adv.stat || adv.yFrom || adv.yTo || adv.tag;
-  const openSearch = useCallback(() => { haptic(); setSearchDraft(queries[advTab] || ""); setSearchOpen(true); }, [advTab, queries]);
-  const closeSearch = useCallback(() => { setSearchOpen(false); }, []);
-  // 確定(✓ボタン / Enter):下書きを query へ反映 → リストが絞り込まれる。
-  const commitSearch = useCallback(() => {
-    setQueries((s) => ({ ...s, [advTab]: searchDraft.trim() }));
-    setSearchOpen(false);
-  }, [advTab, searchDraft]);
   const openFilter = useCallback(() => { haptic(); setFilterOpen(true); }, []);
   const closeFilter = useCallback(() => { setFilterOpen(false); }, []);
   /* タップ=onTap / 長押し=onLong。既存の makeLongPress/consumeLP を再利用 */
@@ -4307,42 +4193,6 @@ export default function App() {
     setQueries((s) => ({ ...s, [advTab]: "" }));
     patchSettings({ [gfStoreKey]: [] });
   };
-  /* 検索ヒット(下書きに対する即時候補。タップ=該当機体へジャンプ、リストは不動) */
-  const searchHits = useMemo(() => {
-    const term = searchDraft.trim();
-    if (!term) return [];
-    const base = allKits;
-    const q = normJa(term); const rq = toRomaji(q);
-    return base.filter((k) => { const idx = searchIndex[k.id] || ""; return idx.includes(q) || (rq && rq !== q && idx.includes(rq)); }).slice(0, 14);
-  }, [searchDraft, allKits, searchIndex]);
-  const renderSearchModal = ({ placeholder, title }) => (
-    <div className="modal-bg search-modal-bg" onClick={closeSearch}>
-      <div className="modal search-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="sm-head">
-          <span className="sm-title">{title} <span className="sm-eyebrow">SEARCH</span></span>
-          <button className="modal-x static" onClick={closeSearch}>✕</button>
-        </div>
-        <div className="toolbar">
-          <input className="search" placeholder={placeholder} value={searchDraft} autoFocus
-            onChange={(e) => setSearchDraft(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); commitSearch(); } }} />
-          <button className="search-go" aria-label={L("確認","Confirm","確認")} onClick={commitSearch}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4 4L19 6.5" /></svg>
-          </button>
-        </div>
-        {searchDraft.trim() ? (
-          <div className="sm-hits">
-            {searchHits.length ? searchHits.map((k) => (
-              <button key={k.id} className="sm-hit" onClick={() => { closeSearch(); setDetail(k.id); }}>
-                <span className="sm-hit-name"><KitName name={k.name} /></span>
-                <span className="sm-hit-sub">{[k.code, k.grade, k.series].filter(Boolean).join(" · ")}</span>
-              </button>
-            )) : <div className="sm-empty">{L("該当する機体がありません","No matching kit","沒有符合的機體")}</div>}
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
   /* ── 簿冊表頭(博物誌/繪測巻/蔵品帳/発注簿):仿叙勲録の表頭。タップで検索窓 ── */
   /* LedgerTitle は module scope へ移動済み(remount による表頭アニメ再生を防ぐため)。 */
 
@@ -4685,7 +4535,6 @@ export default function App() {
     { open: titleDetail != null, close: () => setTitleDetail(null) },
     { open: !!adding, close: () => setAdding(false) },
     { open: !!detailKit && editing, close: () => setEditing(false) },
-    { open: searchOpen, close: () => setSearchOpen(false) },
     { open: filterOpen, close: () => setFilterOpen(false) },
     { open: !!detailKit, close: closeDetail },
   ];
@@ -4742,7 +4591,7 @@ export default function App() {
   };
 
   return (
-    <div className={"app lang-" + lang + " " + (settings.theme === "light" ? "light" : "") + (detailKit || adding || promptEdit || profileOpen || setupOpen || titleDetail || searchOpen || filterOpen || fixOpen || quizOpen || identifyOpen || sortMenuOpen || imgEdit ? " lock" : "")}>
+    <div className={"app lang-" + lang + " " + (settings.theme === "light" ? "light" : "") + (detailKit || adding || promptEdit || profileOpen || setupOpen || titleDetail || filterOpen || fixOpen || quizOpen || identifyOpen || sortMenuOpen || imgEdit ? " lock" : "")}>
       <style>{CSS}</style>
       <AppDialogHost />
 
@@ -4806,10 +4655,10 @@ export default function App() {
 
       <header className="head">
         {(() => {
-          const arc = tab === "zukan" ? { jp: "機体档案", en: "REGISTRY" }
-            : tab === "gallery" ? { jp: "絵測档案", en: "GALLERY" }
-            : tab === "analysis" ? (anaMode === "analysis" ? { jp: "観測档案", en: "ANALYSIS" } : { jp: "叙勲档案", en: "DECORATIONS" })
-            : { jp: "管理档案", en: "ADMINISTRATION" };
+          const arc = tab === "zukan" ? { en: "REGISTRY" }
+            : tab === "gallery" ? { en: "GALLERY" }
+            : tab === "analysis" ? (anaMode === "analysis" ? { en: "ANALYSIS" } : { en: "DECORATIONS" })
+            : { en: "ADMINISTRATION" };
           const isDecor = tab === "analysis" && anaMode === "record";
           const isSalon = tab === "gallery";
           const titlesGot = titles.filter((t) => t.unlocked).length;
@@ -4837,27 +4686,27 @@ export default function App() {
                     <button className="hf-seal" aria-label={L("カメラで機体を判別","Identify kit by camera","以相機判別機體")} onClick={(e) => { e.stopPropagation(); haptic(); setIdentifyCam(true); setIdentifyOpen(true); }}>鑑</button>
                     {isDecor ? (
                       <>
-                        <div className="s"><b><Roll value={titles.length} resetKey={arc.jp} /></b><span>{L("称号","Titles","稱號")}</span></div>
+                        <div className="s"><b><Roll value={titles.length} resetKey={arc.en} /></b><span>{L("称号","Titles","稱號")}</span></div>
                         <div className="hf-div" />
-                        <div className="s"><b className="kin"><Roll value={titlesGot} resetKey={arc.jp} /></b><span>{L("叙勲","Awarded","敘勳")}</span></div>
+                        <div className="s"><b className="kin"><Roll value={titlesGot} resetKey={arc.en} /></b><span>{L("叙勲","Awarded","敘勳")}</span></div>
                         <div className="hf-div" />
-                        <div className="s"><b className="kin"><Roll value={titlesPct} resetKey={arc.jp} />%</b><span>{L("完成率","Complete","完成率")}</span></div>
+                        <div className="s"><b className="kin"><Roll value={titlesPct} resetKey={arc.en} />%</b><span>{L("完成率","Complete","完成率")}</span></div>
                       </>
                     ) : isSalon ? (
                       <>
-                        <div className="s"><b><Roll value={allKits.length} resetKey={arc.jp} /></b><span>{L("収録","Listed","收錄")}</span></div>
+                        <div className="s"><b><Roll value={allKits.length} resetKey={arc.en} /></b><span>{L("収録","Listed","收錄")}</span></div>
                         <div className="hf-div" />
-                        <div className="s"><b className="kin"><Roll value={imgStats.total} resetKey={arc.jp} /></b><span>{L("撮影数","Photos","拍攝數")}</span></div>
+                        <div className="s"><b className="kin"><Roll value={imgStats.total} resetKey={arc.en} /></b><span>{L("撮影数","Photos","拍攝數")}</span></div>
                         <div className="hf-div" />
-                        <div className="s"><b className="kin"><Roll value={imgStats.pct} resetKey={arc.jp} />%</b><span>{L("撮影率","Shot %","拍攝率")}</span></div>
+                        <div className="s"><b className="kin"><Roll value={imgStats.pct} resetKey={arc.en} />%</b><span>{L("撮影率","Shot %","拍攝率")}</span></div>
                       </>
                     ) : (
                       <>
-                        <div className="s"><b><Roll value={allKits.length} resetKey={arc.jp} /></b><span>{L("収録","Listed","收錄")}</span></div>
+                        <div className="s"><b><Roll value={allKits.length} resetKey={arc.en} /></b><span>{L("収録","Listed","收錄")}</span></div>
                         <div className="hf-div" />
-                        <div className="s"><b><Roll value={ownedAll} resetKey={arc.jp} /></b><span>{L("入手","Owned","入手")}</span></div>
+                        <div className="s"><b><Roll value={ownedAll} resetKey={arc.en} /></b><span>{L("入手","Owned","入手")}</span></div>
                         <div className="hf-div" />
-                        <div className="s"><b><Roll value={collectPct} resetKey={arc.jp} />%</b><span>{L("収集率","Collected","收集率")}</span></div>
+                        <div className="s"><b><Roll value={collectPct} resetKey={arc.en} />%</b><span>{L("収集率","Collected","收集率")}</span></div>
                       </>
                     )}
                   </div>
@@ -4869,7 +4718,7 @@ export default function App() {
         })()}
       </header>
 
-      <main className="body" ref={bodyRef} onScroll={onBodyScroll}>
+      <main className="body" ref={bodyRef}>
         <div key={tab} className="tab-page">
         {(tab === "zukan" || tab === "gallery") && (
           <>
@@ -4888,10 +4737,6 @@ export default function App() {
               countNode: salonView
                 ? <><b>{sorted.length}</b> / {imgStats.kitsWith} {L("目撃", "shot", "目擊")}</>
                 : <><b>{sorted.length}</b> / {allKits.length} {L("収録", "listed", "收錄")}</>,
-            })}
-            {searchOpen && renderSearchModal({
-              placeholder: L("機体名・型式・原作で検索", "Search name, code, series", "搜尋機體名・型式・原作"),
-              title: salonView ? L(<>絵<em>測</em>巻</>,<>Gallery</>,<>繪<em>測</em>卷</>) : L(<>博<em>物</em>誌</>,<>Registry</>,<>博<em>物</em>誌</>),
             })}
             {filterOpen && (
               <div className="modal-bg search-modal-bg" onClick={closeFilter}>
@@ -4984,7 +4829,6 @@ export default function App() {
           const buildYearData = Object.keys(byBuildYear).sort().map((y) => ({ label: y, value: byBuildYear[y] }));
           const maxBuildYear = Math.max(1, ...buildYearData.map((d) => d.value));
 
-          const gradeLineColors2 = { MG: "#e8553d", HG: "#8fcf8a", RG: "#d9b36a", PG: "#b08ad6", HIRM: "#cf8a6a", RE: "#8ab0a0", FM: "#a0a8c0", MGSD: "#6fd3c7", EXTRA: "#cfc9bb" };
           const relYears = allKits.map((k) => yearOf(k.ym)).filter((yy) => yy !== "----").map(Number);
           const yMin = Math.min(...relYears), yMax = Math.max(...relYears);
           const lineYears = [];
@@ -4997,7 +4841,7 @@ export default function App() {
             (gradeYearCounts[g] = gradeYearCounts[g] || {})[yy] = (gradeYearCounts[g][yy] || 0) + 1;
           });
           const lineSeries = ["MG", "HG", "RG", "PG", "HIRM", "RE", "FM", "MGSD", "EXTRA"].filter((g) => gradeYearCounts[g])
-            .map((g) => ({ label: g, color: gradeLineColors2[g], points: lineYears.map((yy) => (gradeYearCounts[g][yy] || 0)) }));
+            .map((g) => ({ label: g, color: gradeColors[g], points: lineYears.map((yy) => (gradeYearCounts[g][yy] || 0)) }));
 
           return (
             <>
@@ -7096,8 +6940,6 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .tabbar.pad-min .tab{padding:7px 0 2px;gap:2px}
 /* ═══ v3.6 ═══ */
 /* 1. 検索ドロワー */
-.search-drawer{overflow:hidden;max-height:0;opacity:0;transition:max-height .3s ease,opacity .25s ease}
-.search-drawer.open{max-height:520px;opacity:1}
 .drawer-sub{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 2px 2px}
 .drawer-tools{display:flex;gap:8px;align-items:center;padding:6px 2px 4px}
 .drawer-tools .sort-bar{flex:1;min-width:0}
@@ -7619,15 +7461,6 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 @keyframes qrNew{0%,100%{opacity:1}50%{opacity:.45}}
 .search-modal-bg{z-index:60;align-items:flex-start;justify-content:center;padding:12vh 14px 0}
 .search-modal-bg .modal{margin:0;max-height:74vh}
-.search-go{flex:none;width:46px;display:flex;align-items:center;justify-content:center;border:1px solid var(--gold);border-radius:8px;background:rgba(217,179,106,.08);color:var(--gold);cursor:pointer;transition:transform .12s,background .15s}
-.search-go:active{transform:scale(.92);background:rgba(217,179,106,.2)}
-.search-go svg{width:18px;height:18px;display:block}
-.sm-hits{margin-top:10px;max-height:46vh;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:6px}
-.sm-hit{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:10px 12px;cursor:pointer;transition:border-color .14s,background .14s,transform .1s}
-.sm-hit:active{transform:scale(.99);border-color:var(--gold);background:var(--panel2)}
-.sm-hit-name{font-family:var(--serif);font-size:14px;color:var(--ink-strong);line-height:1.3}
-.sm-hit-sub{font-size:11px;color:var(--ink-mid);letter-spacing:.02em;font-family:ui-monospace,"SF Mono",Menlo,monospace}
-.sm-empty{padding:18px 4px;text-align:center;font-size:12.5px;color:var(--ink-mid)}
 .sm-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px}
 .sm-title{font-family:var(--serif);font-weight:800;font-size:19px;color:var(--ink-strong);letter-spacing:.04em}
 .sm-title em{font-style:normal;color:var(--gold)}
@@ -7808,7 +7641,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .kz-date.done{color:var(--gold)}
 .kz-rseal{flex:none;font-family:var(--serif);font-weight:800;font-size:12px;line-height:1;color:var(--gold);border:1.4px solid rgba(217,179,106,.55);background:rgba(217,179,106,.1);border-radius:2px;padding:5px 4px;writing-mode:vertical-rl;letter-spacing:.1em}
 .kz-rplan{flex:none;font-family:ui-monospace,monospace;font-size:11px;font-weight:700;color:var(--gold);border:1px dashed var(--gold);background:rgba(217,179,106,.05);border-radius:2px;padding:4px 5px;writing-mode:vertical-rl;letter-spacing:.06em}
-/* ═══ 入手頁(機密档案) ═══ */
+/* ═══ 入手頁(機密檔案) ═══ */
 .dc-head{padding:2px 0 0}
 .dc-modal{position:relative;scrollbar-gutter:stable}
 .dc-x{position:absolute;top:26px;right:26px;z-index:8;width:30px;height:30px;display:flex;align-items:center;justify-content:center;color:var(--ink-dim);font-size:15px;line-height:1;border-radius:8px;background:rgba(8,10,14,.5);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);border:1px solid var(--hair)}
@@ -8059,7 +7892,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 /* タブ:共用スライド下線 */
 .tab-slider{position:absolute;top:0;left:0;width:25%;height:2px;display:flex;justify-content:center;pointer-events:none;z-index:2;transition:transform .34s cubic-bezier(.4,0,.2,1)}
 .tab-slider b{width:46%;height:100%;border-radius:0 0 2px 2px;background:var(--gold);transition:background .25s;box-shadow:0 0 8px rgba(217,179,106,.4)}
-/* タブ切替:档案名/部品コードの差し替え */
+/* タブ切替:檔案名/部品コードの差し替え */
 .hf-vbar{animation:hfVbarIn .7s ease}
 @keyframes hfVbarIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
 .hf-part{animation:hfPartIn .36s cubic-bezier(.3,1.3,.5,1) both}
@@ -8069,7 +7902,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 /* ── アプリ内 通知(toast) ── */
 .toast-host{position:fixed;top:calc(10px + env(safe-area-inset-top));left:0;right:0;z-index:200;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
 .toast{position:relative;display:flex;align-items:center;gap:11px;min-width:172px;max-width:88vw;padding:13px 18px 12px 16px;border-radius:6px;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);box-shadow:0 16px 38px rgba(0,0,0,.52);font-size:13px;color:var(--ink-strong);font-family:var(--serif);letter-spacing:.045em;animation:toast-in .28s cubic-bezier(.2,.9,.3,1);overflow:hidden}
-/* 档案調の表頭罫(cf-line と同系):色の短セグメント＋細罫 */
+/* 檔案調の表頭罫(cf-line と同系):色の短セグメント＋細罫 */
 .toast::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--teal) 0 40px,var(--line) 40px)}
 .toast.ok::before{background:linear-gradient(90deg,var(--teal) 0 40px,var(--line) 40px)}
 .toast.err::before{background:linear-gradient(90deg,var(--shu) 0 40px,var(--line) 40px)}
