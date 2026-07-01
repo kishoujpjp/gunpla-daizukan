@@ -775,9 +775,12 @@ function swallowNextClick() {
   document.addEventListener("click", h, true);
 }
 
-function SwipeViewer({ slides, index, onIndex, onClose, resolveSrc, resetKey, serifOf, onSerif, watermarkOf, L = (ja) => ja }) {
+function SwipeViewer({ slides, index, onIndex, onClose, onLongPress, onLongHold, resolveSrc, resetKey, serifOf, onSerif, watermarkOf, L = (ja) => ja }) {
   const n = slides.length;
   const wrapRef = useRef(null);
+  const lpTimer = useRef(0);        // 長押しタイマー(押下480msで onLongHold=触覚のみ)
+  const lpArmed = useRef(false);    // 480ms到達で true。指を離した瞬間(up)に onLongPress へ
+  useEffect(() => () => clearTimeout(lpTimer.current), []);
   const [dragX, setDragX] = useState(0);
   const [paging, setPaging] = useState(false);
   const [z, setZ] = useState({ scale: 1, x: 0, y: 0 });
@@ -806,6 +809,8 @@ function SwipeViewer({ slides, index, onIndex, onClose, resolveSrc, resetKey, se
     } else {
       st.current = { mode: null, sx: e.clientX, sy: e.clientY, bx: zr.current.x, by: zr.current.y, moved: false, t0: Date.now() };
       setPaging(false);
+      lpArmed.current = false;
+      if (onLongPress) { clearTimeout(lpTimer.current); lpTimer.current = setTimeout(() => { lpArmed.current = true; onLongHold && onLongHold(); }, 480); }
     }
   };
   const move = (e) => {
@@ -813,6 +818,10 @@ function SwipeViewer({ slides, index, onIndex, onClose, resolveSrc, resetKey, se
     pts.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     const arr = [...pts.current.values()];
     const s = st.current; if (!s) return;
+    if (lpTimer.current) {
+      const moved1 = arr.length === 1 && s.sx != null && (Math.abs(arr[0].x - s.sx) > 8 || Math.abs(arr[0].y - s.sy) > 8);
+      if (arr.length >= 2 || moved1) { clearTimeout(lpTimer.current); lpTimer.current = 0; lpArmed.current = false; }
+    }
     if (s.mode === "pinch" && arr.length >= 2) {
       setZoom(clampZoom(s.baseScale * (dist(arr[0], arr[1]) / s.baseDist), s.bx, s.by));
       return;
@@ -833,6 +842,7 @@ function SwipeViewer({ slides, index, onIndex, onClose, resolveSrc, resetKey, se
     }
   };
   const up = (e) => {
+    clearTimeout(lpTimer.current); lpTimer.current = 0;
     pts.current.delete(e.pointerId);
     const arr = [...pts.current.values()];
     if (arr.length >= 1) {
@@ -850,6 +860,8 @@ function SwipeViewer({ slides, index, onIndex, onClose, resolveSrc, resetKey, se
       if ((dragX <= -th || (flick && dragX < 0)) && index < n - 1) onIndex(index + 1);
       else if ((dragX >= th || (flick && dragX > 0)) && index > 0) onIndex(index - 1);
       setDragX(0);
+    } else if (lpArmed.current && !s.moved && zr.current.scale <= 1.01) {
+      lpArmed.current = false; onLongPress && onLongPress(e);   // 長押し→詳細(離した瞬間に発火。swallowはApp側)
     } else if (!s.moved && zr.current.scale <= 1.01 && (Date.now() - (s.t0 || 0)) < 500) {
       onClose(e);
     }
@@ -5360,17 +5372,14 @@ export default function App() {
         };
         return (
           <div className="viewer-bg" onClick={close}>
-            {vfrom === "salon" && (
-              <button className="sv-info" onClick={(e) => { e.stopPropagation(); viewerGuard.current = Date.now(); setSerifEdit(null); setViewerDel(false); setViewer(null); setDetail(curKitId); setEditing(false); }}>
-                {L("資料", "Info", "資料")}
-              </button>
-            )}
             <SwipeViewer slides={flat} index={gi} resetKey={String(curRef)}
               resolveSrc={(sl) => (sl.ref ? refSrc(sl.ref, sl.kitId, images, extras) : null)}
               serifOf={(sl) => (sl.ref ? (serifs[sl.ref] || "") : "")}
               onSerif={(sl) => { if (sl.ref) setSerifEdit({ ref: sl.ref, text: serifs[sl.ref] || "" }); }}
               onIndex={(i) => { setViewerDel(false); setSerifEdit(null); setViewer({ kitId: flat[i].kitId, ref: flat[i].ref, from: vfrom }); }}
-              L={L} onClose={() => { swallowNextClick(); close(); }} />
+              L={L} onClose={() => { swallowNextClick(); close(); }}
+              onLongHold={() => hapticStrong()}
+              onLongPress={() => { swallowNextClick(); viewerGuard.current = Date.now(); setViewerDel(false); setSerifEdit(null); setViewer(null); setDetail(curKitId); setEditing(false); }} />
 
             {serifEdit && (
               <div className="serif-edit-bg" onClick={(e) => { e.stopPropagation(); setSerifEdit(null); }}>
@@ -5787,7 +5796,7 @@ const CSS = `
   --kin:#d9b36a; --kin-deep:#b8924a; --blue:#6f9fe0;
   --crt-line:#5f9c92;
   /* 角丸スケール(border-radius トークン) */
-  --r-xs:3px; --r-sm:7px; --r-md:9px; --r-lg:12px; --r-xl:16px; --r-pill:999px;
+  --r-xs:2px; --r-sm:5px; --r-md:7px; --r-lg:10px; --r-xl:13px; --r-pill:999px;
   /* グラフ/等級/勲章の配色(ダーク)。.app.light で明色版へ差し替え、テーマ追従。 */
   --g-mg:#e8553d; --g-hg:#8fcf8a; --g-rg:#d9b36a; --g-pg:#b08ad6; --g-hirm:#cf8a6a;
   --g-re:#8ab0a0; --g-fm:#a0a8c0; --g-mgsd:#6fd3c7; --g-extra:#cfc9bb; --g-none:#9aa0ae;
@@ -6240,16 +6249,6 @@ input,textarea{font-family:var(--sans)}
 /* ── 画像鑑賞モード ── */
 .viewer-bg{position:fixed;inset:0;background:rgba(2,3,6,.94);z-index:120;
   display:flex;align-items:center;justify-content:center;padding:20px;animation:bgfade .2s ease-out;cursor:zoom-out}
-/* 画廊の鑑賞ビューアから「資料(詳細)」へ。左上・タップは背景の閉じるへ伝播させない。 */
-.sv-info{position:fixed;top:calc(14px + env(safe-area-inset-top));left:16px;z-index:130;
-  display:flex;align-items:center;gap:6px;padding:8px 15px;border-radius:var(--r-pill);
-  background:rgba(28,34,48,.72);border:1px solid var(--line);color:var(--ink-strong);
-  font-family:var(--serif);font-size:13px;letter-spacing:.1em;cursor:pointer;
-  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
-  transition:transform .12s,background .14s,border-color .14s}
-.sv-info::before{content:"◈";font-size:11px;color:var(--gold);opacity:.85}
-.sv-info:active{transform:scale(.94);border-color:var(--gold);background:rgba(28,34,48,.9)}
-.app.light .sv-info{background:rgba(251,246,234,.82);color:var(--ink-strong)}
 .viewer-img{max-width:100%;max-height:100%;object-fit:contain;border-radius:var(--r-sm);
   box-shadow:0 0 40px rgba(0,0,0,.6);animation:up .26s cubic-bezier(.2,.9,.3,1.1)}
 .viewer-x{position:fixed;top:calc(14px + env(safe-area-inset-top));right:16px;
@@ -6423,8 +6422,8 @@ input,textarea{font-family:var(--sans)}
 .ie-del .ie-delic{width:16px;height:16px;flex:none}
 /* 画像情報シート:閉じる(X) */
 /* ── 統一浮層「閉じる」チップ(dc-x / ie-sheet-x 共通の見た目・振る舞い) ── */
-.dc-x,.ie-sheet-x{position:absolute;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:var(--r-md);background:var(--panel2);border:1px solid var(--line);color:var(--ink-mid);z-index:8;transition:transform .12s,color .14s,border-color .14s,background .14s}
-.dc-x:active,.ie-sheet-x:active{transform:scale(.9);color:var(--ink-strong);border-color:var(--gold)}
+.ie-sheet-x{position:absolute;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:var(--r-md);background:var(--panel2);border:1px solid var(--line);color:var(--ink-mid);z-index:8;transition:transform .12s,color .14s,border-color .14s,background .14s}
+.ie-sheet-x:active{transform:scale(.9);color:var(--ink-strong);border-color:var(--gold)}
 .ie-sheet-x{top:10px;right:12px}
 .ie-sheet-x svg{width:16px;height:16px}
 /* 画像情報シート:前後ナビ矢印(左右スワイプにも対応) */
@@ -7698,7 +7697,8 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 /* ═══ 入手頁(機密檔案) ═══ */
 .dc-head{padding:2px 0 0}
 .dc-modal{position:relative;scrollbar-gutter:stable}
-.dc-x{top:26px;right:26px;font-size:15px;line-height:1}
+.dc-x{position:absolute;top:16px;right:20px;z-index:8;color:var(--ink-mid);font-size:14px;line-height:1;padding:6px;transition:color .14s,transform .12s}
+.dc-x:active{color:var(--ink-strong);transform:scale(.9)}
 .dc-eye{font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;color:var(--ink-mid);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dc-eye-tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center;white-space:normal;overflow:visible;text-overflow:clip;text-transform:none}
 .dc-eye-tags .grade-chip,.dc-eye-tags .line-chip{display:inline-flex;align-items:center;justify-content:center;height:22px;box-sizing:border-box;margin:0;vertical-align:0;line-height:1;border-radius:var(--r-xs);border-width:1.5px;font-family:var(--sans);font-size:11.5px;font-weight:800;letter-spacing:.05em;padding:0 9px}
