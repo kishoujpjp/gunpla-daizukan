@@ -775,11 +775,29 @@ function swallowNextClick() {
   document.addEventListener("click", h, true);
 }
 
-function SwipeViewer({ slides, index, onIndex, onClose, onLongPress, onLongHold, resolveSrc, resetKey, serifOf, onSerif, watermarkOf, L = (ja) => ja }) {
+// 長押し中に画面遷移する場合の貫通対策。押下時点で swallowNextClick を仕込むと、
+// 保持が長い(>700ms)と窓が切れて背景に貫通する。そこで「指を離した瞬間」に武装する。
+function swallowNextClickOnRelease() {
+  if (typeof document === "undefined") return;
+  const arm = () => { cleanup(); swallowNextClick(); };
+  function cleanup() {
+    document.removeEventListener("pointerup", arm, true);
+    document.removeEventListener("pointercancel", arm, true);
+    document.removeEventListener("touchend", arm, true);
+    document.removeEventListener("mouseup", arm, true);
+    clearTimeout(t);
+  }
+  const t = setTimeout(cleanup, 8000); // 保持がどれだけ長くてもOK。純粋なリーク防止用の上限
+  document.addEventListener("pointerup", arm, true);
+  document.addEventListener("pointercancel", arm, true);
+  document.addEventListener("touchend", arm, true);
+  document.addEventListener("mouseup", arm, true);
+}
+
+function SwipeViewer({ slides, index, onIndex, onClose, onLongPress, resolveSrc, resetKey, serifOf, onSerif, watermarkOf, L = (ja) => ja }) {
   const n = slides.length;
   const wrapRef = useRef(null);
-  const lpTimer = useRef(0);        // 長押しタイマー(押下480msで onLongHold=触覚のみ)
-  const lpArmed = useRef(false);    // 480ms到達で true。指を離した瞬間(up)に onLongPress へ
+  const lpTimer = useRef(0);        // 長押しタイマー。押下480msで onLongPress を発火(他の長押しと同じく保持中に自動遷移)
   useEffect(() => () => clearTimeout(lpTimer.current), []);
   const [dragX, setDragX] = useState(0);
   const [paging, setPaging] = useState(false);
@@ -809,8 +827,7 @@ function SwipeViewer({ slides, index, onIndex, onClose, onLongPress, onLongHold,
     } else {
       st.current = { mode: null, sx: e.clientX, sy: e.clientY, bx: zr.current.x, by: zr.current.y, moved: false, t0: Date.now() };
       setPaging(false);
-      lpArmed.current = false;
-      if (onLongPress) { clearTimeout(lpTimer.current); lpTimer.current = setTimeout(() => { lpArmed.current = true; onLongHold && onLongHold(); }, 480); }
+      if (onLongPress) { clearTimeout(lpTimer.current); lpTimer.current = setTimeout(() => { lpTimer.current = 0; onLongPress(); }, 480); }
     }
   };
   const move = (e) => {
@@ -820,7 +837,7 @@ function SwipeViewer({ slides, index, onIndex, onClose, onLongPress, onLongHold,
     const s = st.current; if (!s) return;
     if (lpTimer.current) {
       const moved1 = arr.length === 1 && s.sx != null && (Math.abs(arr[0].x - s.sx) > 8 || Math.abs(arr[0].y - s.sy) > 8);
-      if (arr.length >= 2 || moved1) { clearTimeout(lpTimer.current); lpTimer.current = 0; lpArmed.current = false; }
+      if (arr.length >= 2 || moved1) { clearTimeout(lpTimer.current); lpTimer.current = 0; }
     }
     if (s.mode === "pinch" && arr.length >= 2) {
       setZoom(clampZoom(s.baseScale * (dist(arr[0], arr[1]) / s.baseDist), s.bx, s.by));
@@ -860,8 +877,6 @@ function SwipeViewer({ slides, index, onIndex, onClose, onLongPress, onLongHold,
       if ((dragX <= -th || (flick && dragX < 0)) && index < n - 1) onIndex(index + 1);
       else if ((dragX >= th || (flick && dragX > 0)) && index > 0) onIndex(index - 1);
       setDragX(0);
-    } else if (lpArmed.current && !s.moved && zr.current.scale <= 1.01) {
-      lpArmed.current = false; onLongPress && onLongPress(e);   // 長押し→詳細(離した瞬間に発火。swallowはApp側)
     } else if (!s.moved && zr.current.scale <= 1.01 && (Date.now() - (s.t0 || 0)) < 500) {
       onClose(e);
     }
@@ -5379,8 +5394,7 @@ export default function App() {
               onSerif={(sl) => { if (sl.ref) setSerifEdit({ ref: sl.ref, text: serifs[sl.ref] || "" }); }}
               onIndex={(i) => { setViewerDel(false); setSerifEdit(null); setViewer({ kitId: flat[i].kitId, ref: flat[i].ref, from: vfrom }); }}
               L={L} onClose={() => { swallowNextClick(); close(); }}
-              onLongHold={() => hapticStrong()}
-              onLongPress={() => { swallowNextClick(); viewerGuard.current = Date.now(); setViewerDel(false); setSerifEdit(null); setViewer(null); setDetail(curKitId); setEditing(false); }} />
+              onLongPress={() => { hapticStrong(); swallowNextClickOnRelease(); viewerGuard.current = Date.now(); setViewerDel(false); setSerifEdit(null); setViewer(null); setDetail(curKitId); setEditing(false); }} />
 
             {serifEdit && (
               <div className="serif-edit-bg" onClick={(e) => { e.stopPropagation(); setSerifEdit(null); }}>
@@ -7619,7 +7633,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .salon-grid{display:grid;gap:14px;transition:gap .28s ease}
 .salon-grid.cols-2{grid-template-columns:repeat(2,1fr)}
 .salon-grid.cols-3{grid-template-columns:repeat(3,1fr);column-gap:9px}
-.sl-card{position:relative;border:1px solid var(--line-soft);border-radius:var(--r-lg);overflow:hidden;text-align:left;
+.sl-card{position:relative;border:1px solid var(--line-soft);border-radius:var(--r-md);overflow:hidden;text-align:left;
   background:linear-gradient(180deg,var(--panel) 0%,var(--bg2) 100%);display:flex;flex-direction:column;
   transition:transform .18s cubic-bezier(.34,1.56,.64,1),border-color .2s,box-shadow .2s}
 .sl-card:active{transform:scale(.975)}
