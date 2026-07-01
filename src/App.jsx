@@ -873,6 +873,7 @@ function SwipeViewer({ slides, index, onIndex, onClose, onLongPress, onLongHold,
   return (
     <div ref={wrapRef} className="sv-wrap" style={{ touchAction: "none" }}
       onClick={(e) => e.stopPropagation()}
+      onContextMenu={(e) => e.preventDefault()}
       onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
       {win.map((i) => {
         const sl = slides[i];
@@ -6039,7 +6040,7 @@ input,textarea{font-family:var(--sans)}
 .viewer-pz{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   padding:20px;box-sizing:border-box;cursor:zoom-out}
 /* 画像鑑賞スワイプ・カルーセル */
-.sv-wrap{position:absolute;inset:0;overflow:hidden;cursor:zoom-out}
+.sv-wrap{position:absolute;inset:0;overflow:hidden;cursor:zoom-out;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .sv-track{display:flex;width:100%;height:100%;will-change:transform}
 .sv-slide{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:18px;box-sizing:border-box;will-change:transform}
 .sv-stage{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%}
@@ -6055,7 +6056,7 @@ input,textarea{font-family:var(--sans)}
 .sv-wm{position:absolute;right:11px;bottom:9px;z-index:2;font-family:var(--mono);font-size:10px;letter-spacing:.04em;
   color:rgba(255,255,255,.3);text-shadow:0 1px 2px rgba(0,0,0,.55);pointer-events:none;
   max-width:72%;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sv-img{max-width:100%;max-height:100%;object-fit:contain;border-radius:var(--r-sm);transform-origin:center center;will-change:transform;user-select:none;-webkit-user-drag:none;-webkit-touch-callout:default}
+.sv-img{max-width:100%;max-height:100%;object-fit:contain;border-radius:var(--r-sm);transform-origin:center center;will-change:transform;user-select:none;-webkit-user-drag:none;-webkit-touch-callout:none}
 /* 銘牌(様式4:枠なし・最小)— 画像直下に追従。作品名(明朝・小)/機体名(楷体・台詞欄基準) */
 .sv-plate{flex:none;margin-top:12px;text-align:center;max-width:90%;padding:0 8px;pointer-events:none}
 .svp-work{font-family:var(--serif);font-size:10.5px;font-weight:600;letter-spacing:.30em;color:var(--ink-dim);
