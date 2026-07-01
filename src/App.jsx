@@ -4850,7 +4850,8 @@ export default function App() {
                 </div>
               </div>
               <div className="av-reg">
-                {list.map((t) => {
+                {/* 切替直後(gridReady=false)は先頭のみ描画→2フレーム後に全件へ。407件の一括マウント由来のカク付き対策。 */}
+                {(gridReady ? list : list.slice(0, 40)).map((t) => {
                   const isNew = titleIsNew(t);
                   const hiddenLocked = t.hidden && !t.unlocked;
                   const remain = Math.max(0, t.need - t.cur);
@@ -4967,6 +4968,8 @@ export default function App() {
                   })}
                 </div>
               </section>
+              {/* チャート群は切替後2フレーム目に描画(集計サマリは即時)。切替時のカク付き対策。 */}
+              {gridReady && (<>
               <section className="ana-sec">
                 <div className="year-head"><span className="year-num">{L("構成比","Breakdown","構成比")}</span><span className="year-rule" /><span className="year-count">{L("作品別・Grade別","By series · grade","依作品・等級")}</span></div>
                 <div className="pie-wrap">
@@ -5034,6 +5037,7 @@ export default function App() {
                   ))}
                 </div>
               </section>
+              </>)}
               <p className="footnote">{L("※ 金額は税込定価ベースの集計です(実購入額ではありません)。発売数推移のみ図鑑収録データ全体、その他は「入手済み」記録のみから算出。","* Amounts are tallied from tax-included list prices (not actual paid amounts). Only the release trend uses the full registry; everything else is computed from owned records.","* 金額以含稅定價統計(非實際購入額)。僅發售數趨勢採用全圖鑑資料，其餘均由「已入手」紀錄計算。")}</p>
             </>
           );
