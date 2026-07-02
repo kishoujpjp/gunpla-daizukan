@@ -4777,7 +4777,7 @@ export default function App() {
               onClick={() => { haptic(); if (bodyRef.current) bodyRef.current.scrollTo({ top: 0, behavior: "smooth" }); }}>
               <span className="hf-tag">Ⓐ ARCHIVE</span>
               <span className="hf-part" key={arc.en}><i className="hf-rl">Ⓡ</i>{arc.en}</span>
-              <span className="hf-gate gt" style={{ left: "32%" }} /><span className="hf-gate gt" style={{ left: "58%" }} /><span className="hf-gate gl" style={{ top: "50%" }} />
+              <span className="hf-gate gl" style={{ top: "50%" }} /><span className="hf-gate gr" style={{ top: "50%" }} />
               <div className="hf-top">
                 <div className="hf-rcol">
                   <div className="hf-main">
@@ -4832,13 +4832,15 @@ export default function App() {
                 <span className="hm-sep" />
                 <span className="hm-arc">{arc.en}</span>
                 <span className="hm-stat">
-                  {isDecor ? (<>{L("称号","Titles","稱號")} <b>{titles.length}</b> · {L("獲得","Earned","獲得")} <b>{titlesGot}</b> · <b>{titlesPct}%</b></>)
-                  : isSalon ? (<>{L("収録","Listed","收錄")} <b>{allKits.length}</b> · {L("目撃","Sighted","目擊")} <b>{imgStats.kitsWith}</b> · <b>{imgStats.pct}%</b></>)
+                  {isDecor ? (<>{L("獲得","Earned","獲得")} <b>{titlesGot}</b> · {L("叙勲率","Dec.","敘勳率")} <b>{titlesPct}%</b></>)
+                  : isSalon ? (<>{L("目撃","Sighted","目擊")} <b>{imgStats.kitsWith}</b> · {L("撮影率","Shot","拍攝率")} <b>{imgStats.pct}%</b></>)
                   : isAnalysis ? (<>{L("収集","Col.","收集")} <b>{collectPct}%</b> · {L("撮影","Shot","拍攝")} <b>{imgStats.pct}%</b> · {L("叙勲","Dec.","敘勳")} <b>{titlesPct}%</b></>)
-                  : (<>{L("収録","Listed","收錄")} <b>{allKits.length}</b> · {L("入手","Owned","入手")} <b>{ownedAll}</b> · <b>{collectPct}%</b></>)}
+                  : (<>{L("入手","Owned","入手")} <b>{ownedAll}</b> · {L("収集率","Col.","收集率")} <b>{collectPct}%</b></>)}
                 </span>
-                <button className="hm-seal" aria-label={L("カメラで機体を判別","Identify kit by camera","以相機判別機體")}
-                  onClick={(e) => { e.stopPropagation(); haptic(); setIdentifyCam(true); setIdentifyOpen(true); }}>鑑</button>
+                {!(isAnalysis || tab === "settings") && (
+                  <button className="hm-seal" aria-label={L("カメラで機体を判別","Identify kit by camera","以相機判別機體")}
+                    onClick={(e) => { e.stopPropagation(); haptic(); setIdentifyCam(true); setIdentifyOpen(true); }}>鑑</button>
+                )}
               </div>
               <div className="hf-prog"><i className={isDecor ? "kin" : ""} style={{ width: `${pct}%` }} /></div>
             </div>
@@ -7989,24 +7991,17 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .form .f-sec span{font-family:var(--mono);font-size:8.5px;letter-spacing:.28em;color:var(--ink-dim);text-transform:uppercase}
 .form .fld>span{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--ink-mid);text-transform:uppercase}
 /* ═══ ランナー枠ヘッダー ═══ */
-/* ══ G5 漆と金粉: 漆黒の地+金粉8粒+題字の微光暈。材質層は ::before(z=0、文字の下) ══ */
-.head .hf{--hfp:0;position:relative;border:1.6px solid var(--gold);border-radius:var(--r-md);padding:calc(14px - 5px*var(--hfp,0)) 18px 0;background:linear-gradient(165deg,#141827 0%,#0b0e16 58%,#0e1119 100%);box-shadow:inset 0 0 34px rgba(0,0,0,.5),inset 0 2px 0 rgba(242,220,160,.18),inset 0 -1px 0 rgba(0,0,0,.5);cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;transition:transform .14s ease,box-shadow .14s ease}
-.head .hf::before{content:"";position:absolute;inset:0;border-radius:var(--r-md);pointer-events:none;z-index:0;background:radial-gradient(1.2px 1.2px at 12% 30%, rgba(242,220,160,.8), transparent 70%),radial-gradient(1px 1px at 33% 68%, rgba(242,220,160,.5), transparent 70%),radial-gradient(1.4px 1.4px at 55% 22%, rgba(242,220,160,.65), transparent 70%),radial-gradient(.9px .9px at 68% 58%, rgba(242,220,160,.45), transparent 70%),radial-gradient(1.2px 1.2px at 83% 34%, rgba(242,220,160,.7), transparent 70%),radial-gradient(1px 1px at 92% 72%, rgba(242,220,160,.5), transparent 70%),radial-gradient(1px 1px at 22% 84%, rgba(242,220,160,.45), transparent 70%),radial-gradient(1.3px 1.3px at 45% 88%, rgba(242,220,160,.55), transparent 70%),linear-gradient(115deg, rgba(242,220,160,.05), transparent 38%)}
-.head .nf-big{filter:drop-shadow(0 0 7px rgba(217,179,106,.26))}
-.hm-wm i{filter:drop-shadow(0 0 5px rgba(217,179,106,.3))}
-/* ライトテーマ: 白漆(胡粉)に金粉の変種 */
-.app.light .head .hf{background:linear-gradient(165deg,#f8f1de 0%,#efe4c9 58%,#f4ebd6 100%);box-shadow:inset 0 0 28px rgba(122,92,40,.13),inset 0 2px 0 rgba(255,255,255,.65),inset 0 -1px 0 rgba(122,92,40,.16)}
-.app.light .head .hf::before{background:radial-gradient(1.2px 1.2px at 12% 30%, rgba(156,120,56,.65), transparent 70%),radial-gradient(1px 1px at 33% 68%, rgba(156,120,56,.4), transparent 70%),radial-gradient(1.4px 1.4px at 55% 22%, rgba(156,120,56,.55), transparent 70%),radial-gradient(.9px .9px at 68% 58%, rgba(156,120,56,.35), transparent 70%),radial-gradient(1.2px 1.2px at 83% 34%, rgba(156,120,56,.55), transparent 70%),radial-gradient(1px 1px at 92% 72%, rgba(156,120,56,.4), transparent 70%),radial-gradient(1px 1px at 22% 84%, rgba(156,120,56,.35), transparent 70%),radial-gradient(1.3px 1.3px at 45% 88%, rgba(156,120,56,.45), transparent 70%),linear-gradient(115deg, rgba(255,255,255,.4), transparent 38%)}
-.app.light .head .nf-big{filter:drop-shadow(0 0 5px rgba(156,120,56,.22))}
-.head .hf:active{transform:scale(.99);box-shadow:inset 0 3px 11px rgba(0,0,0,.6),inset 0 0 34px rgba(0,0,0,.5),inset 0 2px 0 rgba(242,220,160,.1)}
+.head .hf{--hfp:0;position:relative;border:1.6px solid var(--gold);border-radius:var(--r-md);padding:calc(14px - 5px*var(--hfp,0)) 18px 0;background:linear-gradient(160deg,rgba(217,179,106,.05),transparent 58%);cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;transition:transform .14s ease,box-shadow .14s ease}
+.head .hf:active{transform:scale(.99);box-shadow:inset 0 3px 11px rgba(0,0,0,.55)}
 .head .hf::after{content:"";position:absolute;inset:4px;border:1px solid rgba(217,179,106,.16);border-radius:var(--r-sm);pointer-events:none;transition:inset .14s ease,border-color .14s ease}
 .head .hf:active::after{inset:6px;border-color:rgba(217,179,106,.28)}
 .hf-tag{position:absolute;top:-9px;left:15px;background:var(--bg);padding:0 8px;font-family:var(--mono);font-size:9px;letter-spacing:.2em;color:var(--gold);z-index:3}
 .hf-part{position:absolute;bottom:-9px;right:15px;background:var(--bg);padding:0 8px;display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;color:var(--ink-mid);z-index:3}
 .hf-rl{font-style:normal;color:var(--gold);font-size:10px}
 .hf-gate{position:absolute;background:var(--gold);opacity:.5;z-index:1}
-.hf-gate.gt{top:-1px;width:8px;height:5px;border-radius:0 0 var(--r-xs) var(--r-xs)}
-.hf-gate.gl{left:-1px;width:5px;height:8px;border-radius:0 var(--r-xs) var(--r-xs) 0}
+/* 湯口(gate)は左右の縁中央のみ(top:50%で現在の高さの中央=展開/收合とも自動追従) */
+.hf-gate.gl{left:-1px;width:5px;height:8px;border-radius:0 var(--r-xs) var(--r-xs) 0;transform:translateY(-50%)}
+.hf-gate.gr{right:-1px;width:5px;height:8px;border-radius:var(--r-xs) 0 0 var(--r-xs);transform:translateY(-50%)}
 /* 高さは --hfp(捲動連動)で決まる。transitionなし=指の速度がそのまま収合速度。
    頂端展開時のみ .hf-anim が柔らかい transition を一時付与(押し下げ跳動の緩和) */
 .hf.hf-anim{transition:padding .42s cubic-bezier(.25,.8,.3,1),transform .14s ease,box-shadow .14s ease}
@@ -8040,10 +8035,11 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .hf-stats span{font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;color:var(--ink-dim);margin-top:6px;text-transform:uppercase}
 .hf-div{flex:none;width:1px;background:var(--line);align-self:stretch}
 .hf-seal{flex:none;align-self:center;position:relative;width:44px;height:44px;margin-right:13px;
-  display:flex;align-items:center;justify-content:center;border:1.7px solid #c8503a;border-radius:var(--r-xs);
-  background:rgba(200,80,58,.1);color:#d65a44;font-family:var(--serif);font-weight:800;font-size:25px;
-  line-height:1;cursor:pointer;transform:rotate(-3deg);box-shadow:0 0 0 1px rgba(200,80,58,.12);
+  display:flex;align-items:center;justify-content:center;overflow:visible;border:1.7px solid #c8503a;border-radius:var(--r-xs);
+  background:rgba(200,80,58,.1);color:#d65a44;font-family:var(--serif);font-weight:800;font-size:23px;
+  line-height:1;cursor:pointer;transform:rotate(-3deg);transform-origin:center;box-shadow:0 0 0 1px rgba(200,80,58,.12);
   transition:transform .14s ease,background .14s ease}
+.hf-seal>span{display:block}
 .hf-seal::after{content:"";position:absolute;inset:3px;border:1px solid rgba(200,80,58,.4);border-radius:var(--r-xs);pointer-events:none}
 .hf-seal:active{transform:rotate(-3deg) scale(.92);background:rgba(200,80,58,.22)}
 .hf-prog{position:relative;height:3px;margin:0 -18px;border-radius:0 0 var(--r-sm) var(--r-sm);overflow:hidden;background:rgba(217,179,106,.1)}
@@ -8051,10 +8047,10 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .hf-prog i.kin{background:linear-gradient(90deg,#b88f3e,var(--kin))}
 /* ══ V5 報頭收合(浮遊高度+灯) ══ */
 .head .hf.collapsed{border-color:rgba(230,196,128,.95);
-  background:linear-gradient(165deg,#171b29 0%,#0c0f17 58%,#0f1219 100%);
-  box-shadow:0 10px 24px -8px rgba(0,0,0,.55),inset 0 0 28px rgba(0,0,0,.45),inset 0 2px 0 rgba(242,220,160,.22)}
-.app.light .head .hf.collapsed{background:linear-gradient(165deg,#faf3e0 0%,#f0e5ca 58%,#f5ecd8 100%);
-  box-shadow:0 10px 22px -10px rgba(90,70,30,.3),inset 0 0 24px rgba(122,92,40,.12),inset 0 2px 0 rgba(255,255,255,.7)}
+  background:linear-gradient(160deg,rgba(217,179,106,.09),rgba(23,28,40,.35) 58%);
+  box-shadow:0 10px 24px -8px rgba(0,0,0,.55)}
+.app.light .head .hf.collapsed{background:linear-gradient(160deg,rgba(184,146,74,.12),rgba(251,246,234,.45) 58%);
+  box-shadow:0 10px 22px -10px rgba(90,70,30,.3)}
 /* running-head 本体 */
 .hf-mini{position:relative;display:flex;align-items:center;gap:10px;overflow:hidden;
   max-height:calc(46px*var(--hfp,0));opacity:calc(var(--hfp,0)*1.6 - .6);
