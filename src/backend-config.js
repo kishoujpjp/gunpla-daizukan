@@ -8,9 +8,9 @@
    値は supabase/SETUP.md の手順で取得して記入する。
    ─────────────────────────────────────────────────────────── */
 export const MANAGED_BACKEND = {
-  url: "",        // 例: "https://xxxx.supabase.co"
-  anonKey: "",    // 例: "eyJ..."(anon public)
-  workerUrl: "",  // 例: "https://gunpla-ai-proxy.kishoujpjp.workers.dev"
+  url: "https://dxhcsfwejynawulsjaip.supabase.co",        // 例: "https://xxxx.supabase.co"
+  anonKey: "sb_publishable_61ecfTXszf9XwuTZkdF51Q_3ItWk0Xf",    // 例: "eyJ..."(anon public)
+  workerUrl: "https://gunpla-ai-proxy.kishoujpjp.workers.dev",  // 例: "https://gunpla-ai-proxy.kishoujpjp.workers.dev"
 };
 
 export const managedOn = () => !!(MANAGED_BACKEND.url && MANAGED_BACKEND.anonKey);
