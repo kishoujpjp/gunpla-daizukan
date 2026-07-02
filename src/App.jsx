@@ -4648,7 +4648,12 @@ export default function App() {
 
   if (!loaded) return (
     <div className={"app lang-" + lang + " " + (settings.theme === "light" ? "light" : "")}><style>{CSS}</style>
-      <div className="empty" style={{ paddingTop: 120 }}><MechSketch seedKey="loading" owned={false} built={false} size={70} /><p>{L("図鑑を準備中…", "Preparing the registry…", "圖鑑準備中…")}</p></div>
+      <div className="empty" style={{ paddingTop: 120, paddingBottom: 80 }}>
+        <span className="empty-stamp">{L("準備中","OPEN","準備中")}</span>
+        <div className="empty-eye">OPENING THE ARCHIVE</div>
+        <MechSketch seedKey="loading" owned={false} built={false} size={70} />
+        <p>{L("図鑑を準備中…", "Preparing the registry…", "圖鑑準備中…")}</p>
+      </div>
     </div>
   );
 
@@ -4859,6 +4864,8 @@ export default function App() {
             {renderCondChips()}
             {salonView && sorted.length === 0 ? (
               <div className="empty">
+                <span className="empty-stamp">{imgStats.kitsWith === 0 ? L("未撮影","NONE","未拍攝") : L("該当なし","N/A","無符合")}</span>
+                <div className="empty-eye">{imgStats.kitsWith === 0 ? "NO PHOTOGRAPHS" : "NO RECORD FOUND"}</div>
                 <MechSketch seedKey="gallery" owned={false} built={false} size={70} />
                 {imgStats.kitsWith === 0 ? (
                   <>
@@ -4884,8 +4891,11 @@ export default function App() {
                   : Grid({ kits: visible })}
                 {sorted.length > limit && (
                   <button ref={moreRef} className="more-btn" onClick={() => setLimit((n) => n + 80)}>
-                    {L(`さらに表示(残り ${sorted.length - limit} 件)`, `Show more (${sorted.length - limit} left)`, `顯示更多(剩餘 ${sorted.length - limit} 件)`)}
+                    <span className="mb-l" /><span className="mb-t"><b>{L("続き","More","續頁")}</b><span>REMAINING {sorted.length - limit}</span></span><span className="mb-r" />
                   </button>
+                )}
+                {sorted.length > 0 && sorted.length <= limit && (
+                  <div className="fin"><span className="fin-l" /><span className="fin-m"><i>◈</i> {L("完","End","完")}</span><span className="fin-r" /></div>
                 )}
               </>
             )}
@@ -4976,8 +4986,11 @@ export default function App() {
                 {list.length === 0 && <div className="av-empty">{L("この世界の称号は準備中…","Titles for this universe are coming soon…","此世界觀的稱號準備中…")}</div>}
                 {list.length > honLimit && (
                   <button ref={honMoreRef} className="more-btn" onClick={() => setHonLimit((n) => n + 80)}>
-                    {L(`さらに表示(残り ${list.length - honLimit} 件)`, `Show more (${list.length - honLimit} left)`, `顯示更多(剩餘 ${list.length - honLimit} 件)`)}
+                    <span className="mb-l" /><span className="mb-t"><b>{L("続き","More","續頁")}</b><span>REMAINING {list.length - honLimit}</span></span><span className="mb-r" />
                   </button>
+                )}
+                {list.length > 0 && list.length <= honLimit && (
+                  <div className="fin"><span className="fin-l" /><span className="fin-m"><i>◈</i> {L("完","End","完")}</span><span className="fin-r" /></div>
                 )}
               </div>
             </section>
@@ -4989,6 +5002,8 @@ export default function App() {
           if (owned.length === 0) return (
             <>
               <div className="empty">
+                <span className="empty-stamp">{L("収蔵なし","EMPTY","無收藏")}</span>
+                <div className="empty-eye">NO COLLECTION DATA</div>
                 <MechSketch seedKey="ana" owned={false} built={false} size={70} />
                 <p>{L("分析できる収蔵がまだありません。", "Nothing to analyze yet.", "尚無可分析的收藏。")}</p>
                 <p className="empty-sub">{L("図鑑で「入手済み」を記録すると、ここに収蔵分析が表示されます。", "Mark kits as owned in the Registry to see your collection analysis here.", "在圖鑑標記「已入手」後，這裡會顯示收藏分析。")}</p>
@@ -6016,7 +6031,14 @@ input,textarea{font-family:var(--sans)}
 .panel-wrap{max-width:480px;margin:0 auto;padding-top:6px}
 .panel-title{font-family:var(--serif);font-size:15px;font-weight:700;color:var(--ink-strong);
   margin:18px 2px 10px;display:flex;align-items:baseline;gap:8px}
-.panel-title span{font-size:9px;letter-spacing:.3em;color:var(--ink-dim);font-family:var(--sans)}
+/* P3-B 欄目刻印: 金の刻印柱 + 淡出金線(hf-rule/year-head と押韻)。純CSSでJSX無改動 */
+.panel-title::before{content:"";flex:none;align-self:center;width:4px;height:13px;border-radius:var(--r-xs);
+  background:linear-gradient(180deg,var(--gold-hi),var(--gold-lo));opacity:.85}
+.panel-title::after{content:"";flex:1;height:1px;align-self:center;margin-left:2px;
+  background:linear-gradient(90deg,rgba(217,179,106,.28),rgba(217,179,106,.04) 70%,transparent)}
+.set-sec-danger .panel-title::before{background:linear-gradient(180deg,rgba(232,85,61,.8),rgba(232,85,61,.4))}
+.set-sec-danger .panel-title::after{background:linear-gradient(90deg,rgba(232,85,61,.25),transparent 70%)}
+.panel-title span{font-size:9px;letter-spacing:.3em;color:var(--ink-dim);font-family:var(--mono)}
 .set-sec{border-top:1px solid var(--line-soft)}
 .set-sec:first-of-type{border-top:none}
 .set-sec-head{display:flex;align-items:center;justify-content:space-between;width:100%;text-align:left;gap:10px}
@@ -6048,9 +6070,15 @@ input,textarea{font-family:var(--sans)}
   background:var(--ink-strong);transition:transform .15s}
 .switch.on b{transform:translateX(16px)}
 
-.empty{text-align:center;padding:60px 20px;color:var(--ink-mid)}
+/* P3-A 絕版頁: 四隅に見当トンボ(印刷対位記号)、右上に朱印、上部に mono 眉標 */
+.empty{position:relative;text-align:center;padding:60px 20px;color:var(--ink-mid);background-image:linear-gradient(rgba(217,179,106,.45),rgba(217,179,106,.45)),linear-gradient(rgba(217,179,106,.45),rgba(217,179,106,.45)),linear-gradient(rgba(217,179,106,.45),rgba(217,179,106,.45)),linear-gradient(rgba(217,179,106,.45),rgba(217,179,106,.45)),linear-gradient(rgba(217,179,106,.45),rgba(217,179,106,.45)),linear-gradient(rgba(217,179,106,.45),rgba(217,179,106,.45)),linear-gradient(rgba(217,179,106,.45),rgba(217,179,106,.45)),linear-gradient(rgba(217,179,106,.45),rgba(217,179,106,.45));background-position:top 12px left 12px,top 12px left 12px,top 12px right 12px,top 12px right 12px,bottom 12px left 12px,bottom 12px left 12px,bottom 12px right 12px,bottom 12px right 12px;background-size:12px 1px,1px 12px,12px 1px,1px 12px,12px 1px,1px 12px,12px 1px,1px 12px;background-repeat:no-repeat}
 .empty p{margin-top:14px;font-family:var(--serif);font-size:15px}
 .empty-sub{font-family:var(--sans)!important;font-size:11.5px!important;color:var(--ink-dim);margin-top:6px!important}
+.empty-eye{font-family:var(--mono);font-size:8.5px;letter-spacing:.34em;color:var(--gold);opacity:.75;text-transform:uppercase;margin-bottom:14px}
+.empty-stamp{position:absolute;top:20px;right:24px;font-family:var(--serif);font-weight:800;font-size:11px;letter-spacing:.14em;
+  color:rgba(232,85,61,.75);border:1.4px solid rgba(232,85,61,.5);border-radius:var(--r-xs);padding:4px 5px;
+  writing-mode:vertical-rl;transform:rotate(3deg);background:rgba(232,85,61,.06)}
+.app.light .empty-stamp{color:rgba(190,60,40,.8);border-color:rgba(190,60,40,.5);background:rgba(190,60,40,.05)}
 
 .modal-bg{position:fixed;inset:0;background:rgba(5,7,12,.72);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);
   display:flex;align-items:flex-end;justify-content:center;z-index:50;animation:bgfade .2s ease-out}
@@ -6836,9 +6864,22 @@ input,textarea{font-family:var(--sans)}
   .bars{gap:14px}
 }
 /* ═══ v2.4 性能 ═══ */
-.more-btn{display:block;margin:16px auto 0;padding:11px 24px;border:1px dashed var(--line);
-  border-radius:var(--r-md);color:var(--ink-mid);font-size:12.5px;letter-spacing:.08em;background:var(--panel)}
-.more-btn:active{transform:scale(.97)}
+/* P3-C 續頁記号: 破線枠を廃し、古書の「続く」記号へ */
+.more-btn{display:flex;align-items:center;gap:13px;margin:16px auto 0;padding:12px 6px;width:100%;max-width:300px;
+  background:none;border:none;color:var(--ink-mid);font-size:12.5px;cursor:pointer}
+.more-btn .mb-l,.more-btn .mb-r{flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(217,179,106,.32))}
+.more-btn .mb-r{background:linear-gradient(90deg,rgba(217,179,106,.32),transparent)}
+.more-btn .mb-t{flex:none;display:flex;flex-direction:column;align-items:center;gap:3px;line-height:1}
+.more-btn .mb-t b{font-family:var(--serif);font-weight:700;font-size:13px;color:var(--ink);letter-spacing:.2em;padding-left:.2em;transition:color .14s}
+.more-btn .mb-t span{font-family:var(--mono);font-size:7.5px;letter-spacing:.22em;color:var(--ink-dim);text-transform:uppercase;font-variant-numeric:tabular-nums}
+.more-btn:active{transform:scale(.96);box-shadow:none;border-color:transparent;filter:none}
+.more-btn:active .mb-t b{color:var(--gold)}
+/* P3-D 巻末記: 全件表示済みの清單終端 */
+.fin{display:flex;align-items:center;gap:12px;margin:18px auto 6px;max-width:250px;opacity:.85}
+.fin-l,.fin-r{flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(217,179,106,.26))}
+.fin-r{background:linear-gradient(90deg,rgba(217,179,106,.26),transparent)}
+.fin-m{flex:none;font-family:var(--serif);font-size:11.5px;letter-spacing:.3em;color:var(--ink-dim);padding-left:.3em}
+.fin-m i{font-style:normal;color:var(--gold);opacity:.8}
 /* ═══ v2.5 ═══ */
 /* 8+9. 滾動架構:html/body は不滾動。.app の高さ/スクロールは後段 v2.6 の flex 三明治
    (.app=flex 縦 / .body=スクロール / .tabbar=常駐)が最終定義。旧「.app＝スクロール容器」
@@ -7639,7 +7680,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .av-etag{font-family:var(--serif);font-style:italic;font-size:12px;color:var(--gold);margin-top:9px;letter-spacing:.03em}
 .av-etag.locked{font-style:normal;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.14em;color:var(--ink-dim)}
 .av-dot{position:absolute;top:14px;right:2px;width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 7px rgba(217,179,106,.7);animation:dotPulse 1.6s ease-in-out infinite}
-.av-empty{text-align:center;color:var(--ink-dim);font-size:12px;font-family:var(--serif);padding:34px 0;letter-spacing:.08em}
+.av-empty{text-align:center;color:var(--ink-dim);font-size:12px;font-family:var(--serif);padding:34px 14px;letter-spacing:.08em;background-image:linear-gradient(rgba(217,179,106,.35),rgba(217,179,106,.35)),linear-gradient(rgba(217,179,106,.35),rgba(217,179,106,.35)),linear-gradient(rgba(217,179,106,.35),rgba(217,179,106,.35)),linear-gradient(rgba(217,179,106,.35),rgba(217,179,106,.35)),linear-gradient(rgba(217,179,106,.35),rgba(217,179,106,.35)),linear-gradient(rgba(217,179,106,.35),rgba(217,179,106,.35)),linear-gradient(rgba(217,179,106,.35),rgba(217,179,106,.35)),linear-gradient(rgba(217,179,106,.35),rgba(217,179,106,.35));background-position:top 6px left 6px,top 6px left 6px,top 6px right 6px,top 6px right 6px,bottom 6px left 6px,bottom 6px left 6px,bottom 6px right 6px,bottom 6px right 6px;background-size:9px 1px,1px 9px,9px 1px,1px 9px,9px 1px,1px 9px,9px 1px,1px 9px;background-repeat:no-repeat}
 /* 叙勲トースト */
 .av-toast{position:fixed;left:10px;right:10px;top:calc(env(safe-area-inset-top) + 10px);z-index:99997;max-width:520px;margin:0 auto;display:flex;gap:14px;align-items:center;text-align:left;
   background:linear-gradient(120deg,rgba(34,29,18,.93),rgba(15,18,26,.95));backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(217,179,106,.32);border-radius:var(--r-xs);padding:13px 15px;overflow:hidden;
