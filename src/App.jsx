@@ -5852,14 +5852,16 @@ export default function App() {
       {/* ── 底部分頁 ── */}
       <nav className="tabbar pad-min" style={{ paddingBottom: "4px" }}>
         {[
-          ["zukan", L("図鑑", "Registry", "圖鑑"), "▦"],
+          ["zukan", L("図鑑", "Registry", "圖鑑"),
+            (<svg className="tab-line-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6.2 4.6h11c.6 0 1 .4 1 1v12.8c0 .6-.4 1-1 1h-11c-.6 0-1-.4-1-1V5.6c0-.6.4-1 1-1z" /><path d="M8.4 4.6v14.8" /><path d="M13.4 4.6v5.4l1.8-1.3 1.8 1.3V4.6" /></svg>)],
           ["gallery", L("画廊", "Gallery", "畫廊"),
-            (<svg className="tab-line-ico salon-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path className="pal-body" d="M12 4.6C16.8 4.6 20.4 7.5 20.4 11.3C20.4 13.7 18.7 14.5 17.3 14.5C16.4 14.5 15.6 14.3 15.6 13.5C15.6 12.8 16 12.5 16 11.9C16 11.2 15.4 10.7 14.5 10.7C12.9 10.7 12 12.4 12 14.1C12 16 12.9 17.2 12.2 18.1C11.8 18.5 11.3 18.7 10.7 18.7C6.7 18.7 4 15.1 4 11.3C4 7.5 7.4 4.6 12 4.6Z" strokeWidth="1.6" strokeLinejoin="round" /><circle className="pd1" cx="7.1" cy="10.4" r="1.25" /><circle className="pd2" cx="8.7" cy="7.6" r="1.25" /><circle className="pd3" cx="11.8" cy="6.7" r="1.25" /><circle className="pd4" cx="15" cy="7.6" r="1.25" /></svg>)],
+            (<svg className="tab-line-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="4.4" y="5" width="15.2" height="14" rx="1.4" /><circle cx="9.2" cy="9.7" r="1.5" /><path d="M4.6 15.8l4-3.6 3 2.6 3.5-3.3 4.3 3.9" /></svg>)],
           ["honors", L("称号", "Honors", "稱號"),
-            (<svg className="tab-line-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 4h10v7a5 5 0 0 1-10 0V4z" /><path d="M7 6H4v2a3 3 0 0 0 3 3" /><path d="M17 6h3v2a3 3 0 0 1-3 3" /><path d="M12 16v3" /><path d="M8.5 21h7l-1-2h-5z" /></svg>)],
+            (<svg className="tab-line-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="9.4" r="4.7" /><circle cx="12" cy="9.4" r="1.5" /><path d="M9.6 13.4 8.2 20l3.8-2.1 3.8 2.1-1.4-6.6" /></svg>)],
           ["analysis", L("分析", "Analysis", "分析"),
-            (<svg className="tab-line-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 4 V19 H20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><polyline points="6.5 14.5 10.5 10.5 13.5 12.5 18.5 6.5" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>)],
-          ["settings", L("設定", "Settings", "設定"), "⚙"],
+            (<svg className="tab-line-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4.4 19.5h15.2" /><path d="M7.4 19.5v-5.4M12 19.5V9.7M16.6 19.5V4.9" strokeWidth="2.4" /></svg>)],
+          ["settings", L("設定", "Settings", "設定"),
+            (<svg className="tab-line-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4.6 7.2h3.1M12.2 7.2h7.2" /><circle cx="10" cy="7.2" r="1.9" /><path d="M4.6 12h7.5M16.6 12h2.8" /><circle cx="14.4" cy="12" r="1.9" /><path d="M4.6 16.8h1.7M10.8 16.8h8.6" /><circle cx="8.6" cy="16.8" r="1.9" /></svg>)],
         ].map(([k, label, icon]) => {
           return (
             <button key={k}
@@ -6364,12 +6366,6 @@ input,textarea{font-family:var(--sans)}
 /* 沙龍タブ:金黃色系で統一(本体 currentColor=金 / 絵具ドットは金の濃淡) */
 .tab.salon-tab .tab-icon,.tab.salon-tab .tab-label{color:var(--gold)}
 .tab.salon-tab.on .tab-icon,.tab.salon-tab.on .tab-label{color:var(--gold);filter:brightness(1.12)}
-.salon-ico .pal-body{stroke-width:1.6}
-.salon-ico circle{stroke:none}
-.salon-ico .pd1{fill:currentColor;opacity:.5}
-.salon-ico .pd2{fill:currentColor;opacity:.9}
-.salon-ico .pd3{fill:currentColor;opacity:.35}
-.salon-ico .pd4{fill:currentColor;opacity:.7}
 .tab.set-tab .tab-bar{background:var(--ink-strong)}
 .head-stats b.kin{color:var(--kin)}
 
