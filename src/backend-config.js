@@ -9,7 +9,7 @@
    ─────────────────────────────────────────────────────────── */
 export const MANAGED_BACKEND = {
   url: "https://dxhcsfwejynawulsjaip.supabase.co",        // 例: "https://xxxx.supabase.co"
-  anonKey: "sb_publishable_61ecfTXszf9XwuTZkdF51Q_3ItWk0Xf",    // 例: "eyJ..."(anon public)
+  anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4aGNzZndlanluYXd1bHNqYWlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5ODc2MzYsImV4cCI6MjA5ODU2MzYzNn0.KW6W9CZkNBKblJEUfvb3JzL6spiXQAv0ikLbXZT65Q4",    // 例: "eyJ..."(anon public)
   workerUrl: "https://gunpla-ai-proxy.kishoujpjp.workers.dev",  // 例: "https://gunpla-ai-proxy.kishoujpjp.workers.dev"
 };
 
