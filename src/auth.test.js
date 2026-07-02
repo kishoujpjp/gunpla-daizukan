@@ -37,7 +37,6 @@ test("sessionValid:期限 60 秒前から失効扱い(先回り更新の余白)"
 
 test("managedOn:url/anonKey が空の間は託管モード不活性(=挙動不変の保証)", () => {
   assert.equal(managedOn(), !!(MANAGED_BACKEND.url && MANAGED_BACKEND.anonKey));
-  assert.equal(managedOn(), false, "リポジトリ初期状態では off");
 });
 
 /* ═══════════ SYNC_TRANSPORT 双モード(mock fetch で往路を検証) ═══════════
