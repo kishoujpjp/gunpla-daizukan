@@ -2671,7 +2671,7 @@ export default function App() {
   const [images, setImages] = useState({});
   const [extras, setExtras] = useState({});       // 追加画像 {xid: src}
   const [albumMeta, setAlbumMeta] = useState({});  // {kitId:{order,thumb,acquire,framing}}
-  const [settings, setSettings] = useState({ view: "list", compact: false, dimUnowned: true, showCode: false, showSeries: false, showPrice: false, showNo: false, showGrade: false, showYm: false, salonCols: 2, salonFit: "cover", listGrade: true, listTags: true, listSeries: false, listNo: true, listCode: true, listPrice: true, listPurchase: false, listBuild: false, theme: "dark", tabPad: "min", haptic: true, crtScan: true, vfFilter: true, lang: "ja", builderName: "", builderSince: "", supaUrl: "", supaKey: "", catalogUrl: "", geminiKey: "", openaiKey: "", geminiModel: "gemini-3-pro-image", aiStyle: "ukiyoe" });
+  const [settings, setSettings] = useState({ view: "list", compact: false, dimUnowned: true, showCode: false, showSeries: false, showPrice: false, showNo: false, showGrade: false, showYm: false, salonCols: 2, salonFit: "cover", listGrade: true, listTags: true, listSeries: false, listNo: true, listCode: true, listPrice: true, listPurchase: false, listBuild: false, theme: "dark", tabPad: "min", haptic: true, hfPin: false, crtScan: true, vfFilter: true, lang: "ja", builderName: "", builderSince: "", supaUrl: "", supaKey: "", catalogUrl: "", geminiKey: "", openaiKey: "", geminiModel: "gemini-3-pro-image", aiStyle: "ukiyoe" });
   // 設定の書込みは patchSettings 経由でフィールド級に時戳付け(records と同じ stamped LWW)。
   // patch はオブジェクト、または現在値を読むトグル用に (s) => patch の関数も可。
   // 変更したフィールドだけ時戳が進むため、別端末が別フィールドを変えても互いに潰さない。
@@ -2789,6 +2789,7 @@ export default function App() {
   const honMoreRef = useRef(null);                // 称号のセンチネル(無限スクロール)
   const scrollPosRef = useRef({});
   const [hfHide, setHfHide] = useState(false); // 報頭收合(捲動駆動、V5浮遊)
+  const [hfAnim, setHfAnim] = useState(false); // 頂端展開の柔和 transition スイッチ
   /* 分頁切換時保留各自捲動位置 */
   const changeTab = (next) => {
     const el = bodyRef.current;
@@ -2808,14 +2809,23 @@ export default function App() {
       }
     };
     requestAnimationFrame(restore);
-    onBodyScrollHf(); // 報頭高さを新頁の捲動位置へ即同期(回彈アニメを起こさない)
+    hfNoAnimRef.current = Date.now() + 400; // 分頁切替は即時同期(展開アニメ抑制)
+    onBodyScrollHf();
   };
   /* 捲動で報頭を running-head へ收合(V5)。ヒステリシス: >24px で收 / ≤8px で展。
      注意: アプリは起動画面(!loaded)を先に描画するため、mount時の useEffect で
      bodyRef に addEventListener すると main 不在で永久に張られない。
      → main の onScroll prop で張る(React が装着時機を保証)。 */
   const hfTickRef = useRef(false);
-  const hfRef = useRef(null); // .hf 要素へ --hfp を直書き(毎フレームの re-render を回避)
+  const hfRef = useRef(null);      // .hf 要素へ --hfp を直書き(毎フレームの re-render を回避)
+  const hfPRef = useRef(0);        // 現在の收合度 0..1
+  const hfLastYRef = useRef(0);    // 方向判定用
+  const hfNoAnimRef = useRef(0);   // この時刻まで展開アニメ抑制(分頁切替の即時同期)
+  const hfAnimTRef = useRef(0);
+  /* 方向感知棘輪:
+     下捲 = 捲動に1:1連動して收合(跟手)。
+     上捲 = 凍結(閲讀中に膨らんで内容を押し下げない)。頂端(y≤8)に達した時だけ
+            柔らかい transition(.hf-anim)で展開。固定モード(hfPin)は收合後展開しない。 */
   const onBodyScrollHf = () => {
     if (hfTickRef.current) return;
     hfTickRef.current = true;
@@ -2824,13 +2834,27 @@ export default function App() {
       const b = bodyRef.current;
       if (!b) return;
       const y = b.scrollTop;
-      const room = b.scrollHeight - b.clientHeight; // 短頁では畳まない(收合→高さ回復→クランプ振動防止)
-      /* 高さは捲動に1:1連動(transitionなし=速く捲れば速く畳まる)。6〜116pxで0→1 */
-      const p = room > 160 ? Math.max(0, Math.min(1, (y - 6) / 110)) : 0;
-      if (hfRef.current) hfRef.current.style.setProperty("--hfp", p.toFixed(4));
+      const room = b.scrollHeight - b.clientHeight; // 短頁では畳まない(クランプ振動防止)
+      const goingDown = y > hfLastYRef.current;
+      hfLastYRef.current = y;
+      let p = hfPRef.current;
+      if (room <= 160) p = 0;
+      else if (goingDown) p = Math.max(p, Math.min(1, Math.max(0, (y - 6) / 110)));
+      else if (y <= 8 && !(settings.hfPin && p >= 1)) p = 0;
+      if (p !== hfPRef.current) {
+        const expanding = p < hfPRef.current;
+        hfPRef.current = p;
+        if (hfRef.current) hfRef.current.style.setProperty("--hfp", p.toFixed(4));
+        if (expanding && Date.now() > hfNoAnimRef.current) {
+          setHfAnim(true);
+          clearTimeout(hfAnimTRef.current);
+          hfAnimTRef.current = setTimeout(() => setHfAnim(false), 480);
+        }
+      }
       setHfHide((h) => (h ? p > 0.35 : p > 0.6)); // 非レイアウト装飾(影/灯/字間)だけ閾値駆動
     });
   };
+  const tabPtrRef = useRef(null); // 分頁の pointerdown 切替と click の二重発火防止
   const lpRef = useRef({ timer: null, fired: false });
   /* 長按手勢:回傳可展開到元素的 handlers。fired 時阻止後續 click。 */
   const makeLongPress = (onLong, ms = 480) => {
@@ -4749,7 +4773,7 @@ export default function App() {
             : isSalon ? imgStats.pct
             : collectPct;
           return (
-            <div ref={hfRef} className={`hf ${hfHide ? "collapsed" : ""}`} role="button" tabIndex={0}
+            <div ref={hfRef} className={`hf ${hfHide ? "collapsed" : ""} ${hfAnim ? "hf-anim" : ""}`} role="button" tabIndex={0}
               onClick={() => { haptic(); if (bodyRef.current) bodyRef.current.scrollTo({ top: 0, behavior: "smooth" }); }}>
               <span className="hf-tag">Ⓐ ARCHIVE</span>
               <span className="hf-part" key={arc.en}><i className="hf-rl">Ⓡ</i>{arc.en}</span>
@@ -5227,6 +5251,10 @@ export default function App() {
                   ))}
                 </div>
                 <div className="opt-group" style={{ marginTop: 8 }}>
+                  <button className="opt toggle" onClick={() => patchSettings((s) => ({ hfPin: !s.hfPin }))}>
+                    <span>{L("報頭を収合のまま固定(頂端でも自動展開しない)", "Keep masthead collapsed after first collapse", "報頭收合後固定(不自動展開)")}</span>
+                    <i className={`switch ${settings.hfPin ? "on" : ""}`}><b /></i>
+                  </button>
                   <button className="opt toggle" onClick={() => patchSettings((s) => ({ dimUnowned: !s.dimUnowned }))}>
                     <span>{L("未入手を淡色表示(共通)", "Dim un-owned kits", "未入手淡色顯示")}</span>
                     <i className={`switch ${settings.dimUnowned ? "on" : ""}`}><b /></i>
@@ -5837,7 +5865,8 @@ export default function App() {
             <button key={k}
               className={`tab ${tab === k ? "on" : ""} `
                 + (k === "settings" ? "set-tab " : "")}
-              onClick={() => { changeTab(k); setConfirmReset(false); }}>
+              onPointerDown={(e) => { if (e.pointerType === "mouse" && e.button !== 0) return; tabPtrRef.current = k; changeTab(k); setConfirmReset(false); }}
+              onClick={() => { if (tabPtrRef.current === k) { tabPtrRef.current = null; return; } changeTab(k); setConfirmReset(false); }}>
               <span className="tab-icon">{icon}</span>
               <span className="tab-label">{label}</span>
             </button>
@@ -7974,7 +8003,10 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .hf-gate{position:absolute;background:var(--gold);opacity:.5;z-index:1}
 .hf-gate.gt{top:-1px;width:8px;height:5px;border-radius:0 0 var(--r-xs) var(--r-xs)}
 .hf-gate.gl{left:-1px;width:5px;height:8px;border-radius:0 var(--r-xs) var(--r-xs) 0}
-/* 高さは --hfp(捲動連動)で決まる。transitionなし=指の速度がそのまま収合速度 */
+/* 高さは --hfp(捲動連動)で決まる。transitionなし=指の速度がそのまま収合速度。
+   頂端展開時のみ .hf-anim が柔らかい transition を一時付与(押し下げ跳動の緩和) */
+.hf.hf-anim{transition:padding .42s cubic-bezier(.25,.8,.3,1),transform .14s ease,box-shadow .14s ease}
+.hf.hf-anim .hf-top,.hf.hf-anim .hf-mini{transition:max-height .42s cubic-bezier(.25,.8,.3,1),opacity .32s ease,padding .42s cubic-bezier(.25,.8,.3,1)}
 .hf-top{position:relative;display:flex;align-items:stretch;gap:8px;overflow:hidden;max-height:calc(164px*(1 - var(--hfp,0)));opacity:calc(1 - var(--hfp,0)*1.15)}
 .hf-vbar{flex:none;position:relative;margin-left:5px;display:flex;align-items:center;justify-content:center;top:-2px}
 .hf-vbar-t{writing-mode:vertical-rl;font-family:var(--serif);font-weight:800;font-size:28px;letter-spacing:.1em;line-height:1.05;background:linear-gradient(180deg,#f2dca0,#b8924a);-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -8025,13 +8057,14 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
   padding:calc(2px*var(--hfp,0)) 0 calc(10px*var(--hfp,0))}
 .hf-mini>*{transform:translateY(7px);transition:transform .34s cubic-bezier(.3,1.45,.4,1)}
 .hf.collapsed .hf-mini>*{transform:translateY(0)}
-.hm-wm{font-family:var(--serif);font-weight:800;font-size:17px;color:var(--ink-strong);white-space:nowrap;line-height:1}
+.hm-wm{flex:none;font-family:var(--serif);font-weight:800;font-size:17px;color:var(--ink-strong);white-space:nowrap;line-height:1}
 .hm-wm i{font-style:normal;background:linear-gradient(180deg,var(--gold-hi),#d4ab5e);-webkit-background-clip:text;background-clip:text;color:transparent}
 .hm-sep{flex:none;width:1px;height:15px;background:var(--line)}
-.hm-arc{font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;color:var(--gold);text-transform:uppercase;white-space:nowrap;
+.hm-arc{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;color:var(--gold);text-transform:uppercase;white-space:nowrap;
   transition:letter-spacing .4s cubic-bezier(.2,.8,.25,1) .08s}
 .hf.collapsed .hm-arc{letter-spacing:.26em}
-.hm-stat{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-mid);white-space:nowrap;margin-left:auto;font-variant-numeric:tabular-nums}
+/* 長い統計行(称号/分析)は刪節して縮む。鑑印章(.hm-seal flex:none)は決して欠けない */
+.hm-stat{flex:0 2 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-mid);white-space:nowrap;margin-left:auto;font-variant-numeric:tabular-nums}
 .hm-stat b{color:var(--ink-strong);font-weight:700}
 .hm-seal{flex:none;width:30px;height:30px;margin-left:2px;border:1px solid rgba(200,80,58,.5);border-radius:var(--r-xs);
   background:rgba(200,80,58,.12);color:#e0a89c;font-family:var(--serif);font-weight:800;font-size:14px;
@@ -8110,7 +8143,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .av-toast-medal::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 40%,rgba(242,220,160,.6) 50%,transparent 60%);transform:translateX(-140%);pointer-events:none;animation:medalGlint1 .9s ease-out .25s}
 @keyframes medalGlint1{from{transform:translateX(-140%)}to{transform:translateX(170%)}}
 /* タブ:共用スライド下線 */
-.tab-slider{position:absolute;top:0;left:0;width:20%;height:2px;display:flex;justify-content:center;pointer-events:none;z-index:2;transition:transform .34s cubic-bezier(.4,0,.2,1)}
+.tab-slider{position:absolute;top:0;left:0;width:20%;height:2px;display:flex;justify-content:center;pointer-events:none;z-index:2;transition:transform .24s cubic-bezier(.3,.9,.3,1)}
 .tab-slider b{width:46%;height:100%;border-radius:0 0 var(--r-xs) var(--r-xs);background:var(--gold);transition:background .25s;box-shadow:0 0 8px rgba(217,179,106,.4)}
 /* タブ切替:檔案名/部品コードの差し替え */
 .hf-vbar{animation:hfVbarIn .7s ease}
