@@ -2808,12 +2808,14 @@ export default function App() {
       }
     };
     requestAnimationFrame(restore);
+    onBodyScrollHf(); // 報頭高さを新頁の捲動位置へ即同期(回彈アニメを起こさない)
   };
   /* 捲動で報頭を running-head へ收合(V5)。ヒステリシス: >24px で收 / ≤8px で展。
      注意: アプリは起動画面(!loaded)を先に描画するため、mount時の useEffect で
      bodyRef に addEventListener すると main 不在で永久に張られない。
      → main の onScroll prop で張る(React が装着時機を保証)。 */
   const hfTickRef = useRef(false);
+  const hfRef = useRef(null); // .hf 要素へ --hfp を直書き(毎フレームの re-render を回避)
   const onBodyScrollHf = () => {
     if (hfTickRef.current) return;
     hfTickRef.current = true;
@@ -2822,8 +2824,11 @@ export default function App() {
       const b = bodyRef.current;
       if (!b) return;
       const y = b.scrollTop;
-      const room = b.scrollHeight - b.clientHeight; // 短頁では畳まない(收合→高さ回復→scrollTopクランプの振動防止)
-      setHfHide((h) => (h ? y > 8 : (y > 24 && room > 160)));
+      const room = b.scrollHeight - b.clientHeight; // 短頁では畳まない(收合→高さ回復→クランプ振動防止)
+      /* 高さは捲動に1:1連動(transitionなし=速く捲れば速く畳まる)。6〜116pxで0→1 */
+      const p = room > 160 ? Math.max(0, Math.min(1, (y - 6) / 110)) : 0;
+      if (hfRef.current) hfRef.current.style.setProperty("--hfp", p.toFixed(4));
+      setHfHide((h) => (h ? p > 0.35 : p > 0.6)); // 非レイアウト装飾(影/灯/字間)だけ閾値駆動
     });
   };
   const lpRef = useRef({ timer: null, fired: false });
@@ -4739,7 +4744,7 @@ export default function App() {
             : isSalon ? imgStats.pct
             : collectPct;
           return (
-            <div className={`hf ${hfHide ? "collapsed" : ""}`} role="button" tabIndex={0}
+            <div ref={hfRef} className={`hf ${hfHide ? "collapsed" : ""}`} role="button" tabIndex={0}
               onClick={() => { haptic(); if (bodyRef.current) bodyRef.current.scrollTo({ top: 0, behavior: "smooth" }); }}>
               <span className="hf-tag">Ⓐ ARCHIVE</span>
               <span className="hf-part" key={arc.en}><i className="hf-rl">Ⓡ</i>{arc.en}</span>
@@ -5970,7 +5975,7 @@ input,textarea{font-family:var(--sans)}
 .year-chip{font-family:var(--serif);font-size:10.5px;color:var(--gold);letter-spacing:.06em}
 .price{font-size:10px;color:var(--ink-mid);letter-spacing:.04em}
 .series{font-size:9.5px;color:var(--ink-dim)}
-.line-chip{font-size:8.5px;font-weight:700;letter-spacing:.1em;border-radius:var(--r-xs);padding:1.5px 5px;vertical-align:1px}
+.line-chip{font-size:8.5px;font-weight:700;letter-spacing:.1em;border-radius:var(--r-xs);padding:1.5px 5px;vertical-align:1px;box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
 .line-chip.ka{color:var(--gold);border:1px solid var(--gold)}
 .line-chip.ex{color:var(--teal);border:1px solid var(--teal)}
 .line-chip.cu{color:var(--shu);border:1px solid var(--shu)}
@@ -6675,7 +6680,7 @@ input,textarea{font-family:var(--sans)}
 .head{padding-top:calc(16px + env(safe-area-inset-top))}
 .head-line{top:env(safe-area-inset-top, 0px)}
 
-.grade-chip{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.06em;
+.grade-chip{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.06em;box-shadow:inset 0 1px 0 rgba(255,255,255,.07);
   border:1.5px solid;border-radius:var(--r-xs);padding:1px 6px;margin-right:8px;
   vertical-align:3px;font-family:var(--sans);line-height:1.5}
 .g-mg{color:var(--shu);border-color:var(--shu);background:rgba(232,85,61,.08)}
@@ -6896,9 +6901,10 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .hp-pct{font-family:var(--serif);font-size:11px;font-weight:700;color:var(--gold);
   letter-spacing:.06em;flex:none;min-width:32px;text-align:right}
 .hp-track{flex:1;height:4px;background:var(--line-soft);border-radius:var(--r-xs);overflow:hidden}
-.hp-track i{display:block;height:100%;border-radius:var(--r-xs);
+.hp-track i{position:relative;display:block;height:100%;border-radius:var(--r-xs);
   background:linear-gradient(90deg,var(--shu),var(--gold));
   box-shadow:0 0 7px rgba(232,85,61,.55);transition:width .5s}
+.hp-track i::after{content:"";position:absolute;right:1px;top:50%;width:3px;height:3px;border-radius:50%;background:var(--gold-hi);box-shadow:0 0 5px 1px rgba(242,220,160,.85);transform:translateY(-50%)}
 
 /* 3. 列表行距統一 */
 .row-series{font-size:10.5px;color:var(--ink-dim);letter-spacing:.04em}
@@ -7773,6 +7779,8 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .dc-v-series{white-space:normal}
 .dc-series{word-break:keep-all;text-align:left;white-space:normal}
 .kz-rtags{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:5px}
+/* 原作名が長い場合: 画面端で刪節號。行を押し広げない(横スクロール防止) */
+.kz-rtags .kz-rtno{flex:0 1 auto;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .kz-rtags .grade-chip,.kz-rtags .line-chip{display:inline-flex;align-items:center;justify-content:center;height:18px;box-sizing:border-box;margin:0;vertical-align:0;line-height:1;border-radius:var(--r-xs);border-width:1.5px;font-family:var(--sans);font-size:9.5px;font-weight:800;letter-spacing:.05em;padding:0 6px}
 .dc-name{font-family:var(--serif);font-weight:800;font-size:25px;line-height:1.25;color:var(--ink-strong);margin-top:6px}
 .dc-rule{height:1px;margin:13px 0 0;background:linear-gradient(90deg,var(--gold),rgba(217,179,106,.05) 75%,transparent)}
@@ -7901,7 +7909,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .dc-locked-t{font-family:var(--mono);font-size:11px;letter-spacing:.24em;color:var(--ink-mid)}
 .dc-locked-s{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--ink-dim)}
 /* 入手頁 既存classの金上書き */
-.own-btn.owned{border:1.5px solid var(--gold);color:#1a160d;background:linear-gradient(160deg,#f2dca0,#d9b36a)}
+.own-btn.owned{border:1.5px solid var(--gold);color:#1a160d;background:linear-gradient(160deg,#f2dca0,#d9b36a);box-shadow:inset 0 1px 0 rgba(255,255,255,.4),inset 0 -2px 6px rgba(122,84,20,.3),0 1px 3px rgba(0,0,0,.25)}
 .own-btn.planned{border:1.5px solid var(--gold);color:var(--gold);background:rgba(217,179,106,.06)}
 .edit-link{font-family:var(--mono);letter-spacing:.1em}
 .kt-chip{background:rgba(217,179,106,.05);border:1px solid var(--hair);border-radius:var(--r-xs);color:var(--ink-strong)}
@@ -7915,7 +7923,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .form .f-sec span{font-family:var(--mono);font-size:8.5px;letter-spacing:.28em;color:var(--ink-dim);text-transform:uppercase}
 .form .fld>span{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--ink-mid);text-transform:uppercase}
 /* ═══ ランナー枠ヘッダー ═══ */
-.head .hf{position:relative;border:1.6px solid var(--gold);border-radius:var(--r-md);padding:14px 18px 0;background:linear-gradient(160deg,rgba(217,179,106,.05),transparent 58%);cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;transition:transform .14s ease,box-shadow .14s ease}
+.head .hf{--hfp:0;position:relative;border:1.6px solid var(--gold);border-radius:var(--r-md);padding:calc(14px - 5px*var(--hfp,0)) 18px 0;background:linear-gradient(160deg,rgba(217,179,106,.05),transparent 58%);cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;transition:transform .14s ease,box-shadow .14s ease}
 .head .hf:active{transform:scale(.99);box-shadow:inset 0 3px 11px rgba(0,0,0,.55)}
 .head .hf::after{content:"";position:absolute;inset:4px;border:1px solid rgba(217,179,106,.16);border-radius:var(--r-sm);pointer-events:none;transition:inset .14s ease,border-color .14s ease}
 .head .hf:active::after{inset:6px;border-color:rgba(217,179,106,.28)}
@@ -7925,8 +7933,8 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .hf-gate{position:absolute;background:var(--gold);opacity:.5;z-index:1}
 .hf-gate.gt{top:-1px;width:8px;height:5px;border-radius:0 0 var(--r-xs) var(--r-xs)}
 .hf-gate.gl{left:-1px;width:5px;height:8px;border-radius:0 var(--r-xs) var(--r-xs) 0}
-.hf-top{position:relative;display:flex;align-items:stretch;gap:8px;overflow:hidden;max-height:180px;opacity:1;transition:max-height .28s cubic-bezier(.2,.8,.25,1),opacity .18s ease}
-.hf.collapsed .hf-top{max-height:0;opacity:0}
+/* 高さは --hfp(捲動連動)で決まる。transitionなし=指の速度がそのまま収合速度 */
+.hf-top{position:relative;display:flex;align-items:stretch;gap:8px;overflow:hidden;max-height:calc(164px*(1 - var(--hfp,0)));opacity:calc(1 - var(--hfp,0)*1.15)}
 .hf-vbar{flex:none;position:relative;margin-left:5px;display:flex;align-items:center;justify-content:center;top:-2px}
 .hf-vbar-t{writing-mode:vertical-rl;font-family:var(--serif);font-weight:800;font-size:28px;letter-spacing:.1em;line-height:1.05;background:linear-gradient(180deg,#f2dca0,#b8924a);-webkit-background-clip:text;background-clip:text;color:transparent}
 .hf-vbar::before{content:"";position:absolute;left:-7px;top:0;bottom:0;width:1.5px;border-radius:var(--r-xs);background:linear-gradient(180deg,transparent,rgba(217,179,106,.55) 16%,rgba(217,179,106,.55) 84%,transparent)}
@@ -7965,15 +7973,15 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .hf-prog i{position:relative;display:block;height:100%;background:linear-gradient(90deg,#9c7838,var(--gold));transition:width .5s}
 .hf-prog i.kin{background:linear-gradient(90deg,#b88f3e,var(--kin))}
 /* ══ V5 報頭收合(浮遊高度+灯) ══ */
-.head .hf.collapsed{padding-top:9px;border-color:rgba(230,196,128,.95);
+.head .hf.collapsed{border-color:rgba(230,196,128,.95);
   background:linear-gradient(160deg,rgba(217,179,106,.09),rgba(23,28,40,.35) 58%);
   box-shadow:0 10px 24px -8px rgba(0,0,0,.55)}
 .app.light .head .hf.collapsed{background:linear-gradient(160deg,rgba(184,146,74,.12),rgba(251,246,234,.45) 58%);
   box-shadow:0 10px 22px -10px rgba(90,70,30,.3)}
 /* running-head 本体 */
-.hf-mini{display:flex;align-items:center;gap:10px;max-height:0;opacity:0;overflow:hidden;
-  transition:max-height .26s cubic-bezier(.2,.8,.25,1),opacity .2s ease}
-.hf.collapsed .hf-mini{max-height:46px;opacity:1;padding:2px 0 10px}
+.hf-mini{display:flex;align-items:center;gap:10px;overflow:hidden;
+  max-height:calc(46px*var(--hfp,0));opacity:calc(var(--hfp,0)*1.6 - .6);
+  padding:calc(2px*var(--hfp,0)) 0 calc(10px*var(--hfp,0))}
 .hf-mini>*{transform:translateY(7px);transition:transform .34s cubic-bezier(.3,1.45,.4,1)}
 .hf.collapsed .hf-mini>*{transform:translateY(0)}
 .hm-wm{font-family:var(--serif);font-weight:800;font-size:17px;color:var(--ink-strong);white-space:nowrap;line-height:1}
