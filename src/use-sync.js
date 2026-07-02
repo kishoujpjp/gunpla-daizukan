@@ -26,7 +26,6 @@ const SYNC_TRANSPORT = {
       // 託管(認証)モード:accessToken を Bearer に。BYO は従来通り anon key(挙動不変)。
       headers: { apikey: cfg.key, Authorization: `Bearer ${cfg.accessToken || cfg.key}` },
     });
-    /* ▼診断用▼ */ console.info("[mg-zukan] pull:", cfg.url, "auth=", cfg.accessToken ? "JWT" : "anon", "status=", res.status);
     if (!res.ok) {
       let detail = "";
       try { const j = await res.json(); detail = j.message || j.hint || ""; } catch (e) {}
@@ -46,7 +45,6 @@ const SYNC_TRANSPORT = {
     try {
       // 託管モードは主キーが (user_id,key)。user_id は DB 既定値 auth.uid() が入る。
       const conflict = cfg.accessToken ? "user_id,key" : "key";
-      /* ▼診断用▼ */ console.info("[mg-zukan] push:", cfg.url, "conflict=", conflict, "auth=", cfg.accessToken ? "JWT" : "anon");
       const res = await fetch(`${cfg.url}/rest/v1/kv?on_conflict=${conflict}`, {
         method: "POST",
         headers: { apikey: cfg.key, Authorization: `Bearer ${cfg.accessToken || cfg.key}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates" },

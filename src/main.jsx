@@ -5,7 +5,12 @@ import App from "./App.jsx";
 
 createRoot(document.getElementById("root")).render(<App />);
 
-if ("serviceWorker" in navigator) {
+if (!import.meta.env.PROD && "serviceWorker" in navigator) {
+  // dev:SW を登録しない+既存登録を解除(dev で旧資産を供給する事故の恒久防止)
+  navigator.serviceWorker.getRegistrations().then((regs) => {
+    regs.forEach((reg) => reg.unregister());
+  }).catch(() => {});
+} else if ("serviceWorker" in navigator) {
   let reloaded = false;
   // 新版 SW 接管 → 自動重整一次(避免卡舊版)
   navigator.serviceWorker.addEventListener("controllerchange", () => {

@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from "react";
-/* ▼診断用(P2検収後に除去)▼ */
-console.info("[mg-zukan] App.jsx fingerprint: P2R6-diag");
 import "./app.css";
 import { ErrorBoundary } from "./error-boundary.jsx";
 import { mergeRec, mergeRecMap, mergeArrStamped, stampRec, stampRecAll } from "./merge.js";
@@ -1166,7 +1164,6 @@ function App() {
   const paintLimit = gridReady ? limit : Math.min(limit, FIRST_BATCH);
 
   useEffect(() => {
-    /* ▼診断用▼ */ console.info("[mg-zukan] supaRef effect: managedOn=", managedOn(), "session=", !!auth.session);
     if (managedOn() && auth.session) {
       // 託管モード:開発者管理の Supabase + RLS。accessToken が Bearer になる。
       supaRef.current = { url: MANAGED_BACKEND.url.replace(/\/+$/, ""), key: MANAGED_BACKEND.anonKey,
@@ -1193,7 +1190,6 @@ function App() {
         // supaRef の更新時機に依存しない:session からその場で構成(時序免疫)
         const mcfg = { url: MANAGED_BACKEND.url.replace(/\/+$/, ""), key: MANAGED_BACKEND.anonKey,
                        accessToken: auth.session.access_token, userId: "" };
-        console.info("[mg-zukan] 初回同期 cfg:", { url: mcfg.url, apikeyHead: (mcfg.key || "").slice(0, 14), jwtHead: (mcfg.accessToken || "").slice(0, 14) });
         const nn = await pullCloud(mcfg);
         markAllDirty();
         flushDirty();
