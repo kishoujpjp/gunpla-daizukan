@@ -15,6 +15,8 @@ import { fileToCompressedDataURL, AI_STYLES, AI_MODELS, aiProviderLabel, aiAvail
 import { DateSetField, Picker } from "./form-controls.jsx";
 import { notify, appConfirm, AppDialogHost } from "./dialogs.jsx";
 import { useSync, SETTINGS_KEY, ALBUM_KEY, SERIFS_KEY, secretFieldList } from "./use-sync.js";
+import { useAuth } from "./use-auth.js";
+import { MANAGED_BACKEND, managedOn } from "./backend-config.js";
 import { useCatalog } from "./use-catalog.js";
 import { applyCatalog, CATALOG_DEFAULT_BASE } from "./catalog-lib.js";
 import { APP_VERSION, ENTITLEMENTS } from "./entitlements.js";
@@ -868,13 +870,24 @@ function App() {
     }
     return false;
   }, [applyMeta, mergeSettings]);
+  /* ── アカウント(託管バックエンド)。managedOn()=false の間は不活性 ── */
+  const auth = useAuth();
+  /* AI 代理の実効設定:手入力を優先し、ログイン中は託管 Worker+JWT で自動補完
+     (=ログインすれば AI 代理トークンの手入力が不要)。 */
+  const aiProxyCfg = {
+    url: (settings.aiProxyUrl || "").trim() || (auth.session ? (MANAGED_BACKEND.workerUrl || "") : ""),
+    token: (settings.aiProxyToken || "").trim() || (auth.session ? auth.session.access_token : ""),
+  };
   const { syncMsg, setSyncMsg, storageErr, setStorageErr, supaRef,
-          persist, saveKey, flushDirty, pullCloud, initFromStorage } = useSync({ loaded, L, applyRow });
+          persist, saveKey, flushDirty, pullCloud, initFromStorage, markAllDirty } = useSync({ loaded, L, applyRow });
   const { catalog, catalogLog, catalogLogOpen, setCatalogLogOpen,
           refreshCatalog, initCatalogFromStorage } = useCatalog({ L, persist, catalogUrl: settings.catalogUrl });
   const [setupOpen, setSetupOpen] = useState(false);
   const [setupBusy, setSetupBusy] = useState(false);
   const [setupMsg, setSetupMsg] = useState("");
+  const [acctEmail, setAcctEmail] = useState("");   // アカウント(託管)ログイン UI
+  const [acctCode, setAcctCode] = useState("");
+  const [acctPhase, setAcctPhase] = useState("email"); // email → code
   const bodyRef = useRef(null);
   const [limit, setLimit] = useState(60);
   // 分頁切替時の体感カク付き対策(B-lite): 切替直後は少数だけ即描画 → 次フレームで満載まで補充。
@@ -1147,8 +1160,33 @@ function App() {
   const paintLimit = gridReady ? limit : Math.min(limit, FIRST_BATCH);
 
   useEffect(() => {
-    supaRef.current = { url: (settings.supaUrl || "").trim().replace(/\/+$/, ""), key: (settings.supaKey || "").trim(), userId: (settings.userId || "") };
-  }, [settings.supaUrl, settings.supaKey]);
+    if (managedOn() && auth.session) {
+      // 託管モード:開発者管理の Supabase + RLS。accessToken が Bearer になる。
+      supaRef.current = { url: MANAGED_BACKEND.url.replace(/\/+$/, ""), key: MANAGED_BACKEND.anonKey,
+                          accessToken: auth.session.access_token, userId: "" };
+    } else {
+      // 従来(BYO)モード:挙動不変
+      supaRef.current = { url: (settings.supaUrl || "").trim().replace(/\/+$/, ""), key: (settings.supaKey || "").trim(), userId: (settings.userId || "") };
+    }
+  }, [settings.supaUrl, settings.supaKey, auth.session]);
+
+  /* ── ログイン確立時の初回同期:雲端 pull(LWW)→ 本地全量を dirty 化 → push。
+     セッション毎に一度。ログアウトでリセット。 ── */
+  const managedSyncedRef = useRef(false);
+  useEffect(() => {
+    if (!auth.session) { managedSyncedRef.current = false; return; }
+    if (!loaded || !managedOn() || managedSyncedRef.current) return;
+    managedSyncedRef.current = true;
+    (async () => {
+      try {
+        setSyncMsg(L("アカウント同期中…", "Syncing account…", "帳號同步中…"));
+        const nn = await pullCloud(supaRef.current);
+        markAllDirty();
+        flushDirty();
+        setSyncMsg(L("アカウント同期:受信 ", "Account synced: ", "帳號同步:收到 ") + nn + L(" 件 ", " items ", " 筆 ") + new Date().toLocaleTimeString());
+      } catch (e) { setSyncMsg(L("アカウント同期エラー:", "Account sync error: ", "帳號同步錯誤:") + ((e && e.message) || e)); }
+    })();
+  }, [loaded, auth.session]);
 
   useEffect(() => {
     document.body.style.background = settings.theme === "light" ? "#efe9dc" : "#0d1018";
@@ -3080,6 +3118,49 @@ function App() {
               </div>
             )}
 
+            {managedOn() && secWrap("account", L("アカウント", "Account", "帳號"), "ACCOUNT",
+              <div className="opt-group">
+                {auth.user ? (
+                  <>
+                    <p className="ana-note">{L("ログイン中:", "Signed in: ", "已登入:") + (auth.user.email || auth.user.id)}</p>
+                    <button className="opt" onClick={syncNow}><span>{L("今すぐ同期", "Sync now", "立即同步")}</span><i>⇅</i></button>
+                    <button className="opt" onClick={async () => { await auth.signOut(); setAcctPhase("email"); setAcctCode(""); notify(L("ログアウトしました(データは端末に残ります)", "Signed out (data remains on this device)", "已登出(資料仍保留在裝置)"), { kind: "ok" }); }}>
+                      <span>{L("ログアウト", "Sign out", "登出")}</span><i>→</i></button>
+                    <button className="opt" onClick={async () => {
+                      if (!(await appConfirm(
+                        L("アカウントを削除します。クラウド上の同期データも完全に削除され、元に戻せません。(端末内のデータは残ります)",
+                          "Delete your account. Cloud sync data will be permanently erased. This cannot be undone. (Local data stays on this device.)",
+                          "將刪除帳號。雲端同步資料將被永久刪除且無法復原。(裝置內資料會保留)"),
+                        { title: L("アカウント削除", "Delete account", "刪除帳號"), okText: L("削除する", "Delete", "刪除"), cancelText: L("やめる", "Cancel", "取消"), danger: true }))) return;
+                      try { await auth.removeAccount(); notify(L("アカウントを削除しました", "Account deleted", "帳號已刪除"), { kind: "ok" }); }
+                      catch (e) { notify(L("削除に失敗しました:", "Deletion failed: ", "刪除失敗:") + ((e && e.message) || e), { kind: "warn", dur: 4200 }); }
+                    }}><span>{L("アカウント削除(取り消し不可)", "Delete account (permanent)", "刪除帳號(不可復原)")}</span><i>✕</i></button>
+                  </>
+                ) : (
+                  <>
+                    <p className="ana-note">{L("メールの6桁コードでログイン。複数端末のデータが同じアカウントに同期されます。",
+                      "Sign in with a 6-digit email code. Your data syncs across devices under one account.",
+                      "以電子郵件 6 位數驗證碼登入。多裝置資料將同步至同一帳號。")}</p>
+                    <label className="fld pad"><span>{L("メールアドレス", "Email", "電子郵件")}</span>
+                      <input type="email" inputMode="email" autoComplete="email" value={acctEmail} placeholder="you@example.com"
+                        onChange={(e) => setAcctEmail(e.target.value)} />
+                    </label>
+                    {acctPhase === "code" && (
+                      <label className="fld pad"><span>{L("6桁コード", "6-digit code", "6 位數驗證碼")}</span>
+                        <input inputMode="numeric" autoComplete="one-time-code" value={acctCode} placeholder="123456"
+                          onChange={(e) => setAcctCode(e.target.value)} />
+                      </label>
+                    )}
+                    <button className="opt" disabled={auth.authBusy} onClick={async () => {
+                      if (acctPhase === "email") { if (await auth.startSignIn(acctEmail, L)) setAcctPhase("code"); }
+                      else { if (await auth.confirmCode(acctEmail, acctCode, L)) { setAcctCode(""); setAcctPhase("email"); notify(L("ログインしました", "Signed in", "已登入"), { kind: "ok" }); } }
+                    }}><span>{auth.authBusy ? L("処理中…", "Working…", "處理中…") : acctPhase === "email" ? L("コードを送信", "Send code", "寄送驗證碼") : L("ログイン", "Sign in", "登入")}</span><i>→</i></button>
+                    {auth.authMsg && <p className="ana-note">{auth.authMsg}</p>}
+                  </>
+                )}
+              </div>
+            )}
+
             {secWrap("cloud", L("クラウド同期", "Cloud Sync", "雲端同步"), "SUPABASE",
               <div className="opt-group">
                 <label className="fld pad"><span>Supabase URL</span>
@@ -3202,7 +3283,7 @@ function App() {
 
       {fixOpen && <KitFixModal allKits={allKits} onClose={() => setFixOpen(false)} L={L} />}
       {quizOpen && <QuizModal allKits={allKits} getRec={getRec} images={images} extras={extras} albumMeta={albumMeta} builderName={settings.builderName} onClose={() => setQuizOpen(false)} L={L} />}
-      {identifyOpen && <KitIdentifyModal allKits={allKits} geminiKey={settings.geminiKey} openaiKey={settings.openaiKey} proxy={{ url: settings.aiProxyUrl, token: settings.aiProxyToken }} cameraMode={identifyCam} onAttach={attachPhoto} onClose={() => setIdentifyOpen(false)} onManual={() => { setIdentifyOpen(false); setAdding("zukan"); }} L={L} />}
+      {identifyOpen && <KitIdentifyModal allKits={allKits} geminiKey={settings.geminiKey} openaiKey={settings.openaiKey} proxy={aiProxyCfg} cameraMode={identifyCam} onAttach={attachPhoto} onClose={() => setIdentifyOpen(false)} onManual={() => { setIdentifyOpen(false); setAdding("zukan"); }} L={L} />}
 
       {sortMenuOpen && (
         <div className="modal-bg" onClick={() => setSortMenuOpen(false)} style={{ zIndex: 94 }}>
@@ -3295,7 +3376,7 @@ function App() {
         return (
           <ImageEditorModal kit={ek} images={images} extras={extras} albumMeta={albumMeta} builderName={settings.builderName}
             initialCols={settings.ieCols === 3 ? 3 : 2} onCols={(n) => patchSettings({ ieCols: n })}
-            ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, proxy: { url: settings.aiProxyUrl, token: settings.aiProxyToken }, model: settings.geminiModel, prompts: settings.aiPrompts, style: settings.aiStyle, onModel: (m) => patchSettings({ geminiModel: m }), onStyle: (st) => patchSettings({ aiStyle: st }) }}
+            ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, proxy: aiProxyCfg, model: settings.geminiModel, prompts: settings.aiPrompts, style: settings.aiStyle, onModel: (m) => patchSettings({ geminiModel: m }), onStyle: (st) => patchSettings({ aiStyle: st }) }}
             onAddImage={(src, meta) => addAlbumImage(imgEdit, src, meta)}
             onRemoveImage={(ref) => removeAlbumImage(imgEdit, ref)}
             onSetRole={(ref, role) => setAlbumRole(imgEdit, ref, role)}
@@ -3412,7 +3493,7 @@ function App() {
                 </div>
                 <KitForm
                   seriesOptions={seriesOptions}
-                  ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, proxy: { url: settings.aiProxyUrl, token: settings.aiProxyToken }, model: settings.geminiModel, prompts: settings.aiPrompts, style: settings.aiStyle, onModel: (m) => patchSettings({ geminiModel: m }), onStyle: (st) => patchSettings({ aiStyle: st }) }}
+                  ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, proxy: aiProxyCfg, model: settings.geminiModel, prompts: settings.aiPrompts, style: settings.aiStyle, onModel: (m) => patchSettings({ geminiModel: m }), onStyle: (st) => patchSettings({ aiStyle: st }) }}
                   initial={detailKit}
                   currentImg={images[detailKit.id]}
                   album={kitAlbum(detailKit.id)}
@@ -3452,7 +3533,7 @@ function App() {
               <span>{L("機体を追加", "Add a kit", "新增機體")}</span>
               <button className="modal-x static" onClick={() => setAdding(false)}>✕</button>
             </div>
-            <KitForm seriesOptions={seriesOptions} ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, proxy: { url: settings.aiProxyUrl, token: settings.aiProxyToken }, model: settings.geminiModel, prompts: settings.aiPrompts, style: settings.aiStyle, onModel: (m) => patchSettings({ geminiModel: m }), onStyle: (st) => patchSettings({ aiStyle: st }) }} initial={{}} currentImg={null} isCustom={false}
+            <KitForm seriesOptions={seriesOptions} ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, proxy: aiProxyCfg, model: settings.geminiModel, prompts: settings.aiPrompts, style: settings.aiStyle, onModel: (m) => patchSettings({ geminiModel: m }), onStyle: (st) => patchSettings({ aiStyle: st }) }} initial={{}} currentImg={null} isCustom={false}
               onSave={saveNew} onCancel={() => setAdding(false)} L={L} />
           </div>
         </div>

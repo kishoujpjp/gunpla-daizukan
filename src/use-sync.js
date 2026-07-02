@@ -12,7 +12,7 @@
    pushKey/pullCloud 以上のロジック・呼び出し側(App)は不変のまま移行できる。
    ─────────────────────────────────────────────────────────── */
 import { useState, useEffect, useRef, useCallback } from "react";
-import { META_KEY, MAX_SYNC_BYTES, SECRET_KEYS, stripSecrets, metaForCloud } from "./storage-lib.js";
+import { META_KEY, MAX_SYNC_BYTES, IMG_SHARDS, XTRA_SHARDS, SECRET_KEYS, stripSecrets, metaForCloud } from "./storage-lib.js";
 
 // ── ③ 同期トランスポート抽象 + userId 名前空間(★将来の差し替え点)──
 // 現状:使用者自带 Supabase(kv テーブル / anon key)、userId="" で名前空間なし=現行の挙動。
@@ -23,7 +23,8 @@ const SYNC_TRANSPORT = {
   // cfg = { url, key, userId? }。戻り:行配列 [{key,value,updated_at}](名前空間は剥がした論理キー)。
   async pull(cfg) {
     const res = await fetch(`${cfg.url}/rest/v1/kv?select=key,value,updated_at`, {
-      headers: { apikey: cfg.key, Authorization: `Bearer ${cfg.key}` },
+      // 託管(認証)モード:accessToken を Bearer に。BYO は従来通り anon key(挙動不変)。
+      headers: { apikey: cfg.key, Authorization: `Bearer ${cfg.accessToken || cfg.key}` },
     });
     if (!res.ok) {
       let detail = "";
@@ -42,9 +43,11 @@ const SYNC_TRANSPORT = {
     const uid = cfg.userId || "";
     const body = uid ? items.map((it) => ({ ...it, key: syncNsKey(uid, it.key) })) : items;
     try {
-      const res = await fetch(`${cfg.url}/rest/v1/kv?on_conflict=key`, {
+      // 託管モードは主キーが (user_id,key)。user_id は DB 既定値 auth.uid() が入る。
+      const conflict = cfg.accessToken ? "user_id,key" : "key";
+      const res = await fetch(`${cfg.url}/rest/v1/kv?on_conflict=${conflict}`, {
         method: "POST",
-        headers: { apikey: cfg.key, Authorization: `Bearer ${cfg.key}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates" },
+        headers: { apikey: cfg.key, Authorization: `Bearer ${cfg.accessToken || cfg.key}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates" },
         body: JSON.stringify(body),
       });
       if (res.ok) return { ok: true };
@@ -270,6 +273,17 @@ export function useSync({ loaded, L, applyRow }) {
     return applied;
   }, [applyRow, persist]);
 
+  /* ── 初回移行用:標準キー全量を dirty 化(値は push 時に端末から読む。
+     値の無いキーは pushKey が自動で dirty から外す)。ログイン直後の
+     「本地→雲端の全量アップロード」に使う。 ── */
+  const markAllDirty = useCallback(() => {
+    const keys = [META_KEY, SETTINGS_KEY, ALBUM_KEY, SERIFS_KEY];
+    for (let i = 0; i < IMG_SHARDS; i++) keys.push("mg_imgs_" + i);
+    for (let i = 0; i < XTRA_SHARDS; i++) keys.push("mg_xtra_" + i);
+    for (const k of keys) dirtyRef.current.add(k);
+    persistDirty();
+  }, [persistDirty]);
+
   return { syncMsg, setSyncMsg, storageErr, setStorageErr, supaRef,
-           persist, saveKey, flushDirty, pullCloud, initFromStorage };
+           persist, saveKey, flushDirty, pullCloud, initFromStorage, markAllDirty };
 }

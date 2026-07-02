@@ -24,7 +24,7 @@
    配置手順は DEPLOY.md を参照。
    ─────────────────────────────────────────────────────────── */
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 const MAX_BODY = 9 * 1024 * 1024;
 
 /* 既定モデル白名単(client の IDF_MODELS / AI_MODELS と対応) */
@@ -45,16 +45,40 @@ export function csvList(v, fallback) {
   return a.length ? a : fallback;
 }
 
-/* ── 認証(★Supabase Auth 差し替え点):token → userId | null ── */
-export function verifyToken(req, env) {
+/* ── 認証:token → userId | null ──
+   受理する token は 2 種:
+     (a) PROXY_TOKENS の固定トークン(個人用・従来)
+     (b) Supabase Auth の JWT(ログイン済みユーザー)。
+         署名アルゴリズム差(HS256/ES256)に依存しないよう、
+         Supabase の /auth/v1/user へ照会して検証する(結果は 5 分キャッシュ)。
+   どちらも userId(計量単位)を返す。 */
+const AUTH_CACHE = new Map(); // token → { id, exp }
+export function bearerOf(req) {
   const h = req.headers.get("Authorization") || "";
   const m = h.match(/^Bearer\s+(.+)$/);
-  if (!m) return null;
-  const token = m[1].trim();
+  return m ? m[1].trim() : null;
+}
+export async function verifyAuth(req, env) {
+  const token = bearerOf(req);
+  if (!token) return null;
   const accepted = csvList(env.PROXY_TOKENS, []);
-  if (!accepted.length) return null;         // 未設定=全拒否(閉じて安全)
-  if (!accepted.includes(token)) return null;
-  return token;                               // 現状 token = userId(計量単位)
+  if (accepted.includes(token)) return { userId: token, kind: "proxy" };
+  if (env.SUPABASE_URL && env.SUPABASE_ANON_KEY && token.split(".").length === 3) {
+    const hit = AUTH_CACHE.get(token);
+    if (hit && hit.exp > Date.now()) return { userId: hit.id, kind: "supabase" };
+    try {
+      const res = await fetch(String(env.SUPABASE_URL).replace(/\/+$/, "") + "/auth/v1/user", {
+        headers: { apikey: env.SUPABASE_ANON_KEY, Authorization: "Bearer " + token },
+      });
+      if (!res.ok) return null;
+      const u = await res.json();
+      if (!u || !u.id) return null;
+      AUTH_CACHE.set(token, { id: u.id, exp: Date.now() + 5 * 60 * 1000 });
+      if (AUTH_CACHE.size > 500) AUTH_CACHE.clear(); // 粗い上限(isolate 内メモリ保護)
+      return { userId: u.id, kind: "supabase" };
+    } catch (e) { return null; }
+  }
+  return null;                                // 該当なし=拒否(閉じて安全)
 }
 
 /* userId を KV キーに使う前に短縮(生 token を KV キーへ残さない) */
@@ -211,6 +235,26 @@ export default {
     const clen = parseInt(req.headers.get("Content-Length"), 10);
     if (clen && clen > MAX_BODY) return errRes("payload too large", 413, cors);
 
+    if (path === "/v1/account/delete") {
+      // App Store 5.1.1(v):アプリ内アカウント削除の実体。
+      // Supabase JWT 必須(固定 PROXY トークンでは削除不可)。
+      // kv 行は FK on delete cascade で同時に消える(schema.sql 参照)。
+      const auth = await verifyAuth(req, env);
+      if (!auth || auth.kind !== "supabase") return errRes("unauthorized", 401, cors);
+      if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY)
+        return errRes("account deletion not configured", 503, cors);
+      const root = String(env.SUPABASE_URL).replace(/\/+$/, "");
+      const res = await fetch(root + "/auth/v1/admin/users/" + encodeURIComponent(auth.userId), {
+        method: "DELETE",
+        headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, Authorization: "Bearer " + env.SUPABASE_SERVICE_ROLE_KEY },
+      });
+      if (!res.ok) {
+        let d = ""; try { const j = await res.json(); d = j.msg || j.message || ""; } catch (e) {}
+        return errRes("delete failed: " + (d || res.status), 502, cors);
+      }
+      return json({ ok: true }, 200, cors);
+    }
+
     if (path === "/v1/report") {
       // 修正提案は認証を必須にしない(旧 REPORT_SECRET と同じ「簡易 bot 避け」思想)。
       // REPORT_SECRET が設定されていれば X-Report-Secret を検査する。
@@ -224,8 +268,9 @@ export default {
     }
 
     if (path === "/v1/identify" || path === "/v1/restyle") {
-      const userId = verifyToken(req, env);
-      if (!userId) return errRes("unauthorized", 401, cors);
+      const auth = await verifyAuth(req, env);
+      if (!auth) return errRes("unauthorized", 401, cors);
+      const userId = auth.userId;
       let raw; try { raw = await req.text(); } catch (e) { return errRes("read failed", 400, cors); }
       if (raw.length > MAX_BODY) return errRes("payload too large", 413, cors);
       let body; try { body = JSON.parse(raw); } catch (e) { return errRes("invalid json", 400, cors); }

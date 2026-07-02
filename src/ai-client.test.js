@@ -5,7 +5,7 @@ import {
   parseGeminiImage, buildProxyBody,
 } from "./ai-client.js";
 import worker, {
-  csvList, isOpenAIModel, verifyToken, validateAiBody, checkAndCountQuota, corsHeaders,
+  csvList, isOpenAIModel, verifyAuth, validateAiBody, checkAndCountQuota, corsHeaders,
 } from "../worker/ai-proxy.js";
 
 /* ═══════════ ai-client 純関数 ═══════════ */
@@ -75,11 +75,60 @@ test("csvList / isOpenAIModel", () => {
   assert.equal(isOpenAIModel("gemini-2.5-pro"), false);
 });
 
-test("verifyToken:PROXY_TOKENS 一致のみ通す。未設定は全拒否(閉じて安全)", () => {
-  assert.equal(verifyToken(mkReq("/v1/identify", { token: "tok1" }), ENV), "tok1");
-  assert.equal(verifyToken(mkReq("/v1/identify", { token: "bad" }), ENV), null);
-  assert.equal(verifyToken(mkReq("/v1/identify", {}), ENV), null);
-  assert.equal(verifyToken(mkReq("/v1/identify", { token: "tok1" }), {}), null, "PROXY_TOKENS 未設定");
+test("verifyAuth:PROXY_TOKENS 一致は proxy 種別で通す。未設定+非JWT は拒否", async () => {
+  assert.deepEqual(await verifyAuth(mkReq("/v1/identify", { token: "tok1" }), ENV), { userId: "tok1", kind: "proxy" });
+  assert.equal(await verifyAuth(mkReq("/v1/identify", { token: "bad" }), ENV), null);
+  assert.equal(await verifyAuth(mkReq("/v1/identify", {}), ENV), null);
+  assert.equal(await verifyAuth(mkReq("/v1/identify", { token: "tok1" }), {}), null, "PROXY_TOKENS 未設定");
+});
+
+test("verifyAuth:Supabase JWT は /auth/v1/user 照会で検証(mock fetch)+キャッシュ", async () => {
+  const jwt = "aaa.bbb.ccc"; // 形だけ JWT(3 分割)
+  const env = { PROXY_TOKENS: "tok1", SUPABASE_URL: "https://proj.supabase.co", SUPABASE_ANON_KEY: "anon" };
+  const orig = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async (url, opt) => {
+    calls++;
+    assert.ok(String(url).endsWith("/auth/v1/user"));
+    assert.equal(opt.headers.Authorization, "Bearer " + jwt);
+    return new Response(JSON.stringify({ id: "user-123", email: "a@b.c" }), { status: 200 });
+  };
+  try {
+    const a = await verifyAuth(mkReq("/v1/identify", { token: jwt }), env);
+    assert.deepEqual(a, { userId: "user-123", kind: "supabase" });
+    const b = await verifyAuth(mkReq("/v1/identify", { token: jwt }), env);
+    assert.deepEqual(b, { userId: "user-123", kind: "supabase" });
+    assert.equal(calls, 1, "2回目はキャッシュ(照会しない)");
+    // 無効 JWT は 401 相当
+    globalThis.fetch = async () => new Response("{}", { status: 401 });
+    assert.equal(await verifyAuth(mkReq("/v1/identify", { token: "xxx.yyy.zzz" }), env), null);
+  } finally { globalThis.fetch = orig; }
+});
+
+test("/v1/account/delete:supabase JWT 必須・service_role 未設定は 503・成功で ok", async () => {
+  const env = { PROXY_TOKENS: "tok1", SUPABASE_URL: "https://proj.supabase.co", SUPABASE_ANON_KEY: "anon" };
+  // 固定 PROXY トークンでは削除不可
+  const p = await worker.fetch(mkReq("/v1/account/delete", { token: "tok1", body: {} }), env);
+  assert.equal(p.status, 401);
+  const orig = globalThis.fetch;
+  globalThis.fetch = async (url, opt) => {
+    if (String(url).endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: "user-del" }), { status: 200 });
+    if (String(url).includes("/auth/v1/admin/users/")) {
+      assert.equal(opt.method, "DELETE");
+      assert.ok(String(url).endsWith("user-del"));
+      return new Response("{}", { status: 200 });
+    }
+    throw new Error("unexpected fetch: " + url);
+  };
+  try {
+    const jwt = "d.d.d";
+    const no503 = await worker.fetch(mkReq("/v1/account/delete", { token: jwt, body: {} }), env);
+    assert.equal(no503.status, 503, "service_role 未設定");
+    const ok = await worker.fetch(mkReq("/v1/account/delete", { token: jwt, body: {} }),
+      { ...env, SUPABASE_SERVICE_ROLE_KEY: "srv" });
+    assert.equal(ok.status, 200);
+    assert.equal((await ok.json()).ok, true);
+  } finally { globalThis.fetch = orig; }
 });
 
 test("validateAiBody:白名単・provider/model 整合・画像/プロンプト必須", () => {
