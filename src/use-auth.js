@@ -33,13 +33,16 @@ export function useAuth() {
     (async () => {
       try {
         const stored = await loadStoredSession();
-        if (stored && sessionValid(stored)) { if (alive) setSession(stored); }
-        else if (stored && stored.refresh_token) {
+        if (stored && stored.refresh_token) {
+          // 起動時は常に refresh を先試行(server 側失効・時計ずれによる 401 を予防)。
           try {
             const fresh = await refreshSession(cfg, stored.refresh_token);
             if (alive && fresh) { setSession(fresh); await saveStoredSession(fresh); }
-          } catch (e) { /* refresh 失敗:未ログイン状態で開始(据え置き) */ }
-        }
+          } catch (e) {
+            // refresh 不可でもローカル的に有効なら据え置き採用(オフライン起動)
+            if (alive && sessionValid(stored)) setSession(stored);
+          }
+        } else if (stored && sessionValid(stored)) { if (alive) setSession(stored); }
       } finally { if (alive) setAuthReady(true); }
     })();
     return () => { alive = false; };

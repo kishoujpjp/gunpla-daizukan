@@ -1072,16 +1072,20 @@ function App() {
           })
           .catch(() => {});
       }
-      const su = ((metaSettings && metaSettings.supaUrl) || "").trim().replace(/\/+$/, "");
-      const sk = ((metaSettings && metaSettings.supaKey) || "").trim();
+      // 託管建置(managedOn)では BYO 起動同期を行わない:
+      //   残留した旧 supaUrl/supaKey が託管テーブルへ誤射する事故を防ぐ
+      //  (on_conflict=key が (user_id,key) 主鍵と不一致 → 400 の実例あり)。
+      //   初回同期はログイン確立時の account effect が担う。
+      const su = managedOn() ? "" : ((metaSettings && metaSettings.supaUrl) || "").trim().replace(/\/+$/, "");
+      const sk = managedOn() ? "" : ((metaSettings && metaSettings.supaKey) || "").trim();
       if (su && sk) {
         pullCloud({ url: su, key: sk })
           .then((nn) => {
             if (nn) setSyncMsg(L("起動時同期:受信 ","Synced on launch: ","啟動同步:收到 ") + nn + L(" 件 "," items "," 筆 ") + new Date().toLocaleTimeString());
-            else if (metaEmpty) setSetupOpen(true);
+            else if (metaEmpty && !managedOn()) setSetupOpen(true);
           })
-          .catch(() => { if (metaEmpty) setSetupOpen(true); });
-      } else if (metaEmpty) {
+          .catch(() => { if (metaEmpty && !managedOn()) setSetupOpen(true); });
+      } else if (metaEmpty && !managedOn()) {
         setSetupOpen(true);
       }
       // 機体目錄:本地キャッシュで即描画済み。ここで背景刷新(失敗は無感)。
@@ -1164,6 +1168,9 @@ function App() {
       // 託管モード:開発者管理の Supabase + RLS。accessToken が Bearer になる。
       supaRef.current = { url: MANAGED_BACKEND.url.replace(/\/+$/, ""), key: MANAGED_BACKEND.anonKey,
                           accessToken: auth.session.access_token, userId: "" };
+    } else if (managedOn()) {
+      // 託管建置・未ログイン:同期は完全停止(残留 BYO 憑證の誤射防止)
+      supaRef.current = { url: "", key: "", userId: "" };
     } else {
       // 従来(BYO)モード:挙動不変
       supaRef.current = { url: (settings.supaUrl || "").trim().replace(/\/+$/, ""), key: (settings.supaKey || "").trim(), userId: (settings.userId || "") };
@@ -1241,7 +1248,12 @@ function App() {
 
   const syncNow = async () => {
     const cfg = supaRef.current;
-    if (!cfg.url || !cfg.key) { notify(L("Supabase URL と anon キーを入力してください","Enter the Supabase URL and anon key","請輸入 Supabase URL 與 anon 金鑰"), { kind: "warn" }); return; }
+    if (!cfg.url || !cfg.key) {
+      notify(managedOn()
+        ? L("同期にはログインが必要です(設定 → アカウント)", "Sign in to sync (Settings → Account)", "同步需要先登入(設定 → 帳號)")
+        : L("Supabase URL と anon キーを入力してください", "Enter the Supabase URL and anon key", "請輸入 Supabase URL 與 anon 金鑰"), { kind: "warn" });
+      return;
+    }
     setSyncMsg(L("同期中…","Syncing…","同步中…"));
     try {
       // 1) 雲端を取り込む(LWW で state へマージ)
@@ -3162,7 +3174,7 @@ function App() {
               </div>
             )}
 
-            {secWrap("cloud", L("クラウド同期", "Cloud Sync", "雲端同步"), "SUPABASE",
+            {!managedOn() && secWrap("cloud", L("クラウド同期", "Cloud Sync", "雲端同步"), "SUPABASE",
               <div className="opt-group">
                 <label className="fld pad"><span>Supabase URL</span>
                   <input value={settings.supaUrl || ""} placeholder="https://xxxx.supabase.co"
