@@ -2810,24 +2810,22 @@ export default function App() {
     requestAnimationFrame(restore);
   };
   /* 捲動で報頭を running-head へ收合(V5)。ヒステリシス: >24px で收 / ≤8px で展。
-     rAF スロットル。閾値をまたぐ時だけ setState(同値は React がベイルアウト)。 */
-  useEffect(() => {
-    const el = bodyRef.current;
-    if (!el) return;
-    let tick = false;
-    const onScroll = () => {
-      if (tick) return; tick = true;
-      requestAnimationFrame(() => {
-        tick = false;
-        const b = bodyRef.current;
-        if (!b) return;
-        const y = b.scrollTop;
-        setHfHide((h) => (h ? y > 8 : y > 24));
-      });
-    };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, []);
+     注意: アプリは起動画面(!loaded)を先に描画するため、mount時の useEffect で
+     bodyRef に addEventListener すると main 不在で永久に張られない。
+     → main の onScroll prop で張る(React が装着時機を保証)。 */
+  const hfTickRef = useRef(false);
+  const onBodyScrollHf = () => {
+    if (hfTickRef.current) return;
+    hfTickRef.current = true;
+    requestAnimationFrame(() => {
+      hfTickRef.current = false;
+      const b = bodyRef.current;
+      if (!b) return;
+      const y = b.scrollTop;
+      const room = b.scrollHeight - b.clientHeight; // 短頁では畳まない(收合→高さ回復→scrollTopクランプの振動防止)
+      setHfHide((h) => (h ? y > 8 : (y > 24 && room > 160)));
+    });
+  };
   const lpRef = useRef({ timer: null, fired: false });
   /* 長按手勢:回傳可展開到元素的 handlers。fired 時阻止後續 click。 */
   const makeLongPress = (onLong, ms = 480) => {
@@ -4814,7 +4812,7 @@ export default function App() {
         })()}
       </header>
 
-      <main className="body" ref={bodyRef}>
+      <main className="body" ref={bodyRef} onScroll={onBodyScrollHf}>
         <div key={tab} className="tab-page">
         {(tab === "zukan" || tab === "gallery") && (
           <>
@@ -5849,6 +5847,10 @@ const CSS = `
   --crt-line:#5f9c92;
   /* 角丸スケール(border-radius トークン) */
   --r-xs:2px; --r-sm:5px; --r-md:7px; --r-lg:10px; --r-xl:13px; --r-pill:999px;
+  /* 層次(elevation): raise=大面浮起(彈窗/選單) float=懸空小件(toast/picker) sheet=底部抽屜 */
+  --elev-raise:0 18px 50px rgba(0,0,0,.55), 0 2px 10px rgba(0,0,0,.25);
+  --elev-float:0 12px 34px rgba(0,0,0,.5), 0 3px 9px rgba(0,0,0,.28);
+  --elev-sheet:0 -14px 40px rgba(0,0,0,.5);
   /* グラフ/等級/勲章の配色(ダーク)。.app.light で明色版へ差し替え、テーマ追従。 */
   --g-mg:#e8553d; --g-hg:#8fcf8a; --g-rg:#d9b36a; --g-pg:#b08ad6; --g-hirm:#cf8a6a;
   --g-re:#8ab0a0; --g-fm:#a0a8c0; --g-mgsd:#6fd3c7; --g-extra:#cfc9bb; --g-none:#9aa0ae;
@@ -5889,6 +5891,9 @@ button,.tab,.card,.row,.gf-btn,.adv-seg-btn,.tab-label,.tab-icon{
 button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer}
 input,textarea{font-family:var(--sans)}
 
+.app.light{--elev-raise:0 16px 42px rgba(70,52,20,.26), 0 2px 10px rgba(70,52,20,.13);
+  --elev-float:0 10px 28px rgba(70,52,20,.22), 0 3px 8px rgba(70,52,20,.12);
+  --elev-sheet:0 -12px 34px rgba(70,52,20,.22)}
 .head{padding:18px 18px 12px;position:relative}
 /* スマホ横向き(高さが低い)では標題框を自動的に隠して縦スペースを確保。iPad は高さが大きいため影響なし */
 @media (orientation:landscape) and (max-height:500px){.head{display:none}}
@@ -6047,8 +6052,8 @@ input,textarea{font-family:var(--sans)}
 @keyframes bgfade{from{opacity:0}to{opacity:1}}
 .modal{width:100%;max-width:520px;background:var(--bg2);border:1px solid var(--line);
   border-radius:var(--r-xl);padding:20px 18px 28px;margin-bottom:calc(14px + env(safe-area-inset-bottom));
-  animation:up .26s cubic-bezier(.2,.9,.3,1.1);max-height:88vh;overflow-y:auto}
-@keyframes up{from{transform:translateY(34px) scale(.97);opacity:0}to{transform:none;opacity:1}}
+  animation:up .26s cubic-bezier(.2,.9,.3,1.1);max-height:88vh;overflow-y:auto;box-shadow:var(--elev-raise)}
+@keyframes up{from{transform:translateY(24px) scale(.98);opacity:0}to{transform:none;opacity:1}}
 /* ── 交換カード式詳細レイアウト ── */
 .tc-head{position:relative;margin-bottom:14px;padding:12px 14px 11px;border-radius:var(--r-md);
   background:radial-gradient(125% 130% at 50% 30%,var(--panel) 0%,var(--panel) 42%,rgba(38,38,36,.35) 78%,transparent 100%)}
@@ -6126,7 +6131,7 @@ input,textarea{font-family:var(--sans)}
 .dc-classified.sv-classified{width:min(80vw,560px);height:100%;max-width:calc(100% - 4px);max-height:100%;border-radius:var(--r-sm);
   box-shadow:inset 0 0 34px 10px rgba(0,0,0,.6),0 8px 30px rgba(0,0,0,.5)}
 .serif-edit-bg{position:fixed;inset:0;z-index:130;background:rgba(0,0,0,.55);display:flex;align-items:flex-start;justify-content:center;padding-top:16vh}
-.serif-edit{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px;width:min(440px,90vw);box-shadow:0 18px 54px rgba(0,0,0,.6)}
+.serif-edit{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px;width:min(440px,90vw);box-shadow:var(--elev-raise)}
 .se-input{width:100%;box-sizing:border-box;font-family:var(--kaiti);font-size:18px;line-height:1.5;color:var(--ink-strong);
   background:var(--bg2);border:1px solid var(--line);border-radius:var(--r-md);padding:11px 13px;outline:none;min-height:96px;resize:vertical;display:block}
 .se-input:focus{border-color:var(--gold)}
@@ -6334,7 +6339,7 @@ input,textarea{font-family:var(--sans)}
 .viewer-confirm{position:fixed;left:50%;transform:translateX(-50%);z-index:123;
   bottom:calc(86px + env(safe-area-inset-bottom));background:var(--panel);border:1px solid var(--line);
   border-radius:var(--r-lg);padding:14px 16px;display:flex;flex-direction:column;gap:10px;align-items:center;
-  font-size:13px;color:var(--ink);box-shadow:0 12px 40px rgba(0,0,0,.5)}
+  font-size:13px;color:var(--ink);box-shadow:var(--elev-float)}
 .viewer-confirm .vc-btns{display:flex;gap:8px}
 
 .date-fields{display:flex;gap:10px;margin-top:14px}
@@ -6424,13 +6429,13 @@ input,textarea{font-family:var(--sans)}
 .ie-tile.add:active{background:var(--panel2);border-color:var(--gold);transform:scale(.975)}
 .ie-plus{font-size:30px;color:var(--gold);font-weight:300} .ie-addl{font-size:12px} .ie-addo{font-size:9px;color:var(--ink-dim);text-align:center}
 /* 浮遊ゴースト(指に吸着) */
-.ie-ghost{position:fixed;top:0;left:0;z-index:90;pointer-events:none;border-radius:var(--r-lg);overflow:hidden;will-change:transform;transform:translate3d(-9999px,-9999px,0);box-shadow:0 22px 48px rgba(0,0,0,.6);outline:2px solid var(--gold);outline-offset:-1px}
+.ie-ghost{position:fixed;top:0;left:0;z-index:90;pointer-events:none;border-radius:var(--r-lg);overflow:hidden;will-change:transform;transform:translate3d(-9999px,-9999px,0);box-shadow:var(--elev-raise);outline:2px solid var(--gold);outline-offset:-1px}
 .ie-ghost img{width:100%;height:100%;object-fit:cover;display:block}
 .ie-ghost .ie-img.blank{position:static;width:100%;height:100%}
 /* シート共通 */
 .ie-dim{position:absolute;inset:0;background:rgba(6,8,12,.62);z-index:8;display:flex;align-items:flex-end;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);animation:ie-fade .18s ease}
 @keyframes ie-fade{from{opacity:0}to{opacity:1}}
-.ie-sheet{position:relative;width:100%;max-height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;background:linear-gradient(180deg,var(--panel2),var(--panel));border-radius:var(--r-xl) var(--r-xl) 0 0;padding:8px 18px calc(10px + env(safe-area-inset-bottom));box-shadow:0 -16px 44px rgba(0,0,0,.55);animation:ie-rise .26s cubic-bezier(.2,.9,.3,1)}
+.ie-sheet{position:relative;width:100%;max-height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;background:linear-gradient(180deg,var(--panel2),var(--panel));border-radius:var(--r-xl) var(--r-xl) 0 0;padding:8px 18px calc(10px + env(safe-area-inset-bottom));box-shadow:var(--elev-sheet);animation:ie-rise .26s cubic-bezier(.2,.9,.3,1)}
 @keyframes ie-rise{from{transform:translateY(16px);opacity:.5}to{transform:translateY(0);opacity:1}}
 .ie-grip{width:40px;height:4px;border-radius:var(--r-xs);background:var(--line-soft);margin:4px auto 14px}
 .ie-sh-h{font-family:var(--serif);font-weight:600;font-size:14px;margin-bottom:12px;text-align:center}
@@ -7183,7 +7188,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .title-toast{position:fixed;left:10px;right:10px;top:calc(env(safe-area-inset-top) + 10px);z-index:99997;
   max-width:520px;margin:0 auto;display:flex;gap:12px;align-items:center;text-align:left;
   background:linear-gradient(160deg,#1f2433,#171c28);border:1px solid var(--gold);border-radius:var(--r-lg);padding:12px 14px;overflow:hidden;
-  box-shadow:0 10px 34px rgba(0,0,0,.55),0 0 0 1px rgba(217,179,106,.15);animation:ttIn .42s cubic-bezier(.2,.9,.3,1.15)}
+  box-shadow:var(--elev-float),0 0 0 1px rgba(217,179,106,.15);animation:ttIn .42s cubic-bezier(.2,.9,.3,1.15)}
 .title-toast::after{content:"";position:absolute;inset:0;pointer-events:none;
   background:linear-gradient(115deg,transparent 30%,rgba(217,179,106,.22) 50%,transparent 70%);transform:translateX(-100%);animation:shine 2.2s ease-in-out .25s infinite}
 @keyframes ttIn{from{transform:translateY(-130%);opacity:0}to{transform:none;opacity:1}}
@@ -7332,7 +7337,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .sb-sort .sb-sort-key{width:29px;font-family:var(--serif);font-weight:800;font-size:14px;border-right:1px solid var(--line)}
 .sb-sort .sb-sort-dir{width:25px;font-size:13px;font-weight:700}
 .sb-sort button:active{color:var(--gold)}
-.sort-menu{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-xl);width:min(290px,86vw);margin:auto;padding:7px;box-shadow:0 20px 54px rgba(0,0,0,.5)}
+.sort-menu{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-xl);width:min(290px,86vw);margin:auto;padding:7px;box-shadow:var(--elev-raise)}
 .sort-menu-head{font-family:var(--serif);font-weight:800;font-size:13px;color:var(--ink-mid);letter-spacing:.16em;padding:9px 10px 11px;display:flex;align-items:baseline;gap:8px;justify-content:center}
 .sort-menu-head span{font-family:var(--sans);font-size:8.5px;letter-spacing:.3em;color:var(--ink-dim)}
 .sort-menu-item{display:flex;align-items:center;gap:13px;width:100%;padding:12px;border-radius:var(--r-md);background:none;border:none;color:var(--ink);text-align:left;-webkit-tap-highlight-color:transparent}
@@ -7632,7 +7637,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 /* 叙勲トースト */
 .av-toast{position:fixed;left:10px;right:10px;top:calc(env(safe-area-inset-top) + 10px);z-index:99997;max-width:520px;margin:0 auto;display:flex;gap:14px;align-items:center;text-align:left;
   background:linear-gradient(120deg,rgba(34,29,18,.93),rgba(15,18,26,.95));backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(217,179,106,.32);border-radius:var(--r-xs);padding:13px 15px;overflow:hidden;
-  box-shadow:0 10px 34px rgba(0,0,0,.55);animation:ttIn .42s cubic-bezier(.2,.9,.3,1.15)}
+  box-shadow:var(--elev-float);animation:ttIn .42s cubic-bezier(.2,.9,.3,1.15)}
 .av-toast::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(#f2dca0,#9c7838)}
 .av-toast-medal{flex:none;width:46px;height:46px}.av-toast-medal svg{width:100%;height:100%;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
 .av-toast-body{flex:1;min-width:0}
@@ -7805,7 +7810,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .rec-pop{position:absolute;top:calc(100% + 6px);left:0;z-index:30;display:flex;flex-direction:column;gap:2px;
   min-width:128px;background:#1a2030;border:1px solid var(--line);border-radius:var(--r-lg);padding:6px;
   transform-origin:top left;transform:scale(.92);opacity:0;pointer-events:none;
-  transition:transform .18s,opacity .18s;box-shadow:0 14px 34px rgba(0,0,0,.5)}
+  transition:transform .18s,opacity .18s;box-shadow:var(--elev-float)}
 .rec-pop.open{transform:scale(1);opacity:1;pointer-events:auto}
 .rec-pop-opt{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:8px 10px;border-radius:var(--r-sm);
   border:0;background:transparent;font-family:var(--serif);font-size:13px;color:var(--ink-mid);cursor:pointer}
@@ -7821,7 +7826,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .rec-dateset.done .rec-dateset-ph{color:#5a8f86}
 .rec-dateset-chev{font-size:9px;color:var(--ink-dim)}
 .rec-cal{position:fixed;z-index:201;width:236px;max-width:92vw;background:#1a2030;border:1px solid var(--line);
-  border-radius:var(--r-lg);padding:10px;box-shadow:0 16px 40px rgba(0,0,0,.55)}
+  border-radius:var(--r-lg);padding:10px;box-shadow:var(--elev-float)}
 .rec-cal-clear{display:block;width:100%;text-align:left;padding:8px 4px 10px;margin-bottom:4px;border:0;
   border-bottom:1px solid var(--line-soft);background:transparent;color:var(--ink-mid);font-family:var(--serif);font-size:12px;cursor:pointer}
 .rec-cal-clear:active{color:#f0a18f}
@@ -7852,7 +7857,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .picker-chev{flex:none;font-size:9px;color:var(--ink-dim)}
 .picker-back{position:fixed;inset:0;z-index:200;background:transparent}
 .picker-menu{position:fixed;z-index:201;background:#1a2030;border:1px solid var(--line);border-radius:var(--r-md);
-  padding:6px;max-height:300px;overflow-y:auto;box-shadow:0 16px 40px rgba(0,0,0,.55);min-width:120px;max-width:min(86vw,340px)}
+  padding:6px;max-height:300px;overflow-y:auto;box-shadow:var(--elev-float);min-width:120px;max-width:min(86vw,340px)}
 .picker-opt{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;
   padding:9px 11px;border:0;background:transparent;color:var(--ink-mid);font-size:13px;font-family:var(--sans);cursor:pointer;border-radius:var(--r-sm)}
 .picker-opt:active{background:#232c3d;color:var(--ink)}
@@ -7999,7 +8004,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 /* ═══ モーションA(CSS) ═══ */
 @keyframes fxIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 /* 初表示カスケード(先頭12のみ) */
-.grid-wrap .kz-card:nth-child(-n+12),.list-wrap .kz-rowscroll:nth-child(-n+12){animation:fxIn .42s ease-out backwards}
+.grid-wrap .kz-card:nth-child(-n+12),.list-wrap .kz-rowscroll:nth-child(-n+12){animation:fxIn .36s cubic-bezier(.22,.8,.32,1) backwards}
 .grid-wrap .kz-card:nth-child(1),.list-wrap .kz-rowscroll:nth-child(1){animation-delay:.02s}
 .grid-wrap .kz-card:nth-child(2),.list-wrap .kz-rowscroll:nth-child(2){animation-delay:.05s}
 .grid-wrap .kz-card:nth-child(3),.list-wrap .kz-rowscroll:nth-child(3){animation-delay:.08s}
@@ -8012,6 +8017,28 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .grid-wrap .kz-card:nth-child(10),.list-wrap .kz-rowscroll:nth-child(10){animation-delay:.29s}
 .grid-wrap .kz-card:nth-child(11),.list-wrap .kz-rowscroll:nth-child(11){animation-delay:.32s}
 .grid-wrap .kz-card:nth-child(12),.list-wrap .kz-rowscroll:nth-child(12){animation-delay:.35s}
+/* P4: 級聯を画廊/称号/分析へ延伸(新規マウントのみ再生=DOM再利用なら再演しない) */
+.salon-grid .sl-card:nth-child(-n+6){animation:fxIn .38s cubic-bezier(.22,.8,.32,1) backwards}
+.salon-grid .sl-card:nth-child(1){animation-delay:.03s}
+.salon-grid .sl-card:nth-child(2){animation-delay:.07s}
+.salon-grid .sl-card:nth-child(3){animation-delay:.11s}
+.salon-grid .sl-card:nth-child(4){animation-delay:.15s}
+.salon-grid .sl-card:nth-child(5){animation-delay:.19s}
+.salon-grid .sl-card:nth-child(6){animation-delay:.23s}
+.av-reg .av-entry:nth-child(-n+8){animation:fxIn .34s cubic-bezier(.22,.8,.32,1) backwards}
+.av-reg .av-entry:nth-child(1){animation-delay:.02s}
+.av-reg .av-entry:nth-child(2){animation-delay:.045s}
+.av-reg .av-entry:nth-child(3){animation-delay:.07s}
+.av-reg .av-entry:nth-child(4){animation-delay:.095s}
+.av-reg .av-entry:nth-child(5){animation-delay:.12s}
+.av-reg .av-entry:nth-child(6){animation-delay:.145s}
+.av-reg .av-entry:nth-child(7){animation-delay:.17s}
+.av-reg .av-entry:nth-child(8){animation-delay:.195s}
+.ana-cards .ana-card:nth-child(-n+4){animation:fxIn .38s cubic-bezier(.22,.8,.32,1) backwards}
+.ana-cards .ana-card:nth-child(1){animation-delay:.03s}
+.ana-cards .ana-card:nth-child(2){animation-delay:.08s}
+.ana-cards .ana-card:nth-child(3){animation-delay:.13s}
+.ana-cards .ana-card:nth-child(4){animation-delay:.18s}
 /* toggle 実感(overshoot) */
 .switch{transition:background .25s ease}
 .switch b{transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
@@ -8045,7 +8072,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 
 /* ── アプリ内 通知(toast) ── */
 .toast-host{position:fixed;top:calc(10px + env(safe-area-inset-top));left:0;right:0;z-index:200;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
-.toast{position:relative;display:flex;align-items:center;gap:11px;min-width:172px;max-width:88vw;padding:13px 18px 12px 16px;border-radius:var(--r-sm);background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);box-shadow:0 16px 38px rgba(0,0,0,.52);font-size:13px;color:var(--ink-strong);font-family:var(--serif);letter-spacing:.045em;animation:toast-in .28s cubic-bezier(.2,.9,.3,1);overflow:hidden}
+.toast{position:relative;display:flex;align-items:center;gap:11px;min-width:172px;max-width:88vw;padding:13px 18px 12px 16px;border-radius:var(--r-sm);background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);box-shadow:var(--elev-float);font-size:13px;color:var(--ink-strong);font-family:var(--serif);letter-spacing:.045em;animation:toast-in .28s cubic-bezier(.2,.9,.3,1);overflow:hidden}
 /* 檔案調の表頭罫(cf-line と同系):色の短セグメント＋細罫 */
 .toast::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--teal) 0 40px,var(--line) 40px)}
 .toast.ok::before{background:linear-gradient(90deg,var(--teal) 0 40px,var(--line) 40px)}
@@ -8056,7 +8083,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .toast .ti{flex:none;width:22px;height:22px;border-radius:var(--r-xs);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;line-height:1;font-family:var(--sans);border:1px solid currentColor;background:rgba(255,255,255,.02)}
 .toast.ok .ti{color:var(--teal)} .toast.err .ti{color:var(--shu)} .toast.warn .ti{color:var(--gold)} .toast.info .ti{color:var(--blue)}
 .toast.decree{gap:10px;min-width:0;padding:9px 15px 9px 13px;border-radius:var(--r-xs);letter-spacing:.04em;
-  background:linear-gradient(120deg,rgba(34,29,18,.92),rgba(15,18,26,.95));border:1px solid rgba(217,179,106,.30);box-shadow:0 10px 30px rgba(0,0,0,.5)}
+  background:linear-gradient(120deg,rgba(34,29,18,.92),rgba(15,18,26,.95));border:1px solid rgba(217,179,106,.30);box-shadow:var(--elev-float)}
 .toast.decree::before{left:0;right:auto;top:0;bottom:0;width:3px;height:auto;background:linear-gradient(#f2dca0,#9c7838)}
 .toast.decree .tm{font-family:var(--serif);font-weight:700;font-size:13.5px;color:var(--ink-strong)}
 .toast-hex{flex:none;width:16px;height:16px;display:flex}
