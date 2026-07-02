@@ -15,6 +15,9 @@ import { fileToCompressedDataURL, AI_STYLES, AI_MODELS, aiProviderLabel, aiActiv
 import { DateSetField, Picker } from "./form-controls.jsx";
 import { notify, appConfirm, AppDialogHost } from "./dialogs.jsx";
 import { useSync, SETTINGS_KEY, ALBUM_KEY, SERIFS_KEY, secretFieldList } from "./use-sync.js";
+import { useCatalog } from "./use-catalog.js";
+import { applyCatalog, CATALOG_DEFAULT_BASE } from "./catalog-lib.js";
+import { APP_VERSION, ENTITLEMENTS } from "./entitlements.js";
 import { SwipeViewer } from "./swipe-viewer.jsx";
 import { FramingEditor } from "./framing-editor.jsx";
 import { KitFixModal } from "./kit-fix-modal.jsx";
@@ -54,177 +57,6 @@ import {
   framingStyle,
   newImgId
 } from "./storage-lib.js";
-
-/* ───────────────────────────────────────────────────────────
-   機体目錄(クラウド配信)── 選項1:静的 delta JSON を CDN/Repo から取得
-   ・ALL_BASE(bundle)は「離線地板」。雲端は add/patch/retract の増量のみ。
-   ・合併順:ALL_BASE → 雲端 delta → overrides(端末) → customKits(端末)。
-   ・本地キャッシュは saveKey を通さない(= per-user 同期に混ぜない・上雲しない)。
-   ・★商用化の差し替え点はこの 2 つの fetch 関数だけ。applyCatalog 以上は不変。
-     例: fetchCatalogDelta を「認証付き API / Supabase の権限別配信」に置換しても、
-         戻り値の形(delta オブジェクト)さえ守れば上位ロジックは一切変更不要。
-   ─────────────────────────────────────────────────────────── */
-const CATALOG_SCHEMA = 1;
-const CATALOG_CACHE_KEY = "mg_catalog";   // 本地キャッシュ鍵(同期対象外)
-const CATALOG_LOG_KEY = "mg_catalog_log"; // 更新履歴(本地のみ・同期対象外)
-const CATALOG_LOG_MAX = 30;               // 履歴保持件数
-
-/* ───────── 商用化シーム(① 版本/公告 ② 権益)──────────────────────────
-   いずれも「接縫のみ・現状の挙動は不変」。将来の商用化はこの周辺の
-   供給元を差し替えるだけで済むよう、判断を 1 箇所に集約しておく。 */
-const APP_VERSION = "1.0.0";              // 設定に表示。delta の minAppVersion と比較
-// semver 緩い比較(-1 / 0 / 1)。数値以外や桁数差にも耐える。
-function cmpVer(a, b) {
-  const pa = String(a == null ? "0" : a).split(".").map((n) => parseInt(n, 10) || 0);
-  const pb = String(b == null ? "0" : b).split(".").map((n) => parseInt(n, 10) || 0);
-  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    const x = pa[i] || 0, y = pb[i] || 0;
-    if (x !== y) return x < y ? -1 : 1;
-  }
-  return 0;
-}
-// 権益(entitlement)の単一の真実源。現在は全機能を free で開放(= 挙動不変)。
-// 将来の課金導入時は (a) ENTITLEMENTS.tier の供給元(IAP/Stripe/バックエンド)と
-// (b) FEATURES の宣言、この 2 箇所だけ差し替える。UI 側は hasFeature() を呼ぶだけ。
-const ENTITLEMENTS = { tier: "free" };
-const FEATURES = {};                      // 例: { aiUnlimited: ["pro","max"] }(必要 tier を宣言)
-function hasFeature(feature) {
-  const need = FEATURES[feature];
-  if (!need || !need.length) return true; // 未宣言の機能は誰でも可(現状=全機能開放)
-  return need.indexOf(ENTITLEMENTS.tier) >= 0;
-}
-const CATALOG_DEFAULT_BASE = "";          // 既定の配信元。例:
-//   "https://cdn.jsdelivr.net/gh/<user>/<repo>@main/catalog"
-//   (末尾に /version.json・/delta.json を付けて取得。空なら目錄更新は無効=ALL_BASE のみ)
-
-// delta の最低限スキーマ検証(壊れた/半端な取得を弾き、現行データに固着させない)
-function validateCatalog(d) {
-  if (!d || typeof d !== "object" || Array.isArray(d)) return false;
-  if (typeof d.catalogVersion !== "number") return false;
-  if (d.add != null && !Array.isArray(d.add)) return false;
-  if (d.patch != null && (typeof d.patch !== "object" || Array.isArray(d.patch))) return false;
-  if (d.retract != null && !Array.isArray(d.retract)) return false;
-  if (d.notes != null && typeof d.notes !== "string") return false;
-  if (d.minAppVersion != null && typeof d.minAppVersion !== "string") return false;
-  if (d.checksum != null && typeof d.checksum !== "string") return false;
-  if (d.schema != null && typeof d.schema !== "number") return false;
-  const seen = new Set();
-  for (const k of (d.add || [])) {
-    if (!k || typeof k.id !== "string" || !k.id) return false; // id は永久・必須
-    if (seen.has(k.id)) return false;                          // delta 内重複禁止
-    seen.add(k.id);
-  }
-  if (typeof d.count === "number" && d.count !== (d.add ? d.add.length : 0)) return false;
-  return true;
-}
-
-// ALL_BASE に delta を適用して合併済み配列を返す(純関数・ALL_BASE は不変)
-function applyCatalog(base, cat) {
-  if (!cat) return base;
-  const out = base.slice();
-  const pos = new Map();
-  for (let i = 0; i < out.length; i++) pos.set(out[i].id, i);
-  // add:新規IDは追記。既存IDと衝突したら patch 扱いでマージ(取りこぼし防止)。
-  for (const rec of (cat.add || [])) {
-    if (pos.has(rec.id)) {
-      const i = pos.get(rec.id);
-      out[i] = { ...out[i], ...rec };
-    } else {
-      out.push({ line: "", no: "", code: "", series: "", premium: false, base: false, ...rec });
-      pos.set(rec.id, out.length - 1);
-    }
-  }
-  // patch:既存機体の部分更新(定価・alias 等の公式修正)
-  if (cat.patch) {
-    for (const id in cat.patch) {
-      const i = pos.get(id);
-      if (i != null) out[i] = { ...out[i], ...cat.patch[id] };
-    }
-  }
-  // retract(下架/撤回):重大な誤りの緊急取り下げ用。削除せず retracted フラグを立てる
-  // だけ(収藏記録・画像を孤児化させない)。表示は allKits 側で隠す。再公開は retract
-  // から外せば、記録が残っているのでそのまま復活する。
-  if (cat.retract && cat.retract.length) {
-    for (const id of cat.retract) {
-      const i = pos.get(id);
-      if (i != null) out[i] = { ...out[i], retracted: true };
-    }
-  }
-  return out;
-}
-
-// 更新履歴用の差分:前回適用した delta(prev)と今回(next)を比べ、今回「新たに」
-// 追加/修正/下架/再公開された項目だけを名前付きで返す。delta はスナップショットのため、
-// 単純な件数ではなくこの差分が「今回の変化」を正確に表す。add から消えた項目
-// (= kits-data.js への折込み等)は利用者向けの「削除」ではないので意図的に無視する。
-function diffCatalog(prev, next) {
-  const nameMap = {};
-  for (const k of applyCatalog(ALL_BASE, next)) nameMap[k.id] = k.name;
-  const nameOf = (id) => nameMap[id] || id;
-  const prevAdd = new Set(((prev && prev.add) || []).map((k) => k.id));
-  const prevPatch = (prev && prev.patch) || {};
-  const prevRet = new Set((prev && prev.retract) || []);
-  const nextRet = new Set(next.retract || []);
-  const added = [], patched = [], retracted = [], restored = [];
-  for (const k of (next.add || [])) if (!prevAdd.has(k.id)) added.push({ id: k.id, name: k.name || k.id });
-  for (const id in (next.patch || {})) {
-    const nf = next.patch[id] || {}, of = prevPatch[id] || {};
-    const fields = Object.keys(nf).filter((f) => JSON.stringify(of[f]) !== JSON.stringify(nf[f]));
-    if (fields.length) patched.push({ id, name: nameOf(id), fields });
-  }
-  for (const id of nextRet) if (!prevRet.has(id)) retracted.push({ id, name: nameOf(id) });
-  for (const id of prevRet) if (!nextRet.has(id)) restored.push({ id, name: nameOf(id) });
-  return { added, patched, retracted, restored };
-}
-
-/* ── ④ 目錄完整性 + schema 互換シーム ──
-   checksum / schema は「在る時だけ」検証。無ければ true=現状不変。
-   canonical: キーを再帰ソート(配列順は保持)した決定的 JSON。生成側と検証側で一致させる。
-   ※ checksum は add/patch/retract/notes のみを対象(version/generatedAt/checksum 自体は除外)。 */
-function canonicalCatalog(d) {
-  const sort = (v) => {
-    if (Array.isArray(v)) return v.map(sort);
-    if (v && typeof v === "object") {
-      const o = {};
-      for (const k of Object.keys(v).sort()) o[k] = sort(v[k]);
-      return o;
-    }
-    return v;
-  };
-  return JSON.stringify(sort({ add: d.add || [], patch: d.patch || {}, retract: d.retract || [], notes: d.notes || "" }));
-}
-// FNV-1a 32bit(Math.imul で正しい 32bit 乗算)→ 8桁hex。破損/半端ダウンロード/不一致の
-// 検出に十分。暗号強度はない(改竄対策の署名は将来の別案件)。
-function catalogChecksum(d) {
-  const s = canonicalCatalog(d);
-  let h = 0x811c9dc5;
-  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
-  return (h >>> 0).toString(16).padStart(8, "0");
-}
-function verifyCatalogIntegrity(d) {
-  if (typeof d.schema === "number" && d.schema > CATALOG_SCHEMA) return false; // client が古すぎて解釈不可→拒否
-  if (typeof d.checksum === "string" && d.checksum && d.checksum !== catalogChecksum(d)) return false; // 破損/不一致→拒否
-  return true;
-}
-
-// ── 配信トランスポート(★商用化の差し替え点はここだけ)──
-async function fetchCatalogVersion(base) {
-  const root = String(base || "").trim().replace(/\/+$/, "");
-  if (!root) return null;
-  const res = await fetch(root + "/version.json", { cache: "no-store" });
-  if (!res.ok) throw new Error("HTTP " + res.status);
-  return res.json();
-}
-async function fetchCatalogDelta(base) {
-  const root = String(base || "").trim().replace(/\/+$/, "");
-  if (!root) return null;
-  const res = await fetch(root + "/delta.json", { cache: "no-store" });
-  if (!res.ok) throw new Error("HTTP " + res.status);
-  const d = await res.json();
-  if (!validateCatalog(d)) throw new Error("catalog schema invalid");
-  if (!verifyCatalogIntegrity(d)) throw new Error("catalog integrity/compat failed"); // 破損/非互換→失敗扱い=快取へ退避
-  return d;
-}
 
 
 
@@ -876,17 +708,6 @@ function App() {
   const [serifEdit, setSerifEdit] = useState(null); // {ref, text} | null
   const [tagInput, setTagInput] = useState("");
   const [overrides, setOverrides] = useState({});
-  const [catalog, setCatalog] = useState(null);   // クラウド配信の目錄 delta(検証済み or null)
-  const catalogRef = useRef(null);                // 最新版判定用(load effect の単発クロージャ回避)
-  const [catalogLog, setCatalogLog] = useState([]);       // 更新履歴(本地のみ・同期しない)
-  const catalogLogRef = useRef([]);
-  const [catalogLogOpen, setCatalogLogOpen] = useState(false);
-  // トースト(decree)のタップ→更新履歴を開く連携
-  useEffect(() => {
-    const onTap = (e) => { if (e && e.detail === "catalog-log") setCatalogLogOpen(true); };
-    window.addEventListener("app-toast-tap", onTap);
-    return () => window.removeEventListener("app-toast-tap", onTap);
-  }, []);
   const [customKits, setCustomKits] = useState([]);
   const [images, setImages] = useState({});
   const [extras, setExtras] = useState({});       // 追加画像 {xid: src}
@@ -1049,6 +870,8 @@ function App() {
   }, [applyMeta, mergeSettings]);
   const { syncMsg, setSyncMsg, storageErr, setStorageErr, supaRef,
           persist, saveKey, flushDirty, pullCloud, initFromStorage } = useSync({ loaded, L, applyRow });
+  const { catalog, catalogLog, catalogLogOpen, setCatalogLogOpen,
+          refreshCatalog, initCatalogFromStorage } = useCatalog({ L, persist, catalogUrl: settings.catalogUrl });
   const [setupOpen, setSetupOpen] = useState(false);
   const [setupBusy, setSetupBusy] = useState(false);
   const [setupMsg, setSetupMsg] = useState("");
@@ -1213,14 +1036,8 @@ function App() {
       setAchvSeen((s) => (s === null ? {} : s));
       // LWW 時戳と未送信キューの復元(use-sync へ移設。位置・順序は移設前と同一)
       await initFromStorage();
-      try {
-        const cr = await window.storage.get(CATALOG_CACHE_KEY);
-        if (cr && cr.value) { const cv = JSON.parse(cr.value); if (validateCatalog(cv)) { catalogRef.current = cv; setCatalog(cv); } }
-      } catch (e) { /* 初回はキャッシュ無し:ALL_BASE のみで起動 */ }
-      try {
-        const lr = await window.storage.get(CATALOG_LOG_KEY);
-        if (lr && lr.value) { const lg = JSON.parse(lr.value); if (Array.isArray(lg)) { catalogLogRef.current = lg; setCatalogLog(lg); } }
-      } catch (e) { /* 履歴なし */ }
+      // 機体目錄キャッシュ+更新履歴の復元(use-catalog へ移設。位置・順序は移設前と同一)
+      await initCatalogFromStorage();
       setLoaded(true); // UI 立即顯示,圖像分片於背景逐片載入
       for (let i = 0; i < IMG_SHARDS; i++) {
         window.storage.get("mg_imgs_" + i)
@@ -1419,96 +1236,6 @@ function App() {
     setSetupBusy(false);
   };
 
-  /* ── 機体目錄の刷新(選項1)──
-     version.json で新鮮度を先判定 → 新しければ delta.json を取得・検証 → state 更新 +
-     本地キャッシュ(saveKey を通さない=同期に混ぜない)。失敗は握り潰し、現行データを維持。
-     baseArg は load effect から「直読みした settings.catalogUrl」を渡す用(state 反映前のため)。 */
-  /* ── 商用化シーム:運営お知らせ(notice)と最低 app バージョン(minAppVersion)──
-     version.json / delta.json にこれらの欄位が「在る時だけ」反応する。現状のデータには
-     無いので挙動は不変。notice は同じ内容を一度だけ通知(本地 dedupe・同期しない)。
-     minAppVersion は現状ソフト通知のみ(将来の強制更新はここを 1 行強める)。 */
-  const processCatalogMeta = useCallback(async (meta) => {
-    if (!meta || typeof meta !== "object") return;
-    try {
-      if (typeof meta.minAppVersion === "string" && cmpVer(APP_VERSION, meta.minAppVersion) < 0) {
-        let seen = ""; try { const s = await window.storage.get("mg_minver_seen"); seen = (s && s.value) || ""; } catch (e) {}
-        if (seen !== meta.minAppVersion) {
-          notify(L("新しいバージョンが利用可能です。更新して最新のデータを取得してください。", "A new version is available — update to get the latest data.", "有新版可用,請更新以取得最新資料。"), { kind: "info", dur: 4200 });
-          try { await window.storage.set("mg_minver_seen", meta.minAppVersion); } catch (e) {}
-        }
-      }
-      const n = meta.notice;
-      if (n) {
-        const ntext = typeof n === "object" ? String(n.text || "") : String(n);
-        const nid = typeof n === "object" ? String(n.id || ntext) : ntext;
-        if (ntext) {
-          let seen = ""; try { const s = await window.storage.get("mg_notice_seen"); seen = (s && s.value) || ""; } catch (e) {}
-          if (seen !== nid) {
-            notify(ntext, { kind: "info", dur: 5200 });
-            try { await window.storage.set("mg_notice_seen", nid); } catch (e) {}
-          }
-        }
-      }
-    } catch (e) { /* 失敗は無視 */ }
-  }, []);
-
-  const refreshCatalog = useCallback(async (baseArg) => {
-    const raw = baseArg != null ? baseArg : (settings.catalogUrl || "");
-    const base = (String(raw).trim() || CATALOG_DEFAULT_BASE).replace(/\/+$/, "");
-    if (!base) return 0;
-    const curVer = (catalogRef.current && typeof catalogRef.current.catalogVersion === "number")
-      ? catalogRef.current.catalogVersion : -1;
-    try {
-      // 1) version.json で先に新鮮度判定 + 運営メタ(公告/最低版本)を処理
-      let remoteVer = null;
-      let vmeta = null;
-      try { vmeta = await fetchCatalogVersion(base); } catch (e) {}
-      processCatalogMeta(vmeta); // 公告/最低版本は catalogVersion と独立に毎回チェック(無ければ無反応)
-      if (vmeta && typeof vmeta.catalogVersion === "number") remoteVer = vmeta.catalogVersion;
-      if (remoteVer != null && remoteVer <= curVer) return 0; // 既に最新:delta を取りに行かない
-      // 2) delta 取得・検証
-      const d = await fetchCatalogDelta(base);
-      if (!d) return 0;
-      if (typeof d.catalogVersion === "number" && d.catalogVersion <= curVer) return 0;
-      const prev = catalogRef.current;
-      const isFirst = !prev;
-      const diff = diffCatalog(prev, d);
-      const total = diff.added.length + diff.patched.length + diff.retracted.length + diff.restored.length;
-      catalogRef.current = d;
-      setCatalog(d);
-      persist(CATALOG_CACHE_KEY, JSON.stringify(d)); // 同期対象外の本地キャッシュ
-      if (total > 0) {
-        // 更新履歴(log):本地のみ・同期しない。最近 CATALOG_LOG_MAX 件を保持。
-        const entry = { ts: new Date().toISOString(), version: d.catalogVersion,
-          notes: (typeof d.notes === "string" ? d.notes : ""),
-          added: diff.added, patched: diff.patched, retracted: diff.retracted, restored: diff.restored };
-        const nextLog = [entry, ...catalogLogRef.current].slice(0, CATALOG_LOG_MAX);
-        catalogLogRef.current = nextLog; setCatalogLog(nextLog);
-        persist(CATALOG_LOG_KEY, JSON.stringify(nextLog));
-        // 通知は「絞り込み解除」と同じ decree 様式。代表名+件数を出し、タップで更新履歴を開く。
-        // 初回適用(prev 無し)は全件が新規扱いになり大量表示になるため通知は出さない(履歴には残す)。
-        if (!isFirst) {
-          const cats = [
-            { arr: diff.added,     lab: L("追加", "added", "新增") },
-            { arr: diff.patched,   lab: L("修正", "updated", "修正") },
-            { arr: diff.retracted, lab: L("取り下げ", "removed", "下架") },
-            { arr: diff.restored,  lab: L("再公開", "restored", "重新上架") },
-          ].filter((c) => c.arr.length);
-          let body;
-          if (cats.length === 1) {
-            const c = cats[0];
-            body = c.lab + " " + c.arr[0].name +
-              (c.arr.length > 1 ? L("　他" + (c.arr.length - 1) + "件", " +" + (c.arr.length - 1), " 等 " + c.arr.length + " 件") : "");
-          } else {
-            body = cats.map((c) => c.lab + " " + c.arr.length).join(" · ");
-          }
-          notify(L("機体データ更新", "Catalog updated", "機體資料已更新") + L("：", ": ", "：") + body,
-            { variant: "decree", tag: L("更新", "UPDATED", "更新"), tap: "catalog-log", dur: 3600 });
-        }
-      }
-      return total;
-    } catch (e) { /* オフライン/取得失敗/検証失敗:無感で現行データ続行 */ return 0; }
-  }, [settings.catalogUrl, persist, processCatalogMeta]);
 
   const setImage = (id, val) => {
     setImages((prev) => {
