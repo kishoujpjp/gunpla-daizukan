@@ -279,7 +279,8 @@ export function useSync({ loaded, L, applyRow }) {
   const markAllDirty = useCallback(() => {
     const keys = [META_KEY, SETTINGS_KEY, ALBUM_KEY, SERIFS_KEY];
     for (let i = 0; i < IMG_SHARDS; i++) keys.push("mg_imgs_" + i);
-    for (let i = 0; i < XTRA_SHARDS; i++) keys.push("mg_xtra_" + i);
+    for (let i = 0; i < XTRA_SHARDS; i++) keys.push("mg_xtra_" + i); // v3 残置分の掃き出し用(値が無ければ no-op)
+    keys.push("mg_imgurls"); // v4: URL 画像行
     for (const k of keys) dirtyRef.current.add(k);
     persistDirty();
   }, [persistDirty]);

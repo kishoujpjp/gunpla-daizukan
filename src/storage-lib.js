@@ -60,11 +60,14 @@ export function validateBackup(d) {
    migrateMeta を通す。schemaVersion 無印は v2(本機構導入前)とみなす。
    将来データ構造を変えるたびに SCHEMA_VERSION を上げ、MIGRATIONS に
    「N → N+1」変換を1つ追記する。各変換が実装を伴う時はテストを書くこと。 */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 export const MIGRATIONS = {
   // v2 → v3:フィールド級時戳(_ts)導入。旧 record は読み出し時に tsOf が
   // 頂層 t から合成するため、ここでは明示変換は不要(no-op)。
   2: (d) => d,
+  // v3 → v4:画像バイナリを KV 分片から image-store(IndexedDB Blob)へ移設。
+  // META 構造自体は不変のため no-op(実体移行は起動時の migrateShardsToStore が担う)。
+  3: (d) => d,
 };
 export function migrateMeta(data) {
   if (!data || typeof data !== "object" || Array.isArray(data)) return data;

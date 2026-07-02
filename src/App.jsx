@@ -32,7 +32,6 @@ import {
   IMG_SHARDS,
   XTRA_SHARDS,
   MAX_IMGS_PER_KIT,
-  MAX_SYNC_BYTES,
   SECRET_KEYS,
   stripSecrets,
   metaForCloud,
@@ -43,8 +42,6 @@ import {
   MIGRATIONS,
   migrateMeta,
   hashId,
-  shardKey,
-  xtraKey,
   newXid,
   kitExtraIds,
   albumRefs,
@@ -59,6 +56,8 @@ import {
   framingStyle,
   newImgId
 } from "./storage-lib.js";
+import { imageStore } from "./image-store.js";
+import { migrateShardsToStore, isHttpSrc, blobToDataURL } from "./image-migrate.js";
 
 
 
@@ -834,24 +833,38 @@ function App() {
       try { applyMeta(JSON.parse(row.value)); } catch (e) { return false; }
       return true;
     }
-    if (row.key.indexOf("mg_imgs_") === 0) {
-      try {
-        const m = JSON.parse(row.value);
-        setImages((prev) => {
-          const next = {};
-          for (const [ik, iv] of Object.entries(prev)) if (shardKey(ik) !== row.key) next[ik] = iv;
-          return { ...next, ...m };
-        });
-      } catch (e) { return false; }
+    if (row.key.indexOf("mg_imgs_") === 0 || row.key.indexOf("mg_xtra_") === 0) {
+      /* v3 端末からの分片行(互換 shim):追加のみ取込(削除は伝播させない=混版期の誤消去防止)。
+         v3 の「分片全置換」意味論は捨てる:v4 端末の新画像を旧端末の無知が消すため。
+         取込後、pullCloud が本地へ落とした分片行を掃除(起動遷移が後備網)。 */
+      let m;
+      try { m = JSON.parse(row.value); } catch (e) { return false; }
+      (async () => {
+        for (const [id, v] of Object.entries(m)) {
+          if (typeof v !== "string") continue;
+          if (isHttpSrc(v)) { setImages((p) => (p[id] ? p : { ...p, [id]: v })); continue; }
+          if (v.indexOf("data:") !== 0) continue;
+          try {
+            if (await imageStore.has(id)) continue;
+            await imageStore.putDataURL(id, v);
+            const u = await imageStore.getThumbURL(id);
+            if (!u) continue;
+            if (id.indexOf("~") >= 0) setExtras((p) => ({ ...p, [id]: u }));
+            else setImages((p) => ({ ...p, [id]: u }));
+          } catch (e) { /* 個別失敗は次へ */ }
+        }
+        try { await window.storage.delete(row.key); } catch (e) {}
+      })();
       return true;
     }
-    if (row.key.indexOf("mg_xtra_") === 0) {
+    if (row.key === "mg_imgurls") {
+      // URL 画像行:URL 項目のみ行全置換(v3 分片と同じ置換意味論)。blob 由来項目は温存。
       try {
-        const m = JSON.parse(row.value);
-        setExtras((prev) => {
+        const um = JSON.parse(row.value);
+        setImages((prev) => {
           const next = {};
-          for (const [ik, iv] of Object.entries(prev)) if (xtraKey(ik) !== row.key) next[ik] = iv;
-          return { ...next, ...m };
+          for (const [k, v] of Object.entries(prev)) if (!isHttpSrc(v)) next[k] = v;
+          return { ...next, ...um };
         });
       } catch (e) { return false; }
       return true;
@@ -1051,27 +1064,26 @@ function App() {
       await initFromStorage();
       // 機体目錄キャッシュ+更新履歴の復元(use-catalog へ移設。位置・順序は移設前と同一)
       await initCatalogFromStorage();
-      setLoaded(true); // UI 立即顯示,圖像分片於背景逐片載入
-      for (let i = 0; i < IMG_SHARDS; i++) {
-        window.storage.get("mg_imgs_" + i)
-          .then((r) => {
-            if (r && r.value) {
-              const m = JSON.parse(r.value);
-              setImages((prev) => ({ ...m, ...prev }));
-            }
-          })
-          .catch(() => {});
-      }
-      for (let i = 0; i < XTRA_SHARDS; i++) {
-        window.storage.get("mg_xtra_" + i)
-          .then((r) => {
-            if (r && r.value) {
-              const m = JSON.parse(r.value);
-              setExtras((prev) => ({ ...m, ...prev }));
-            }
-          })
-          .catch(() => {});
-      }
+      setLoaded(true); // UI 立即顯示,画像は背景で(v3→v4 遷移→)縮図 URL を構成して逐次反映
+      (async () => {
+        // v3→v4:分片(base64)→ image-store。冪等・分片単位確定、URL 項目は分流(image-migrate.js)。
+        const mig = await migrateShardsToStore(window.storage, imageStore, { imgShards: IMG_SHARDS, xtraShards: XTRA_SHARDS });
+        // URL 画像行(mg_imgurls):既存 + 遷移分を合流。遷移分があれば保存(同期にも乗る)。
+        let urlMap = {};
+        try { const ur = await window.storage.get("mg_imgurls"); if (ur && ur.value) urlMap = JSON.parse(ur.value); } catch (e) {}
+        if (Object.keys(mig.urlRows).length) {
+          urlMap = { ...urlMap, ...mig.urlRows };
+          await saveKey("mg_imgurls", JSON.stringify(urlMap));
+        }
+        // 縮図 URL を一括構成。未派生分は背景派生後に追い差し(onLate)。
+        const lateSet = (id, u) => { if (id.indexOf("~") >= 0) setExtras((p) => ({ ...p, [id]: u })); else setImages((p) => ({ ...p, [id]: u })); };
+        const thumbs = await imageStore.allThumbURLs(lateSet);
+        const imgs0 = {}, xtras0 = {};
+        for (const [id, u] of Object.entries(thumbs)) { if (id.indexOf("~") >= 0) xtras0[id] = u; else imgs0[id] = u; }
+        setImages((prev) => ({ ...imgs0, ...urlMap, ...prev }));
+        setExtras((prev) => ({ ...xtras0, ...prev }));
+        /* ▼診断用(3-4で除去)▼ */ console.info("[mg-zukan] img-mig: moved=" + mig.moved + " urls=" + Object.keys(mig.urlRows).length + " kept=" + mig.keptShards.join(",") + " thumbs=" + Object.keys(thumbs).length);
+      })();
       // 託管建置(managedOn)では BYO 起動同期を行わない:
       //   残留した旧 supaUrl/supaKey が託管テーブルへ誤射する事故を防ぐ
       //  (on_conflict=key が (user_id,key) 主鍵と不一致 → 400 の実例あり)。
@@ -1234,20 +1246,30 @@ function App() {
      依存配列なしで毎レンダー再生成すると observer churn と limit の暴走増分を招くため。 */
 
   /* ── 保存圖像分片 ── */
-  const persistShard = useCallback(async (allImages, id) => {
-    const key = shardKey(id);
-    const map = {};
-    for (const [k, v] of Object.entries(allImages)) if (shardKey(k) === key) map[k] = v;
-    await saveKey(key, JSON.stringify(map));
+  /* ── v4 画像書込ヘルパー ──
+     値の種別で分流:data:URL → image-store(orig+縮図)/ http(s) URL → mg_imgurls 行 / null → 削除。
+     state には縮図 URL(または http URL)。即時表示のため一旦 data:URL を置き、store 化後に差し替える。 */
+  const persistUrlRow = useCallback(async (nextImages) => {
+    const um = {};
+    for (const [k, v] of Object.entries(nextImages)) if (isHttpSrc(v)) um[k] = v;
+    await saveKey("mg_imgurls", JSON.stringify(um));
   }, [saveKey]);
-
-  /* 追加画像(extras)の保存。変更のあった xid が属するシャードのみ書き戻す。 */
-  const persistXtraShard = useCallback(async (allExtras, xid) => {
-    const key = xtraKey(xid);
-    const map = {};
-    for (const [k, v] of Object.entries(allExtras)) if (xtraKey(k) === key) map[k] = v;
-    await saveKey(key, JSON.stringify(map));
-  }, [saveKey]);
+  const storeImage = useCallback(async (id, dataURL) => {
+    const blob = await (await fetch(dataURL)).blob();
+    const norm = await imageStore.normalizeImport(blob);
+    await imageStore.putOrig(id, norm.blob, norm.w ? { w: norm.w, h: norm.h } : undefined);
+    return imageStore.getThumbURL(id);
+  }, []);
+  /* AI変換などが原図(data:URL)を要する時の解決器。store 原図 → 無ければ http URL → null */
+  const resolveOrigDataURL = useCallback(async (kitId, ref) => {
+    const id = ref === "primary" ? kitId : ref;
+    try {
+      const blob = await imageStore.getOrigBlob(id);
+      if (blob) return await blobToDataURL(blob);
+    } catch (e) {}
+    const v = ref === "primary" ? images[kitId] : extras[ref];
+    return isHttpSrc(v) ? v : null;
+  }, [images, extras]);
 
   const syncNow = async () => {
     const cfg = (managedOn() && auth.session)
@@ -1294,12 +1316,27 @@ function App() {
 
 
   const setImage = (id, val) => {
-    setImages((prev) => {
-      const next = { ...prev };
-      if (val == null) delete next[id]; else next[id] = val;
-      persistShard(next, id);
-      return next;
-    });
+    if (val == null) {
+      setImages((prev) => {
+        const next = { ...prev };
+        const wasUrl = isHttpSrc(next[id]);
+        delete next[id];
+        imageStore.deleteImage(id);
+        if (wasUrl) persistUrlRow(next);
+        return next;
+      });
+      return;
+    }
+    if (isHttpSrc(val)) {
+      setImages((prev) => { const next = { ...prev, [id]: val }; persistUrlRow(next); return next; });
+      return;
+    }
+    // data:URL:即時表示 → 背景 store 化 → 縮図 URL に差し替え
+    setImages((prev) => ({ ...prev, [id]: val }));
+    (async () => {
+      try { const u = await storeImage(id, val); if (u) setImages((p) => ({ ...p, [id]: u })); }
+      catch (e) { console.error(e); }
+    })();
   };
 
   /* ── アルバム(複数画像)操作 ── */
@@ -1328,7 +1365,11 @@ function App() {
   const addAlbumImage = useCallback((kitId, src, meta) => {
     if (!src) return false;
     const xid = newXid(kitId);
-    setExtras((prev) => { const next = { ...prev, [xid]: src }; persistXtraShard(next, xid); return next; });
+    setExtras((prev) => ({ ...prev, [xid]: src })); // 即時表示(data:URL)→ store 化後に縮図 URL へ
+    (async () => {
+      try { const u = await storeImage(xid, src); if (u) setExtras((p) => ({ ...p, [xid]: u })); }
+      catch (e) { console.error(e); }
+    })();
     setAlbumMeta((prev) => {
       const m = prev[kitId] || {};
       const base = (m.order && m.order.length) ? m.order.slice() : albumRefs(kitId, images, extras, prev);
@@ -1336,14 +1377,14 @@ function App() {
     });
     recordImgMeta(kitId, xid, meta || { src: "photo" });
     return true;
-  }, [images, extras, albumMeta, persistXtraShard, recordImgMeta]);
+  }, [images, extras, albumMeta, storeImage, recordImgMeta]);
 
   // アルバムから1枚削除(primary か extra)。役割/順序/構図も掃除。
   const removeAlbumImage = useCallback((kitId, ref) => {
     if (ref === "primary") {
-      setImages((prev) => { const next = { ...prev }; delete next[kitId]; persistShard(next, kitId); return next; });
+      setImages((prev) => { const next = { ...prev }; const wasUrl = isHttpSrc(next[kitId]); delete next[kitId]; imageStore.deleteImage(kitId); if (wasUrl) persistUrlRow(next); return next; });
     } else {
-      setExtras((prev) => { const next = { ...prev }; delete next[ref]; persistXtraShard(next, ref); return next; });
+      setExtras((prev) => { const next = { ...prev }; delete next[ref]; imageStore.deleteImage(ref); return next; });
     }
     setAlbumMeta((prev) => {
       const m = prev[kitId] || {};
@@ -1355,7 +1396,27 @@ function App() {
       if (m.imeta && m.imeta[ref]) { const im = { ...m.imeta }; delete im[ref]; patch.imeta = im; }
       return stampAlbum(prev, kitId, patch);
     });
-  }, [persistShard, persistXtraShard]);
+  }, [persistUrlRow]);
+
+  /* ── 鑑賞ビューア:現在機体の原図 URL を先読み(縮図 → 原図へ自然置換) ── */
+  const [viewerOrig, setViewerOrig] = useState({});
+  useEffect(() => {
+    if (!viewer || !viewer.kitId) return;
+    let dead = false;
+    (async () => {
+      const refs = albumRefs(viewer.kitId, images, extras, albumMeta);
+      for (const ref of refs) {
+        const id = ref === "primary" ? viewer.kitId : ref;
+        try {
+          const u = await imageStore.getOrigURL(id);
+          if (dead || !u) continue;
+          const vk = viewer.kitId + "/" + ref;
+          setViewerOrig((p) => (p[vk] ? p : { ...p, [vk]: u }));
+        } catch (e) {}
+      }
+    })();
+    return () => { dead = true; };
+  }, [viewer && viewer.kitId]);
 
   // 役割割り当て: role='thumb'|'acquire'
   const setAlbumRole = useCallback((kitId, ref, role) => {
@@ -1414,73 +1475,35 @@ function App() {
     setViewer({ kitId, ref, from });
   }, [images, extras, albumMeta]);
 
-  /* ── 画像最適化:既存の大きな画像を480pxへ再圧縮 ── */
+  /* ── 画像最適化(v4):原図を上限(1600px)へ再圧縮し、縮図キャッシュを全再構築 ── */
   const optimizeImages = async () => {
     if (optimizing) return;
     setOptimizing(true);
     try {
-      const next = { ...images };
       let changed = 0;
-      for (const [id, url] of Object.entries(images)) {
-        if (typeof url !== "string" || !url.startsWith("data:")) continue;
-        const out = await new Promise((res) => {
-          const im = new Image();
-          im.onload = () => {
-            if (im.width <= 480) return res(null);
-            const c = document.createElement("canvas");
-            c.width = 480;
-            c.height = Math.round(im.height * (480 / im.width));
-            c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
-            res(c.toDataURL("image/jpeg", 0.74));
-          };
-          im.onerror = () => res(null);
-          im.src = url;
-        });
-        if (out && out.length < url.length) { next[id] = out; changed++; }
+      for (const id of await imageStore.listIds()) {
+        const blob = await imageStore.getOrigBlob(id);
+        if (!blob) continue;
+        const norm = await imageStore.normalizeImport(blob);
+        if (norm.blob !== blob) { await imageStore.putOrig(id, norm.blob, { w: norm.w, h: norm.h }); changed++; }
       }
-      if (changed) {
-        setImages(next);
-        for (let i = 0; i < IMG_SHARDS; i++) {
-          const map = {};
-          for (const [k, v] of Object.entries(next)) if (hashId(k) % IMG_SHARDS === i) map[k] = v;
-          await saveKey("mg_imgs_" + i, JSON.stringify(map));
-        }
-      }
-      // 追加画像(extras)も同様に再圧縮
-      const nextX = { ...extras };
-      let changedX = 0;
-      for (const [id, url] of Object.entries(extras)) {
-        if (typeof url !== "string" || !url.startsWith("data:")) continue;
-        const out = await new Promise((res) => {
-          const im = new Image();
-          im.onload = () => {
-            if (im.width <= 480) return res(null);
-            const c = document.createElement("canvas");
-            c.width = 480; c.height = Math.round(im.height * (480 / im.width));
-            c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
-            res(c.toDataURL("image/jpeg", 0.74));
-          };
-          im.onerror = () => res(null);
-          im.src = url;
-        });
-        if (out && out.length < url.length) { nextX[id] = out; changedX++; }
-      }
-      if (changedX) {
-        setExtras(nextX);
-        for (let i = 0; i < XTRA_SHARDS; i++) {
-          const map = {};
-          for (const [k, v] of Object.entries(nextX)) if (hashId(k) % XTRA_SHARDS === i) map[k] = v;
-          await saveKey("mg_xtra_" + i, JSON.stringify(map));
-        }
-      }
-      const total = changed + changedX;
-      notify(total ? (total + L(" 枚の画像を再圧縮しました"," images recompressed"," 張圖片已重新壓縮")) : L("再圧縮が必要な画像はありませんでした","No images needed recompressing","沒有需要重新壓縮的圖片"), { kind: total ? "ok" : "info" });
+      const rebuilt = await imageStore.rebuildThumbs();
+      // state の縮図 URL を作り直したものへ全差し替え(URL 項目は温存)
+      const lateSet = (id, u) => { if (id.indexOf("~") >= 0) setExtras((p) => ({ ...p, [id]: u })); else setImages((p) => ({ ...p, [id]: u })); };
+      const thumbs = await imageStore.allThumbURLs(lateSet);
+      const imgs0 = {}, xtras0 = {};
+      for (const [id, u] of Object.entries(thumbs)) { if (id.indexOf("~") >= 0) xtras0[id] = u; else imgs0[id] = u; }
+      setImages((prev) => { const keep = {}; for (const [k, v] of Object.entries(prev)) if (isHttpSrc(v)) keep[k] = v; return { ...imgs0, ...keep }; });
+      setExtras(() => ({ ...xtras0 }));
+      notify(changed
+        ? (changed + L(" 枚の原図を再圧縮しました"," originals recompressed"," 張原圖已重新壓縮") + L("(縮図","(thumbs ","(縮圖") + rebuilt + L("件再構築)"," rebuilt)","筆重建)"))
+        : (L("再圧縮が必要な画像はありませんでした","No images needed recompressing","沒有需要重新壓縮的圖片") + L("(縮図","(thumbs ","(縮圖") + rebuilt + L("件再構築)"," rebuilt)","筆重建)")), { kind: changed ? "ok" : "info" });
     } finally { setOptimizing(false); }
   };
 
   /* ── 箱絵 manifest の一括インポート(路徑B: URL 参照) ──
      manifest = { kit_id: 公開URL }。既存機体に該当する URL だけを取り込み、
-     8 シャードを各1回だけ保存+推送(値は短いURLなので同期は軽量)。 */
+     mg_imgurls 行に保存+推送(値は短いURLなので同期は軽量)。 */
   const importManifest = async () => {
     const u = (manifestUrl || "").trim();
     if (!u) { setImgMsg(L("manifest の URL を入力してください","Enter the manifest URL","請輸入 manifest 的 URL")); return; }
@@ -1501,11 +1524,7 @@ function App() {
       }
       if (!n) { setImgMsg(L("差分なし(取り込み 0 / 対象外 ","No changes (imported 0 / skipped ","無差異(匯入 0 / 略過 ") + skip + L(")",")",")")); setImgBusy(false); return; }
       setImages(next);
-      for (let i = 0; i < IMG_SHARDS; i++) {
-        const m = {};
-        for (const [k, v] of Object.entries(next)) if (hashId(k) % IMG_SHARDS === i) m[k] = v;
-        await saveKey("mg_imgs_" + i, JSON.stringify(m));
-      }
+      await persistUrlRow(next);
       setImgMsg(L("取り込み完了: ","Imported: ","匯入完成: ") + n + L(" 件更新"," updated"," 筆更新") + (skip ? (L(" / 対象外 "," / skipped "," / 略過 ") + skip) : ""));
     } catch (e) {
       setImgMsg(L("失敗: ","Failed: ","失敗: ") + ((e && e.message) || e));
@@ -1549,24 +1568,18 @@ function App() {
   const attachPhoto = useCallback(async (kitId, dataURL) => {
     if (!dataURL) return;
     if (!images[kitId]) {
-      const next = { ...images, [kitId]: dataURL };
-      setImages(next);
-      const idx = hashId(kitId) % IMG_SHARDS;
-      const m = {};
-      for (const [k, v] of Object.entries(next)) if (hashId(k) % IMG_SHARDS === idx) m[k] = v;
-      await saveKey("mg_imgs_" + idx, JSON.stringify(m));
+      setImages((prev) => ({ ...prev, [kitId]: dataURL })); // 即時表示 → store 化後に縮図 URL へ
       recordImgMeta(kitId, "primary", { src: "photo" });
+      try { const u = await storeImage(kitId, dataURL); if (u) setImages((p) => ({ ...p, [kitId]: u })); }
+      catch (e) { console.error(e); }
     } else {
       const xid = newXid(kitId);
-      const nextX = { ...extras, [xid]: dataURL };
-      setExtras(nextX);
-      const idx = hashId(xid) % XTRA_SHARDS;
-      const m = {};
-      for (const [k, v] of Object.entries(nextX)) if (hashId(k) % XTRA_SHARDS === idx) m[k] = v;
-      await saveKey("mg_xtra_" + idx, JSON.stringify(m));
+      setExtras((prev) => ({ ...prev, [xid]: dataURL }));
       recordImgMeta(kitId, xid, { src: "photo" });
+      try { const u = await storeImage(xid, dataURL); if (u) setExtras((p) => ({ ...p, [xid]: u })); }
+      catch (e) { console.error(e); }
     }
-  }, [images, extras, saveKey, recordImgMeta]);
+  }, [images, extras, storeImage, recordImgMeta]);
 
   /* ── ローカル画像をファイル名(=kit_id)で一括取り込み ──
      例: b001.jpg → 機体 b001 に紐付け。画像は 480px JPEG へ圧縮(同期上限に安全)。
@@ -1591,10 +1604,9 @@ function App() {
     if (ok) {
       setImages(next);
       okIds.forEach((id) => recordImgMeta(id, "primary", { src: "photo" }));
-      for (let i = 0; i < IMG_SHARDS; i++) {
-        const m = {};
-        for (const [k, v] of Object.entries(next)) if (hashId(k) % IMG_SHARDS === i) m[k] = v;
-        await saveKey("mg_imgs_" + i, JSON.stringify(m));
+      for (const id of okIds) {
+        try { const u = await storeImage(id, next[id]); if (u) setImages((p) => ({ ...p, [id]: u })); }
+        catch (e) { console.error(e); }
       }
     }
     setImgBusy(false);
@@ -1605,7 +1617,7 @@ function App() {
   /* Service Worker 登録(オフライン画像キャッシュ用)。/sw.js を配信ルートに置くこと。 */
   useEffect(() => {
     if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
+    if (import.meta.env.PROD) navigator.serviceWorker.register("/sw.js").catch(() => {}); // dev は登録しない(main.jsx と同方針)
     const onMsg = (e) => {
       const d = (e && e.data) || {};
       if (d.type === "precache-done") {
@@ -1621,7 +1633,18 @@ function App() {
   const importRef = useRef(null);
   const exportData = async () => {
     // バックアップにも機密キーは含めない(端末ローカルにのみ残す)
-    const data = { schemaVersion: SCHEMA_VERSION, exportedAt: new Date().toISOString(), records, overrides, customKits, settings: stripSecrets(settings), sortKey: sortKeyMap.zukan, sortDir: sortDirMap.zukan, sortKeyMap, sortDirMap, images, extras, albumMeta, kitTags, serifs };
+    // v4: 画像は store の原図を base64 へ逆変換して同梱(自包含・v3 でも読める形式)。URL 項目はそのまま。
+    const exImages = {}, exExtras = {};
+    for (const [k, v] of Object.entries(images)) if (isHttpSrc(v)) exImages[k] = v;
+    for (const id of await imageStore.listIds()) {
+      try {
+        const blob = await imageStore.getOrigBlob(id);
+        if (!blob) continue;
+        const dURL = await blobToDataURL(blob);
+        if (id.indexOf("~") >= 0) exExtras[id] = dURL; else exImages[id] = dURL;
+      } catch (e) { /* 個別失敗はスキップ */ }
+    }
+    const data = { schemaVersion: SCHEMA_VERSION, exportedAt: new Date().toISOString(), records, overrides, customKits, settings: stripSecrets(settings), sortKey: sortKeyMap.zukan, sortDir: sortDirMap.zukan, sortKeyMap, sortDirMap, images: exImages, extras: exExtras, albumMeta, kitTags, serifs };
     const json = JSON.stringify(data);
     const name = `mg_zukan_backup_${new Date().toISOString().slice(0, 10)}.json`;
     const file = new File([json], name, { type: "application/json" });
@@ -1662,19 +1685,24 @@ function App() {
       if (d.sortDirMap) setSortDirMap((m) => ({ ...m, ...d.sortDirMap }));
       else if (d.sortDir === "asc" || d.sortDir === "desc") setSortDirMap({ zukan: d.sortDir, gallery: d.sortDir });
       if (d.images) {
-        setImages(d.images);
-        for (let i = 0; i < IMG_SHARDS; i++) {
-          const map = {};
-          for (const [k, v] of Object.entries(d.images)) if (hashId(k) % IMG_SHARDS === i) map[k] = v;
-          await saveKey("mg_imgs_" + i, JSON.stringify(map));
+        // 復元は全置換の意味論(v3 同様):バックアップに無い主画像は store から削除。
+        setImages(d.images); // 即時表示(base64/URL のまま)→ store 化後に縮図 URL へ順次差し替え
+        for (const id of await imageStore.listIds()) if (id.indexOf("~") < 0 && !(id in d.images)) await imageStore.deleteImage(id);
+        const um = {};
+        for (const [k, v] of Object.entries(d.images)) {
+          if (typeof v !== "string") continue;
+          if (isHttpSrc(v)) { um[k] = v; continue; }
+          if (v.indexOf("data:") !== 0) continue;
+          try { const u = await storeImage(k, v); if (u) setImages((p) => ({ ...p, [k]: u })); } catch (e) {}
         }
+        await saveKey("mg_imgurls", JSON.stringify(um));
       }
       if (d.extras && isPlainObj(d.extras)) {
         setExtras(d.extras);
-        for (let i = 0; i < XTRA_SHARDS; i++) {
-          const map = {};
-          for (const [k, v] of Object.entries(d.extras)) if (hashId(k) % XTRA_SHARDS === i) map[k] = v;
-          await saveKey("mg_xtra_" + i, JSON.stringify(map));
+        for (const id of await imageStore.listIds()) if (id.indexOf("~") >= 0 && !(id in d.extras)) await imageStore.deleteImage(id);
+        for (const [k, v] of Object.entries(d.extras)) {
+          if (typeof v !== "string" || v.indexOf("data:") !== 0) continue;
+          try { const u = await storeImage(k, v); if (u) setExtras((p) => ({ ...p, [k]: u })); } catch (e) {}
         }
       }
       if (d.albumMeta && isPlainObj(d.albumMeta)) setAlbumMeta(d.albumMeta);
@@ -3365,7 +3393,7 @@ function App() {
         return (
           <div className="viewer-bg" onClick={close}>
             <SwipeViewer slides={flat} index={gi} resetKey={String(curRef)}
-              resolveSrc={(sl) => (sl.ref ? refSrc(sl.ref, sl.kitId, images, extras) : null)}
+              resolveSrc={(sl) => (sl.ref ? (viewerOrig[sl.kitId + "/" + sl.ref] || refSrc(sl.ref, sl.kitId, images, extras)) : null)}
               serifOf={(sl) => (sl.ref ? (serifs[sl.ref] || "") : "")}
               onSerif={(sl) => { if (sl.ref) setSerifEdit({ ref: sl.ref, text: serifs[sl.ref] || "" }); }}
               onIndex={(i) => { setViewerDel(false); setSerifEdit(null); setViewer({ kitId: flat[i].kitId, ref: flat[i].ref, from: vfrom }); }}
@@ -3394,6 +3422,7 @@ function App() {
         if (!ek) return null;
         return (
           <ImageEditorModal kit={ek} images={images} extras={extras} albumMeta={albumMeta} builderName={settings.builderName}
+            resolveOrig={(ref) => resolveOrigDataURL(imgEdit, ref)}
             initialCols={settings.ieCols === 3 ? 3 : 2} onCols={(n) => patchSettings({ ieCols: n })}
             ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, proxy: aiProxyCfg, model: settings.geminiModel, prompts: settings.aiPrompts, style: settings.aiStyle, onModel: (m) => patchSettings({ geminiModel: m }), onStyle: (st) => patchSettings({ aiStyle: st }) }}
             onAddImage={(src, meta) => addAlbumImage(imgEdit, src, meta)}

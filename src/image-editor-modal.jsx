@@ -10,7 +10,7 @@ import { fileToCompressedDataURL, AI_STYLES, AI_MODEL_OPTS, aiProviderLabel, aiA
 import { SwipeViewer } from "./swipe-viewer.jsx";
 import { AIRestyleModal } from "./ai-restyle-modal.jsx";
 
-export function ImageEditorModal({ kit, images, extras, albumMeta, builderName, ai, initialCols, onCols, onAddImage, onRemoveImage, onSetRole, onFrame, onReorder, onSetLoc, onClose, onBack, L = (ja) => ja }) {
+export function ImageEditorModal({ kit, images, extras, albumMeta, builderName, resolveOrig, ai, initialCols, onCols, onAddImage, onRemoveImage, onSetRole, onFrame, onReorder, onSetLoc, onClose, onBack, L = (ja) => ja }) {
   const kitId = kit.id;
   const baseRefs = albumRefs(kitId, images, extras, albumMeta);
   const baseKey = baseRefs.join("|");
@@ -160,7 +160,8 @@ export function ImageEditorModal({ kit, images, extras, albumMeta, builderName, 
     setBusy(false); setAddOpen(false);
   };
   const addUrl = () => { const u = urlVal.trim(); if (!u) return; onAddImage(u, { src: "photo" }); setUrlVal(""); setAddOpen(false); };
-  const openAI = () => { if (!aiAvailable(ai)) { notify(aiProviderLabel(ai && ai.model) + L(" のAPIキーを設定タブで入力してください"," API key is required — add it in Settings"," 的 API 金鑰請至設定填入"), { kind: "warn", dur: 3200 }); return; } setAiSrc(selSrc); setAiOpen(true); setSel(null); setLocEditing(false); };
+  /* v4: AI 変換は原図(data:URL)で行う。resolveOrig 不能時は selSrc(縮図 URL 等)へ回退。 */
+  const openAI = async () => { if (!aiAvailable(ai)) { notify(aiProviderLabel(ai && ai.model) + L(" のAPIキーを設定タブで入力してください"," API key is required — add it in Settings"," 的 API 金鑰請至設定填入"), { kind: "warn", dur: 3200 }); return; } const orig = resolveOrig ? await Promise.resolve(resolveOrig(sel)).catch(() => null) : null; setAiSrc(orig || selSrc); setAiOpen(true); setSel(null); setLocEditing(false); };
   const closeSheet = () => { setSel(null); setLocEditing(false); };
   // 画像情報シート:前後の画像へ(矢印 / 左右スワイプ)
   const gotoRel = (d) => { const i = order.indexOf(sel); const j = i + d; if (j >= 0 && j < order.length) { setSel(order[j]); setLocEditing(false); } };
