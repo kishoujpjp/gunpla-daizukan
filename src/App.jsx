@@ -1404,8 +1404,11 @@ function App() {
     if (!viewer || !viewer.kitId) return;
     let dead = false;
     (async () => {
+      // 現在表示中の ref を最優先、その隣を次に、残りは相簿順(模糊期間の最短化)
       const refs = albumRefs(viewer.kitId, images, extras, albumMeta);
-      for (const ref of refs) {
+      const ci = Math.max(0, refs.indexOf(viewer.ref));
+      const order = [refs[ci], refs[ci + 1], refs[ci - 1], ...refs].filter((r, i, a) => r != null && a.indexOf(r) === i);
+      for (const ref of order) {
         const id = ref === "primary" ? viewer.kitId : ref;
         try {
           const u = await imageStore.getOrigURL(id);
@@ -1416,7 +1419,7 @@ function App() {
       }
     })();
     return () => { dead = true; };
-  }, [viewer && viewer.kitId]);
+  }, [viewer && viewer.kitId, viewer && viewer.ref]);
 
   // 役割割り当て: role='thumb'|'acquire'
   const setAlbumRole = useCallback((kitId, ref, role) => {
