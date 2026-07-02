@@ -26,6 +26,7 @@ const SYNC_TRANSPORT = {
       // 託管(認証)モード:accessToken を Bearer に。BYO は従来通り anon key(挙動不変)。
       headers: { apikey: cfg.key, Authorization: `Bearer ${cfg.accessToken || cfg.key}` },
     });
+    /* ▼診断用▼ */ console.info("[mg-zukan] pull:", cfg.url, "auth=", cfg.accessToken ? "JWT" : "anon", "status=", res.status);
     if (!res.ok) {
       let detail = "";
       try { const j = await res.json(); detail = j.message || j.hint || ""; } catch (e) {}
@@ -45,6 +46,7 @@ const SYNC_TRANSPORT = {
     try {
       // 託管モードは主キーが (user_id,key)。user_id は DB 既定値 auth.uid() が入る。
       const conflict = cfg.accessToken ? "user_id,key" : "key";
+      /* ▼診断用▼ */ console.info("[mg-zukan] push:", cfg.url, "conflict=", conflict, "auth=", cfg.accessToken ? "JWT" : "anon");
       const res = await fetch(`${cfg.url}/rest/v1/kv?on_conflict=${conflict}`, {
         method: "POST",
         headers: { apikey: cfg.key, Authorization: `Bearer ${cfg.accessToken || cfg.key}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates" },
@@ -153,7 +155,7 @@ export function useSync({ loaded, L, applyRow }) {
       }
     }
     const updated_at = syncTsRef.current[k] || new Date().toISOString();
-    const r = await SYNC_TRANSPORT.push({ url, key, userId: supaRef.current.userId }, [{ key: k, value: pushVal, updated_at }]);
+    const r = await SYNC_TRANSPORT.push({ url, key, accessToken: supaRef.current.accessToken, userId: supaRef.current.userId }, [{ key: k, value: pushVal, updated_at }]);
     if (r.ok) { unmarkDirty(k); setSyncMsg(L("クラウド同期済み ","Cloud-synced ","已雲端同步 ") + new Date().toLocaleTimeString()); return true; }
     if (r.offline) { setSyncMsg(L("オフライン — 接続回復後に再送します","Offline — will retry when reconnected","離線 — 連線恢復後重送")); return false; }
     setSyncMsg(L("同期エラー HTTP ","Sync error HTTP ","同步錯誤 HTTP ") + r.status + (r.message ? " — " + r.message : "") + L("(後で再送します)"," (will retry later)","(稍後重送)"));
@@ -257,7 +259,7 @@ export function useSync({ loaded, L, applyRow }) {
   const pullCloud = useCallback(async (cfg, force) => {
     const url = cfg.url, key = cfg.key;
     if (!url || !key) return 0;
-    const rows = await SYNC_TRANSPORT.pull({ url, key, userId: cfg.userId });
+    const rows = await SYNC_TRANSPORT.pull({ url, key, accessToken: cfg.accessToken, userId: cfg.userId });
     let applied = 0;
     for (const row of rows) {
       const lts = syncTsRef.current[row.key];

@@ -74,3 +74,9 @@ test("transport:BYO は Bearer=anon key・on_conflict=key / 託管は Bearer=JWT
     assert.equal(seen[3].headers.Authorization, "Bearer JWT");
   } finally { globalThis.fetch = orig; }
 });
+
+test("use-sync:pullCloud/pushKey の cfg 転送で accessToken を落とさない(退行防止)", () => {
+  const src = fs.readFileSync(new URL("./use-sync.js", import.meta.url), "utf8");
+  assert.ok(src.includes("SYNC_TRANSPORT.pull({ url, key, accessToken: cfg.accessToken"), "pullCloud が accessToken を転送");
+  assert.ok(src.includes("SYNC_TRANSPORT.push({ url, key, accessToken: supaRef.current.accessToken"), "pushKey が accessToken を転送");
+});
