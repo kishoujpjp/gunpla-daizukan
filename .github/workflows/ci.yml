@@ -1,0 +1,32 @@
+# ───────────────────────────────────────────────
+# CI — push / PR ごとにテストとビルドを検証する。
+# ・テスト:node:test(依存ゼロ)。src/*.test.js を一括実行。
+# ・ビルド:vite build(JSX 構文エラー・import 欠落はここで落ちる)。
+# 将来:eslint 導入時は test の前に lint ステップを追加。
+# ───────────────────────────────────────────────
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Unit tests (node:test)
+        run: node --test src/*.test.js
+
+      - name: Build (vite)
+        run: npm run build
