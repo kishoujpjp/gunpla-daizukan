@@ -11,7 +11,7 @@ import { haptic, hapticStrong, setHapticEnabled, swallowNextClick, swallowNextCl
 /* ── Phase 1 拆分モジュール(挙動不変・App.jsx から抽出) ── */
 import { UNI_TAG, UNI_PICK, universeOfKit, Emblem, SeriesWatermark } from "./universe.jsx";
 import { normJa, toRomaji } from "./ja-text.js";
-import { fileToCompressedDataURL, AI_STYLES, AI_MODELS, aiProviderLabel, aiActiveKey } from "./ai-config.js";
+import { fileToCompressedDataURL, AI_STYLES, AI_MODELS, aiProviderLabel, aiAvailable } from "./ai-config.js";
 import { DateSetField, Picker } from "./form-controls.jsx";
 import { notify, appConfirm, AppDialogHost } from "./dialogs.jsx";
 import { useSync, SETTINGS_KEY, ALBUM_KEY, SERIFS_KEY, secretFieldList } from "./use-sync.js";
@@ -516,7 +516,7 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
               </div>
               <button className="mini-btn ai" onClick={() => {
                 if (!previewImg) { notify(L("先に画像を設定してください", "Set an image first", "請先設定圖片"), { kind: "warn" }); return; }
-                if (!aiActiveKey(ai)) { notify(aiProviderLabel(ai && ai.model) + L(" のAPIキーを設定タブで入力してください", " API key is required — add it in Settings", " 的 API 金鑰請至設定填入"), { kind: "warn", dur: 3200 }); return; }
+                if (!aiAvailable(ai)) { notify(aiProviderLabel(ai && ai.model) + L(" のAPIキーを設定タブで入力してください", " API key is required — add it in Settings", " 的 API 金鑰請至設定填入"), { kind: "warn", dur: 3200 }); return; }
                 setAiOpen(true);
               }}>{L("✨ AIスタイル変換", "✨ AI restyle", "✨ AI 風格轉換")}</button>
               {previewImg && <button className="mini-btn" onClick={() => setCropSrc(previewImg)}>{L("✂ 切り抜き", "✂ Crop", "✂ 裁切")}</button>}
@@ -572,7 +572,7 @@ function KitForm({ initial, currentImg, onSave, onCancel, onDelete, isCustom, se
       {cropSrc && <CropModal src={cropSrc} onCancel={() => setCropSrc(null)} L={L}
         onDone={(out) => { applyNewImage(out); setCropSrc(null); }} />}
       {aiOpen && (albumMode ? aiSrc : previewImg) && (
-        <AIRestyleModal src={albumMode ? aiSrc : previewImg} geminiKey={ai && ai.geminiKey} openaiKey={ai && ai.openaiKey} model={(ai && ai.model) || "gemini-3-pro-image"}
+        <AIRestyleModal src={albumMode ? aiSrc : previewImg} geminiKey={ai && ai.geminiKey} openaiKey={ai && ai.openaiKey} proxy={ai && ai.proxy} model={(ai && ai.model) || "gemini-3-pro-image"}
           prompts={ai && ai.prompts} lastStyle={ai && ai.style} onModel={ai && ai.onModel} onStyle={ai && ai.onStyle} L={L}
           onAdopt={(out, meta) => { applyNewImage(out, meta); setAiOpen(false); }}
           onClose={() => setAiOpen(false)} />
@@ -712,7 +712,7 @@ function App() {
   const [images, setImages] = useState({});
   const [extras, setExtras] = useState({});       // 追加画像 {xid: src}
   const [albumMeta, setAlbumMeta] = useState({});  // {kitId:{order,thumb,acquire,framing}}
-  const [settings, setSettings] = useState({ view: "list", compact: false, dimUnowned: true, showCode: false, showSeries: false, showPrice: false, showNo: false, showGrade: false, showYm: false, salonCols: 2, salonFit: "cover", listGrade: true, listTags: true, listSeries: false, listNo: true, listCode: true, listPrice: true, listPurchase: false, listBuild: false, theme: "dark", tabPad: "min", haptic: true, hfPin: false, crtScan: true, vfFilter: true, lang: "ja", builderName: "", builderSince: "", supaUrl: "", supaKey: "", catalogUrl: "", geminiKey: "", openaiKey: "", geminiModel: "gemini-3-pro-image", aiStyle: "ukiyoe" });
+  const [settings, setSettings] = useState({ view: "list", compact: false, dimUnowned: true, showCode: false, showSeries: false, showPrice: false, showNo: false, showGrade: false, showYm: false, salonCols: 2, salonFit: "cover", listGrade: true, listTags: true, listSeries: false, listNo: true, listCode: true, listPrice: true, listPurchase: false, listBuild: false, theme: "dark", tabPad: "min", haptic: true, hfPin: false, crtScan: true, vfFilter: true, lang: "ja", builderName: "", builderSince: "", supaUrl: "", supaKey: "", catalogUrl: "", geminiKey: "", openaiKey: "", aiProxyUrl: "", aiProxyToken: "", geminiModel: "gemini-3-pro-image", aiStyle: "ukiyoe" });
   // 設定の書込みは patchSettings 経由でフィールド級に時戳付け(records と同じ stamped LWW)。
   // patch はオブジェクト、または現在値を読むトグル用に (s) => patch の関数も可。
   // 変更したフィールドだけ時戳が進むため、別端末が別フィールドを変えても互いに潰さない。
@@ -3058,6 +3058,14 @@ function App() {
                   <input type="password" value={settings.openaiKey || ""} placeholder="sk-..."
                     onChange={(e) => patchSettings({ openaiKey: e.target.value })} />
                 </label>
+                <label className="fld pad"><span>{L("AI 代理 URL(設定すると代理経由・端末キー不要)","AI proxy URL (routes AI via your proxy; device keys not needed)","AI 代理 URL(設定後經代理呼叫,免端末金鑰)")}</span>
+                  <input type="url" value={settings.aiProxyUrl || ""} placeholder="https://gunpla-ai-proxy.xxxx.workers.dev"
+                    onChange={(e) => patchSettings({ aiProxyUrl: e.target.value })} />
+                </label>
+                <label className="fld pad"><span>{L("AI 代理トークン(この端末にのみ保存)","AI proxy token (stored on this device only)","AI 代理權杖(僅存於此裝置)")}</span>
+                  <input type="password" value={settings.aiProxyToken || ""} placeholder="token"
+                    onChange={(e) => patchSettings({ aiProxyToken: e.target.value })} />
+                </label>
                 <label className="fld pad"><span>{L("画像生成モデル(選択した提供元のキーを使用)","Image model (uses the selected provider's key)","影像生成模型(使用所選供應商金鑰)")}</span>
                   <Picker value={settings.geminiModel || "gemini-3-pro-image"} onChange={(v) => patchSettings({ geminiModel: v })} groups={AI_MODELS} />
                 </label>
@@ -3194,7 +3202,7 @@ function App() {
 
       {fixOpen && <KitFixModal allKits={allKits} onClose={() => setFixOpen(false)} L={L} />}
       {quizOpen && <QuizModal allKits={allKits} getRec={getRec} images={images} extras={extras} albumMeta={albumMeta} builderName={settings.builderName} onClose={() => setQuizOpen(false)} L={L} />}
-      {identifyOpen && <KitIdentifyModal allKits={allKits} geminiKey={settings.geminiKey} openaiKey={settings.openaiKey} cameraMode={identifyCam} onAttach={attachPhoto} onClose={() => setIdentifyOpen(false)} onManual={() => { setIdentifyOpen(false); setAdding("zukan"); }} L={L} />}
+      {identifyOpen && <KitIdentifyModal allKits={allKits} geminiKey={settings.geminiKey} openaiKey={settings.openaiKey} proxy={{ url: settings.aiProxyUrl, token: settings.aiProxyToken }} cameraMode={identifyCam} onAttach={attachPhoto} onClose={() => setIdentifyOpen(false)} onManual={() => { setIdentifyOpen(false); setAdding("zukan"); }} L={L} />}
 
       {sortMenuOpen && (
         <div className="modal-bg" onClick={() => setSortMenuOpen(false)} style={{ zIndex: 94 }}>
@@ -3287,7 +3295,7 @@ function App() {
         return (
           <ImageEditorModal kit={ek} images={images} extras={extras} albumMeta={albumMeta} builderName={settings.builderName}
             initialCols={settings.ieCols === 3 ? 3 : 2} onCols={(n) => patchSettings({ ieCols: n })}
-            ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, model: settings.geminiModel, prompts: settings.aiPrompts, style: settings.aiStyle, onModel: (m) => patchSettings({ geminiModel: m }), onStyle: (st) => patchSettings({ aiStyle: st }) }}
+            ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, proxy: { url: settings.aiProxyUrl, token: settings.aiProxyToken }, model: settings.geminiModel, prompts: settings.aiPrompts, style: settings.aiStyle, onModel: (m) => patchSettings({ geminiModel: m }), onStyle: (st) => patchSettings({ aiStyle: st }) }}
             onAddImage={(src, meta) => addAlbumImage(imgEdit, src, meta)}
             onRemoveImage={(ref) => removeAlbumImage(imgEdit, ref)}
             onSetRole={(ref, role) => setAlbumRole(imgEdit, ref, role)}
@@ -3404,7 +3412,7 @@ function App() {
                 </div>
                 <KitForm
                   seriesOptions={seriesOptions}
-                  ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, model: settings.geminiModel, prompts: settings.aiPrompts, style: settings.aiStyle, onModel: (m) => patchSettings({ geminiModel: m }), onStyle: (st) => patchSettings({ aiStyle: st }) }}
+                  ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, proxy: { url: settings.aiProxyUrl, token: settings.aiProxyToken }, model: settings.geminiModel, prompts: settings.aiPrompts, style: settings.aiStyle, onModel: (m) => patchSettings({ geminiModel: m }), onStyle: (st) => patchSettings({ aiStyle: st }) }}
                   initial={detailKit}
                   currentImg={images[detailKit.id]}
                   album={kitAlbum(detailKit.id)}
@@ -3444,7 +3452,7 @@ function App() {
               <span>{L("機体を追加", "Add a kit", "新增機體")}</span>
               <button className="modal-x static" onClick={() => setAdding(false)}>✕</button>
             </div>
-            <KitForm seriesOptions={seriesOptions} ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, model: settings.geminiModel, prompts: settings.aiPrompts, style: settings.aiStyle, onModel: (m) => patchSettings({ geminiModel: m }), onStyle: (st) => patchSettings({ aiStyle: st }) }} initial={{}} currentImg={null} isCustom={false}
+            <KitForm seriesOptions={seriesOptions} ai={{ geminiKey: settings.geminiKey, openaiKey: settings.openaiKey, proxy: { url: settings.aiProxyUrl, token: settings.aiProxyToken }, model: settings.geminiModel, prompts: settings.aiPrompts, style: settings.aiStyle, onModel: (m) => patchSettings({ geminiModel: m }), onStyle: (st) => patchSettings({ aiStyle: st }) }} initial={{}} currentImg={null} isCustom={false}
               onSave={saveNew} onCancel={() => setAdding(false)} L={L} />
           </div>
         </div>

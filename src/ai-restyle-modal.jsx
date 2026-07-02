@@ -4,9 +4,10 @@
    ─────────────────────────────────────────────────────────── */
 import React, { useState, useEffect, useRef } from "react";
 import { AI_STYLES, initStyleOpts, isOpenAImodel, aiProviderLabel, AI_MODEL_OPTS } from "./ai-config.js";
+import { aiRestyle } from "./ai-client.js";
 import { ModelPicker } from "./form-controls.jsx";
 
-export function AIRestyleModal({ src, geminiKey, openaiKey, model, prompts, lastStyle, onModel, onStyle, onAdopt, onClose, L = (ja) => ja }) {
+export function AIRestyleModal({ src, geminiKey, openaiKey, proxy, model, prompts, lastStyle, onModel, onStyle, onAdopt, onClose, L = (ja) => ja }) {
   const [style, setStyle] = useState(lastStyle || AI_STYLES[0].id);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
@@ -28,51 +29,16 @@ export function AIRestyleModal({ src, geminiKey, openaiKey, model, prompts, last
     ctrlRef.current = ctrl;
     const timer = setTimeout(() => ctrl.abort(), 90000); // 90秒で打ち切り(無限 busy 防止)
     try {
-      const apiKey = isOpenAImodel(chosenModel) ? openaiKey : geminiKey;
-      const b64 = src.split(",")[1];
-      const mime = (src.match(/^data:([^;]+);/) || [])[1] || "image/jpeg";
       const styleDef = AI_STYLES.find((s) => s.id === style) || AI_STYLES[0];
       let prompt = (prompts && prompts[style]) || styleDef.prompt;
       if (styleDef.extra) prompt = prompt + " " + styleDef.extra(styleOpts);
-      if (isOpenAImodel(chosenModel)) {
-        /* OpenAI 画像編集: /v1/images/edits(multipart, b64_json を返す) */
-        const blob = await (await fetch(src)).blob();
-        const ext = ((blob.type.split("/")[1] || "png").replace("jpeg", "jpg"));
-        const form = new FormData();
-        form.append("model", chosenModel);
-        form.append("image", blob, `kit.${ext}`);
-        form.append("prompt", prompt);
-        form.append("size", "auto");
-        const res = await fetch("https://api.openai.com/v1/images/edits", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${apiKey}` },
-          body: form,
-          signal: ctrl.signal,
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error((data.error && data.error.message) || "HTTP " + res.status);
-        const out = data.data && data.data[0] && data.data[0].b64_json;
-        if (!out) throw new Error(L("画像が返されませんでした(モデレーションの可能性があります)", "No image returned (possibly blocked by moderation)", "未回傳圖片(可能被審核阻擋)"));
-        if (aliveRef.current) setResult(`data:image/png;base64,${out}`);
-      } else {
-        /* Google Gemini: generateContent(inline_data で画像返却) */
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${chosenModel}:generateContent?key=${encodeURIComponent(apiKey)}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ contents: [{ parts: [{ inline_data: { mime_type: mime, data: b64 } }, { text: prompt }] }] }),
-            signal: ctrl.signal,
-          }
-        );
-        const data = await res.json();
-        if (!res.ok) throw new Error((data.error && data.error.message) || "HTTP " + res.status);
-        const parts = (((data.candidates || [])[0] || {}).content || {}).parts || [];
-        const imgPart = parts.find((pt) => pt.inline_data || pt.inlineData);
-        if (!imgPart) throw new Error(L("画像が返されませんでした(セーフティブロックの可能性があります)", "No image returned (possibly blocked by safety)", "未回傳圖片(可能被安全機制阻擋)"));
-        const pd = imgPart.inline_data || imgPart.inlineData;
-        if (aliveRef.current) setResult(`data:${pd.mime_type || pd.mimeType || "image/png"};base64,${pd.data}`);
-      }
+      /* 呼び出しは ai-client(代理 or 直叩き)。null=画像が返らない → 文言化はここ(i18n) */
+      const out = await aiRestyle({ model: chosenModel, src, prompt, signal: ctrl.signal,
+        cfg: { proxyUrl: proxy && proxy.url, proxyToken: proxy && proxy.token, geminiKey, openaiKey } });
+      if (!out) throw new Error(isOpenAImodel(chosenModel)
+        ? L("画像が返されませんでした(モデレーションの可能性があります)", "No image returned (possibly blocked by moderation)", "未回傳圖片(可能被審核阻擋)")
+        : L("画像が返されませんでした(セーフティブロックの可能性があります)", "No image returned (possibly blocked by safety)", "未回傳圖片(可能被安全機制阻擋)"));
+      if (aliveRef.current) setResult(out);
     } catch (e) {
       if (!aliveRef.current) { /* アンマウント済み:状態更新しない */ }
       else if (e && e.name === "AbortError") setError(L("中止しました(90秒で時間切れ、または手動キャンセル)", "Cancelled (timed out after 90s, or cancelled manually)", "已中止(90秒逾時或手動取消)"));

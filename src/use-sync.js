@@ -65,7 +65,7 @@ export const ALBUM_KEY = "mg_album";
 export const SERIFS_KEY = "mg_serifs";
 /* クラウドへ絶対に出さない憑證キー。storage-lib の SECRET_KEYS に依存せず、
    ここで明示的にも剝離する(SECRET_KEYS が supaUrl 等を含まない場合の保険)。 */
-export const CRED_KEYS = ["supaUrl", "supaKey", "geminiKey", "openaiKey"];
+export const CRED_KEYS = ["supaUrl", "supaKey", "geminiKey", "openaiKey", "aiProxyUrl", "aiProxyToken"];
 export const secretFieldList = () => [...new Set([...(typeof SECRET_KEYS !== "undefined" && SECRET_KEYS ? SECRET_KEYS : []), ...CRED_KEYS])];
 
 /* ── フック本体 ──

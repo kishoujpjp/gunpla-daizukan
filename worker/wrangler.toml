@@ -1,0 +1,27 @@
+# ガンプラ大図鑑 AI 代理 Worker
+name = "gunpla-ai-proxy"
+main = "ai-proxy.js"
+compatibility_date = "2026-06-01"
+
+# 計量用 KV(任意。無ければ計量なしで通す=自用構成)
+# wrangler kv namespace create USAGE で作成し、id を貼る
+# [[kv_namespaces]]
+# binding = "USAGE"
+# id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# 修正提案の保存先 KV(/v1/report を使う場合は必須)
+# [[kv_namespaces]]
+# binding = "REPORTS"
+# id = "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+
+[vars]
+ALLOWED_ORIGINS = "*"          # 本番は "https://<あなたのPWAドメイン>" に絞る
+DAILY_QUOTA = "50"             # 1 token あたり 1 日の identify+restyle 合計回数
+# ALLOWED_IDENTIFY_MODELS / ALLOWED_RESTYLE_MODELS を CSV で上書き可(既定はコード内)
+
+# 機密は [vars] に書かない。以下で登録:
+#   wrangler secret put GEMINI_API_KEY
+#   wrangler secret put OPENAI_API_KEY
+#   wrangler secret put PROXY_TOKENS     ← "長い乱数1,長い乱数2" 端末/家族ごとに1つ
+#   wrangler secret put ADMIN_TOKEN      ← /v1/reports 閲覧用(任意)
+#   wrangler secret put REPORT_SECRET    ← /v1/report の簡易bot避け(任意)

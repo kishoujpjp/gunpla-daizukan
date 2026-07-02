@@ -7,6 +7,7 @@ import { notify } from "./dialogs.jsx";
 import { normJa } from "./ja-text.js";
 import { universeOfKit } from "./universe.jsx";
 import { fileToCompressedDataURL, isOpenAImodel } from "./ai-config.js";
+import { aiIdentify } from "./ai-client.js";
 import { ModelPicker } from "./form-controls.jsx";
 
 /* ───────── AI機体判別(Phase A):画像→候補→確認して図鑑に追加 ───────── */
@@ -40,7 +41,7 @@ const IDF_MODELS = [
   { id: "gpt-4o-mini", label: "GPT-4o mini", note: "標準・速い", p: "openai" },
 ];
 
-export function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, onAttach, onClose, onManual, L = (ja) => ja }) {
+export function KitIdentifyModal({ allKits, geminiKey, openaiKey, proxy, cameraMode, onAttach, onClose, onManual, L = (ja) => ja }) {
   const [phase, setPhase] = useState("pick"); // pick | loading | result | error
   const [storeImg, setStoreImg] = useState("");
   const [cands, setCands] = useState([]);
@@ -54,34 +55,16 @@ export function KitIdentifyModal({ allKits, geminiKey, openaiKey, cameraMode, on
   const [hint, setHint] = useState("");
   const fileRef = useRef(null);
   const manualRef = useRef(null);
-  const hasKey = !!(geminiKey || openaiKey);
-  const models = useMemo(() => IDF_MODELS.filter((m) => (m.p === "gemini" ? geminiKey : openaiKey)), [geminiKey, openaiKey]);
+  const viaProxy = !!(proxy && proxy.url);
+  const hasKey = !!(viaProxy || geminiKey || openaiKey); // 代理があれば端末キー不要
+  const models = useMemo(() => (viaProxy ? IDF_MODELS : IDF_MODELS.filter((m) => (m.p === "gemini" ? geminiKey : openaiKey))), [viaProxy, geminiKey, openaiKey]);
   useEffect(() => { if (!model && models.length) setModel(models[0].id); }, [models, model]);
   const modelLabel = (IDF_MODELS.find((x) => x.id === model) || {}).label || model;
 
   const callAI = async (b64, mime, dataUrl, prompt) => {
     const m = IDF_MODELS.find((x) => x.id === model) || models[0] || { id: "gemini-2.5-flash", p: "gemini" };
-    if (m.p === "openai") {
-      const res = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + openaiKey },
-        body: JSON.stringify({ model: m.id, temperature: 0.2, response_format: { type: "json_object" },
-          messages: [{ role: "user", content: [{ type: "text", text: prompt }, { type: "image_url", image_url: { url: dataUrl } }] }] }),
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error.message || "OpenAI error");
-      return (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || "";
-    }
-    const gbody = { contents: [{ parts: [{ inline_data: { mime_type: mime, data: b64 } }, { text: prompt }] }] };
-    if (grounding) { gbody.tools = [{ google_search: {} }]; gbody.generationConfig = { temperature: 0.2 }; }
-    else { gbody.generationConfig = { responseMimeType: "application/json", temperature: 0.2 }; }
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m.id}:generateContent?key=${encodeURIComponent(geminiKey)}`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(gbody),
-    });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error.message || "Gemini error");
-    const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
-    return parts.map((p) => p.text || "").join("");
+    return aiIdentify({ provider: m.p, model: m.id, b64, mime, dataUrl, prompt, grounding,
+      cfg: { proxyUrl: proxy && proxy.url, proxyToken: proxy && proxy.token, geminiKey, openaiKey } });
   };
 
   const normCode = (s) => normJa(s || "").replace(/[\s\-_./()]/g, "");

@@ -6,7 +6,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { albumRefs, refSrc, pickRef, imgMetaFrom, framingStyle } from "./storage-lib.js";
 import { swallowNextClick, hapticStrong } from "./utils.js";
 import { notify, appConfirm } from "./dialogs.jsx";
-import { fileToCompressedDataURL, AI_STYLES, AI_MODEL_OPTS, aiProviderLabel, aiActiveKey } from "./ai-config.js";
+import { fileToCompressedDataURL, AI_STYLES, AI_MODEL_OPTS, aiProviderLabel, aiAvailable } from "./ai-config.js";
 import { SwipeViewer } from "./swipe-viewer.jsx";
 import { AIRestyleModal } from "./ai-restyle-modal.jsx";
 
@@ -160,7 +160,7 @@ export function ImageEditorModal({ kit, images, extras, albumMeta, builderName, 
     setBusy(false); setAddOpen(false);
   };
   const addUrl = () => { const u = urlVal.trim(); if (!u) return; onAddImage(u, { src: "photo" }); setUrlVal(""); setAddOpen(false); };
-  const openAI = () => { if (!aiActiveKey(ai)) { notify(aiProviderLabel(ai && ai.model) + L(" のAPIキーを設定タブで入力してください"," API key is required — add it in Settings"," 的 API 金鑰請至設定填入"), { kind: "warn", dur: 3200 }); return; } setAiSrc(selSrc); setAiOpen(true); setSel(null); setLocEditing(false); };
+  const openAI = () => { if (!aiAvailable(ai)) { notify(aiProviderLabel(ai && ai.model) + L(" のAPIキーを設定タブで入力してください"," API key is required — add it in Settings"," 的 API 金鑰請至設定填入"), { kind: "warn", dur: 3200 }); return; } setAiSrc(selSrc); setAiOpen(true); setSel(null); setLocEditing(false); };
   const closeSheet = () => { setSel(null); setLocEditing(false); };
   // 画像情報シート:前後の画像へ(矢印 / 左右スワイプ)
   const gotoRel = (d) => { const i = order.indexOf(sel); const j = i + d; if (j >= 0 && j < order.length) { setSel(order[j]); setLocEditing(false); } };
@@ -323,7 +323,7 @@ export function ImageEditorModal({ kit, images, extras, albumMeta, builderName, 
       ) : null}
 
       {aiOpen && aiSrc ? (
-        <AIRestyleModal src={aiSrc} geminiKey={ai && ai.geminiKey} openaiKey={ai && ai.openaiKey} model={(ai && ai.model) || "gemini-3-pro-image"} prompts={ai && ai.prompts} lastStyle={ai && ai.style} onModel={ai && ai.onModel} onStyle={ai && ai.onStyle} L={L}
+        <AIRestyleModal src={aiSrc} geminiKey={ai && ai.geminiKey} openaiKey={ai && ai.openaiKey} proxy={ai && ai.proxy} model={(ai && ai.model) || "gemini-3-pro-image"} prompts={ai && ai.prompts} lastStyle={ai && ai.style} onModel={ai && ai.onModel} onStyle={ai && ai.onStyle} L={L}
           onAdopt={(out, meta) => { onAddImage(out, meta); setAiOpen(false); closeSheet(); }}
           onClose={() => setAiOpen(false)} />
       ) : null}

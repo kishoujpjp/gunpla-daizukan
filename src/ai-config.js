@@ -112,5 +112,7 @@ export const AI_MODELS = [
 export const isOpenAImodel = (m) => /^gpt-image/.test(m || "");
 export const aiProviderLabel = (m) => (isOpenAImodel(m) ? "OpenAI" : "Google Gemini");
 /* 選択モデルに対応する端末ローカルのAPIキーを返す */
+/* 代理 or キーのいずれかで AI 機能が使えるか(Phase 2: 代理経由なら端末キー不要) */
+export const aiAvailable = (ai) => !!(ai && ((ai.proxy && ai.proxy.url) || aiActiveKey(ai)));
 export const aiActiveKey = (ai) => (ai ? (isOpenAImodel(ai.model) ? ai.openaiKey || "" : ai.geminiKey || "") : "");
 export const AI_MODEL_OPTS = AI_MODELS.flatMap((g) => g.items.map((it) => ({ value: it.id, label: it.label, note: isOpenAImodel(it.id) ? "OpenAI" : "Gemini" })));
