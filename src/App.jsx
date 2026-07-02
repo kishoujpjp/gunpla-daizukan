@@ -5867,12 +5867,20 @@ button,.tab,.card,.row,.gf-btn,.adv-seg-btn,.tab-label,.tab-icon{
   button:active,.card:active,.row:active{transition:transform .09s ease, filter .09s ease}
 }
 .card,.row,.tab,.gf-btn,.btn,.add-btn,.more-btn,.own-btn,.own-btn.half,.search-x,.adv-seg-btn,.view-toggle button,.sort-bar button,.edit-link{
-  transition:transform .16s cubic-bezier(.34,1.56,.64,1), filter .12s ease, box-shadow .16s ease}
-.card:active,.row:active{transform:scale(.97);filter:brightness(.94)}
-.tab:active{transform:scale(.95);background:radial-gradient(112% 80% at 50% 100%,rgba(227,191,125,.20),rgba(227,191,125,.06) 56%,transparent 78%);border-radius:var(--r-lg)}
-.app.light .tab:active{background:radial-gradient(112% 80% at 50% 100%,rgba(156,120,56,.16),rgba(156,120,56,.04) 56%,transparent 78%)}
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1), filter .12s ease, box-shadow .16s ease, border-color .14s ease}
+/* 卡片按壓: 縮小は微量、暗くせず金線が「確認」する */
+.card:active,.row:active{transform:scale(.983);filter:none;border-color:rgba(217,179,106,.4)}
+/* 分頁按壓: 発光や全体縮小はやめ、図鑑の言彙で。アイコンが沈み、字がわずかに金へ寄る。 */
+.tab:active{transform:none;background:none}
+.tab:active .tab-icon{transform:translateY(1.5px) scale(.92)}
+.tab:active .tab-label{color:var(--gold);opacity:.85}
+.tab .tab-icon,.tab .tab-label{transition:transform .13s cubic-bezier(.3,.7,.4,1),color .13s,opacity .13s}
+.app.light .tab:active{background:none}
+/* ボタン按壓: 鋼印(inkwell)——内陥+縁が金を帯びる。brightness で汚さない */
 .btn:active,.add-btn:active,.more-btn:active,.own-btn:active,.gf-btn:active,.adv-seg-btn:active,.view-toggle button:active,.sort-bar button:active,.search-x:active,.edit-link:active{
-  transform:scale(.95);filter:brightness(.92)}
+  transform:scale(.965);filter:none;box-shadow:inset 0 2px 6px rgba(0,0,0,.35);border-color:rgba(217,179,106,.5)}
+.app.light .btn:active,.app.light .add-btn:active,.app.light .more-btn:active,.app.light .own-btn:active,.app.light .gf-btn:active,.app.light .adv-seg-btn:active{
+  box-shadow:inset 0 2px 5px rgba(90,70,30,.18);border-color:rgba(156,120,56,.55)}
 .app{min-height:0;background:
   radial-gradient(1100px 500px at 80% -10%, rgba(232,85,61,.07), transparent 60%),
   radial-gradient(800px 400px at -10% 30%, rgba(111,211,199,.05), transparent 60%),
@@ -6741,7 +6749,7 @@ input,textarea{font-family:var(--sans)}
 .tab-page{animation:pageIn .22s ease-out}
 @keyframes pageIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
 .tab.on .tab-icon{animation:tabPop .3s ease}
-@keyframes tabPop{0%{transform:scale(1)}45%{transform:scale(1.4) translateY(-2px)}100%{transform:scale(1)}}
+@keyframes tabPop{0%{transform:translateY(2px) scale(.9);opacity:.6}62%{transform:translateY(-1px) scale(1.06);opacity:1}100%{transform:none;opacity:1}}
 
 .ana-cards{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
 .ana-card{background:linear-gradient(160deg,var(--panel2),var(--panel));border:1px solid var(--line);
@@ -7649,7 +7657,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .title-need{color:var(--gold)}
 /* ═══ 図鑑 編目カード/リスト(金箔) ═══ */
 .kz-card{position:relative;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-xs);padding:11px 11px 10px;text-align:left;overflow:hidden;content-visibility:auto;contain-intrinsic-size:172px 190px;transition:border-color .12s,transform .12s}
-.kz-card:active{transform:scale(.985)}
+.kz-card:active{transform:scale(.985);border-color:rgba(217,179,106,.4)}
 .kz-card.owned{border-color:rgba(217,179,106,.26)}
 .kz-card.owned::before{content:"";position:absolute;left:0;top:0;width:100%;height:2px;background:linear-gradient(90deg,#9c7838,#d9b36a,transparent);z-index:1}
 .kz-card.dim{opacity:.5}
