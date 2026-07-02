@@ -2788,6 +2788,7 @@ export default function App() {
   const [honLimit, setHonLimit] = useState(60);   // 称号一覧の遅延ロード上限
   const honMoreRef = useRef(null);                // 称号のセンチネル(無限スクロール)
   const scrollPosRef = useRef({});
+  const [hfHide, setHfHide] = useState(false); // 報頭收合(捲動駆動、V5浮遊)
   /* 分頁切換時保留各自捲動位置 */
   const changeTab = (next) => {
     const el = bodyRef.current;
@@ -2808,6 +2809,25 @@ export default function App() {
     };
     requestAnimationFrame(restore);
   };
+  /* 捲動で報頭を running-head へ收合(V5)。ヒステリシス: >24px で收 / ≤8px で展。
+     rAF スロットル。閾値をまたぐ時だけ setState(同値は React がベイルアウト)。 */
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    let tick = false;
+    const onScroll = () => {
+      if (tick) return; tick = true;
+      requestAnimationFrame(() => {
+        tick = false;
+        const b = bodyRef.current;
+        if (!b) return;
+        const y = b.scrollTop;
+        setHfHide((h) => (h ? y > 8 : y > 24));
+      });
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
   const lpRef = useRef({ timer: null, fired: false });
   /* 長按手勢:回傳可展開到元素的 handlers。fired 時阻止後續 click。 */
   const makeLongPress = (onLong, ms = 480) => {
@@ -4721,7 +4741,7 @@ export default function App() {
             : isSalon ? imgStats.pct
             : collectPct;
           return (
-            <div className="hf" role="button" tabIndex={0}
+            <div className={`hf ${hfHide ? "collapsed" : ""}`} role="button" tabIndex={0}
               onClick={() => { haptic(); if (bodyRef.current) bodyRef.current.scrollTo({ top: 0, behavior: "smooth" }); }}>
               <span className="hf-tag">Ⓐ ARCHIVE</span>
               <span className="hf-part" key={arc.en}><i className="hf-rl">Ⓡ</i>{arc.en}</span>
@@ -4773,6 +4793,20 @@ export default function App() {
                     )}
                   </div>
                 </div>
+              </div>
+              {/* V5 running-head: 收合終態。刊名+欄目+壓縮stats+鑑。彈簧落位は CSS 側 */}
+              <div className="hf-mini" aria-hidden={!hfHide}>
+                <span className="hm-wm">大<i>図鑑</i></span>
+                <span className="hm-sep" />
+                <span className="hm-arc">{arc.en}</span>
+                <span className="hm-stat">
+                  {isDecor ? (<>{L("称号","Titles","稱號")} <b>{titles.length}</b> · {L("獲得","Earned","獲得")} <b>{titlesGot}</b> · <b>{titlesPct}%</b></>)
+                  : isSalon ? (<>{L("収録","Listed","收錄")} <b>{allKits.length}</b> · {L("目撃","Sighted","目擊")} <b>{imgStats.kitsWith}</b> · <b>{imgStats.pct}%</b></>)
+                  : isAnalysis ? (<>{L("収集","Col.","收集")} <b>{collectPct}%</b> · {L("撮影","Shot","拍攝")} <b>{imgStats.pct}%</b> · {L("叙勲","Dec.","敘勳")} <b>{titlesPct}%</b></>)
+                  : (<>{L("収録","Listed","收錄")} <b>{allKits.length}</b> · {L("入手","Owned","入手")} <b>{ownedAll}</b> · <b>{collectPct}%</b></>)}
+                </span>
+                <button className="hm-seal" aria-label={L("カメラで機体を判別","Identify kit by camera","以相機判別機體")}
+                  onClick={(e) => { e.stopPropagation(); haptic(); setIdentifyCam(true); setIdentifyOpen(true); }}>鑑</button>
               </div>
               <div className="hf-prog"><i className={isDecor ? "kin" : ""} style={{ width: `${pct}%` }} /></div>
             </div>
@@ -7878,7 +7912,8 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .hf-gate{position:absolute;background:var(--gold);opacity:.5;z-index:1}
 .hf-gate.gt{top:-1px;width:8px;height:5px;border-radius:0 0 var(--r-xs) var(--r-xs)}
 .hf-gate.gl{left:-1px;width:5px;height:8px;border-radius:0 var(--r-xs) var(--r-xs) 0}
-.hf-top{position:relative;display:flex;align-items:stretch;gap:8px}
+.hf-top{position:relative;display:flex;align-items:stretch;gap:8px;overflow:hidden;max-height:180px;opacity:1;transition:max-height .28s cubic-bezier(.2,.8,.25,1),opacity .18s ease}
+.hf.collapsed .hf-top{max-height:0;opacity:0}
 .hf-vbar{flex:none;position:relative;margin-left:5px;display:flex;align-items:center;justify-content:center;top:-2px}
 .hf-vbar-t{writing-mode:vertical-rl;font-family:var(--serif);font-weight:800;font-size:28px;letter-spacing:.1em;line-height:1.05;background:linear-gradient(180deg,#f2dca0,#b8924a);-webkit-background-clip:text;background-clip:text;color:transparent}
 .hf-vbar::before{content:"";position:absolute;left:-7px;top:0;bottom:0;width:1.5px;border-radius:var(--r-xs);background:linear-gradient(180deg,transparent,rgba(217,179,106,.55) 16%,rgba(217,179,106,.55) 84%,transparent)}
@@ -7914,8 +7949,38 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 .hf-seal::after{content:"";position:absolute;inset:3px;border:1px solid rgba(200,80,58,.4);border-radius:var(--r-xs);pointer-events:none}
 .hf-seal:active{transform:rotate(-3deg) scale(.92);background:rgba(200,80,58,.22)}
 .hf-prog{position:relative;height:3px;margin:0 -18px;border-radius:0 0 var(--r-sm) var(--r-sm);overflow:hidden;background:rgba(217,179,106,.1)}
-.hf-prog i{display:block;height:100%;background:linear-gradient(90deg,#9c7838,var(--gold));transition:width .5s}
+.hf-prog i{position:relative;display:block;height:100%;background:linear-gradient(90deg,#9c7838,var(--gold));transition:width .5s}
 .hf-prog i.kin{background:linear-gradient(90deg,#b88f3e,var(--kin))}
+/* ══ V5 報頭收合(浮遊高度+灯) ══ */
+.head .hf.collapsed{padding-top:9px;border-color:rgba(230,196,128,.95);
+  background:linear-gradient(160deg,rgba(217,179,106,.09),rgba(23,28,40,.35) 58%);
+  box-shadow:0 10px 24px -8px rgba(0,0,0,.55)}
+.app.light .head .hf.collapsed{background:linear-gradient(160deg,rgba(184,146,74,.12),rgba(251,246,234,.45) 58%);
+  box-shadow:0 10px 22px -10px rgba(90,70,30,.3)}
+/* running-head 本体 */
+.hf-mini{display:flex;align-items:center;gap:10px;max-height:0;opacity:0;overflow:hidden;
+  transition:max-height .26s cubic-bezier(.2,.8,.25,1),opacity .2s ease}
+.hf.collapsed .hf-mini{max-height:46px;opacity:1;padding:2px 0 10px}
+.hf-mini>*{transform:translateY(7px);transition:transform .34s cubic-bezier(.3,1.45,.4,1)}
+.hf.collapsed .hf-mini>*{transform:translateY(0)}
+.hm-wm{font-family:var(--serif);font-weight:800;font-size:17px;color:var(--ink-strong);white-space:nowrap;line-height:1}
+.hm-wm i{font-style:normal;background:linear-gradient(180deg,var(--gold-hi),#d4ab5e);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hm-sep{flex:none;width:1px;height:15px;background:var(--line)}
+.hm-arc{font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;color:var(--gold);text-transform:uppercase;white-space:nowrap;
+  transition:letter-spacing .4s cubic-bezier(.2,.8,.25,1) .08s}
+.hf.collapsed .hm-arc{letter-spacing:.26em}
+.hm-stat{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-mid);white-space:nowrap;margin-left:auto;font-variant-numeric:tabular-nums}
+.hm-stat b{color:var(--ink-strong);font-weight:700}
+.hm-seal{flex:none;width:30px;height:30px;margin-left:2px;border:1px solid rgba(200,80,58,.5);border-radius:var(--r-xs);
+  background:rgba(200,80,58,.12);color:#e0a89c;font-family:var(--serif);font-weight:800;font-size:14px;
+  display:flex;align-items:center;justify-content:center;transition:transform .12s}
+.hm-seal:active{transform:rotate(-3deg) scale(.9)}
+/* 進度條: 收合で3→4px、先端に灯(spring 出現) */
+.hf.collapsed .hf-prog{height:4px}
+.hf-prog i::after{content:"";position:absolute;right:1px;top:50%;width:4px;height:4px;border-radius:50%;
+  background:var(--gold-hi);box-shadow:0 0 8px 2px rgba(242,220,160,.95);
+  transform:translateY(-50%) scale(0);transition:transform .3s cubic-bezier(.3,1.5,.4,1) .1s}
+.hf.collapsed .hf-prog i::after{transform:translateY(-50%) scale(1)}
 @media (min-width:430px){.hf-title{font-size:46px}.hf-stats b{font-size:20px}}
 /* 章徽 常駐微光(金箔glint) */
 .av-medal.gold{position:relative;overflow:hidden}
