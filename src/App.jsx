@@ -3123,6 +3123,7 @@ function App() {
                 {auth.user ? (
                   <>
                     <p className="ana-note">{L("ログイン中:", "Signed in: ", "已登入:") + (auth.user.email || auth.user.id)}</p>
+                    {syncMsg && <p className="ana-note">{syncMsg}</p>}
                     <button className="opt" onClick={syncNow}><span>{L("今すぐ同期", "Sync now", "立即同步")}</span><i>⇅</i></button>
                     <button className="opt" onClick={async () => { await auth.signOut(); setAcctPhase("email"); setAcctCode(""); notify(L("ログアウトしました(データは端末に残ります)", "Signed out (data remains on this device)", "已登出(資料仍保留在裝置)"), { kind: "ok" }); }}>
                       <span>{L("ログアウト", "Sign out", "登出")}</span><i>→</i></button>
