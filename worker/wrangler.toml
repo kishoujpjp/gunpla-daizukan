@@ -15,7 +15,7 @@ compatibility_date = "2026-06-01"
 # id = "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
 
 [vars]
-ALLOWED_ORIGINS = "https://gunpla-daizukan.kishoujpjp.workers.dev,http://localhost:5173"          # 本番は "https://<あなたのPWAドメイン>" に絞る
+ALLOWED_ORIGINS = "*"          # 本番は "https://<あなたのPWAドメイン>" に絞る
 DAILY_QUOTA = "50"             # 1 token あたり 1 日の identify+restyle 合計回数
 # ALLOWED_IDENTIFY_MODELS / ALLOWED_RESTYLE_MODELS を CSV で上書き可(既定はコード内)
 
