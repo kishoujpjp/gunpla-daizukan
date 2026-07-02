@@ -1187,7 +1187,10 @@ function App() {
     (async () => {
       try {
         setSyncMsg(L("アカウント同期中…", "Syncing account…", "帳號同步中…"));
-        const nn = await pullCloud(supaRef.current);
+        // supaRef の更新時機に依存しない:session からその場で構成(時序免疫)
+        const mcfg = { url: MANAGED_BACKEND.url.replace(/\/+$/, ""), key: MANAGED_BACKEND.anonKey,
+                       accessToken: auth.session.access_token, userId: "" };
+        const nn = await pullCloud(mcfg);
         markAllDirty();
         flushDirty();
         setSyncMsg(L("アカウント同期:受信 ", "Account synced: ", "帳號同步:收到 ") + nn + L(" 件 ", " items ", " 筆 ") + new Date().toLocaleTimeString());
@@ -1247,7 +1250,10 @@ function App() {
   }, [saveKey]);
 
   const syncNow = async () => {
-    const cfg = supaRef.current;
+    const cfg = (managedOn() && auth.session)
+      ? { url: MANAGED_BACKEND.url.replace(/\/+$/, ""), key: MANAGED_BACKEND.anonKey,
+          accessToken: auth.session.access_token, userId: "" }
+      : supaRef.current;
     if (!cfg.url || !cfg.key) {
       notify(managedOn()
         ? L("同期にはログインが必要です(設定 → アカウント)", "Sign in to sync (Settings → Account)", "同步需要先登入(設定 → 帳號)")
