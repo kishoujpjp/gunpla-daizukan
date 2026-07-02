@@ -6,7 +6,7 @@ import {
 } from "./ai-client.js";
 import worker, {
   csvList, isOpenAIModel, verifyToken, validateAiBody, checkAndCountQuota, corsHeaders,
-} from "./worker/ai-proxy.js";
+} from "../worker/ai-proxy.js";
 
 /* ═══════════ ai-client 純関数 ═══════════ */
 
