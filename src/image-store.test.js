@@ -221,3 +221,29 @@ test("usage: orig/thumb 双方の合計と件数", async () => {
   const u = await store.usage();
   assert.deepStrictEqual(u, { count: 2, origBytes: 300, thumbBytes: 250 });
 });
+
+/* ── idbBackend: 接続復元力(iOS 行程再起事故の回帰) ── */
+test("idbBackend: open 失敗は快取されず、回復後の呼び出しは成功する", async () => {
+  const { idbBackend } = await import("./image-store.js");
+  let failures = 2; // tx 内部の1回再試行ぶんも失敗させ、確実に reject を経由させる
+  const fakeReq = (result) => { const r = { result }; setTimeout(() => r.onsuccess && r.onsuccess(), 0); return r; };
+  const fakeDB = {
+    onclose: null,
+    transaction: () => ({ objectStore: () => ({ getAllKeys: () => fakeReq(["a", "b"]) }) }),
+    createObjectStore: () => {},
+  };
+  globalThis.indexedDB = {
+    open() {
+      const req = { result: fakeDB, error: new Error("一過性失敗") };
+      setTimeout(() => { if (failures > 0) { failures--; req.onerror && req.onerror(); } else { req.onsuccess && req.onsuccess(); } }, 0);
+      return req;
+    },
+  };
+  try {
+    const be = idbBackend();
+    await assert.rejects(() => be.keys("orig"), /一過性失敗/, "失敗中は reject すべき");
+    // 「回復」後:快取に失敗が残っていなければ成功する(事故の再発防止契約)
+    const ks = await be.keys("orig");
+    assert.deepStrictEqual(ks, ["a", "b"]);
+  } finally { delete globalThis.indexedDB; }
+});

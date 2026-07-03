@@ -12,7 +12,7 @@
    pushKey/pullCloud 以上のロジック・呼び出し側(App)は不変のまま移行できる。
    ─────────────────────────────────────────────────────────── */
 import { useState, useEffect, useRef, useCallback } from "react";
-import { META_KEY, MAX_SYNC_BYTES, IMG_SHARDS, XTRA_SHARDS, SECRET_KEYS, stripSecrets, metaForCloud } from "./storage-lib.js";
+import { META_KEY, SECRET_KEYS, stripSecrets, metaForCloud } from "./storage-lib.js";
 
 // ── ③ 同期トランスポート抽象 + userId 名前空間(★将来の差し替え点)──
 // 現状:使用者自带 Supabase(kv テーブル / anon key)、userId="" で名前空間なし=現行の挙動。
@@ -117,6 +117,9 @@ export function useSync({ loaded, L, applyRow }) {
 
   // 単一キーを雲端へ送る。成功=true。失敗時は dirty に残す。
   const pushKey = useCallback(async (k) => {
+    // ★単方向弁(v4)★ 分片は決して送信しない。pull 落地や v3 残置で値が在っても、
+    // ここで dirty を外して破棄する(受信は applyRow の互換 shim が担う)。
+    if (k.indexOf("mg_imgs_") === 0 || k.indexOf("mg_xtra_") === 0) { unmarkDirty(k); return true; }
     const { url, key } = supaRef.current;
     if (!url || !key) return false;
     let v;
@@ -142,16 +145,7 @@ export function useSync({ loaded, L, applyRow }) {
     // 画像シャードが大きすぎるとクラウドの行/リクエスト上限を超え、永久に
     // 失敗→再送ループになり、しかも flushDirty の queue を塞ぐ。事前にサイズ確認し、
     // 超過分は本地保存のみとして dirty を外し、最適化を促す(圧縮後の保存で再送される)。
-    if (k.indexOf("mg_imgs_") === 0 || k.indexOf("mg_xtra_") === 0) {
-      let bytes;
-      try { bytes = new Blob([pushVal]).size; } catch (e) { bytes = pushVal.length; }
-      if (bytes > MAX_SYNC_BYTES) {
-        unmarkDirty(k);
-        setSyncMsg(L("画像が大きすぎてクラウド同期できません(","Image too large for cloud sync (","圖片過大無法雲端同步(") + Math.round(bytes / 1048576) +
-          L("MB)。設定→「画像を最適化(容量削減)」で圧縮してください(本地には保存済み)。","MB). Compress it via Settings → Optimize images (saved locally).","MB)。請至 設定→最佳化圖片 壓縮(已存於本機)。"));
-        return true; // 取りこぼし扱いで queue を進める
-      }
-    }
+
     const updated_at = syncTsRef.current[k] || new Date().toISOString();
     const r = await SYNC_TRANSPORT.push({ url, key, accessToken: supaRef.current.accessToken, userId: supaRef.current.userId }, [{ key: k, value: pushVal, updated_at }]);
     if (r.ok) { unmarkDirty(k); setSyncMsg(L("クラウド同期済み ","Cloud-synced ","已雲端同步 ") + new Date().toLocaleTimeString()); return true; }
@@ -278,8 +272,8 @@ export function useSync({ loaded, L, applyRow }) {
      「本地→雲端の全量アップロード」に使う。 ── */
   const markAllDirty = useCallback(() => {
     const keys = [META_KEY, SETTINGS_KEY, ALBUM_KEY, SERIFS_KEY];
-    for (let i = 0; i < IMG_SHARDS; i++) keys.push("mg_imgs_" + i);
-    for (let i = 0; i < XTRA_SHARDS; i++) keys.push("mg_xtra_" + i); // v3 残置分の掃き出し用(値が無ければ no-op)
+    // v4: 分片(mg_imgs_◯・mg_xtra_◯)は列挙しない。pull で落地した旧分片行を
+    // 新時戳で回送し、旧端末(v3)の新しい編集を古い内容で潰す事故(混版 ping-pong)を防ぐ。
     keys.push("mg_imgurls"); // v4: URL 画像行
     for (const k of keys) dirtyRef.current.add(k);
     persistDirty();

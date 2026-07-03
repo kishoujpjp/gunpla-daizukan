@@ -1066,6 +1066,8 @@ function App() {
       await initCatalogFromStorage();
       setLoaded(true); // UI 立即顯示,画像は背景で(v3→v4 遷移→)縮図 URL を構成して逐次反映
       (async () => {
+        for (let attempt = 0; attempt < 3; attempt++) {
+        try {
         // v3→v4:分片(base64)→ image-store。冪等・分片単位確定、URL 項目は分流(image-migrate.js)。
         const mig = await migrateShardsToStore(window.storage, imageStore, { imgShards: IMG_SHARDS, xtraShards: XTRA_SHARDS });
         // URL 画像行(mg_imgurls):既存 + 遷移分を合流。遷移分があれば保存(同期にも乗る)。
@@ -1082,7 +1084,14 @@ function App() {
         for (const [id, u] of Object.entries(thumbs)) { if (id.indexOf("~") >= 0) xtras0[id] = u; else imgs0[id] = u; }
         setImages((prev) => ({ ...imgs0, ...urlMap, ...prev }));
         setExtras((prev) => ({ ...xtras0, ...prev }));
-        /* ▼診断用(3-4で除去)▼ */ console.info("[mg-zukan] img-mig: moved=" + mig.moved + " urls=" + Object.keys(mig.urlRows).length + " kept=" + mig.keptShards.join(",") + " thumbs=" + Object.keys(thumbs).length);
+        /* ▼診断用(3-4で除去)▼ */ console.info("[mg-zukan] img-mig: moved=" + mig.moved + " urls=" + Object.keys(mig.urlRows).length + " kept=" + mig.keptShards.join(",") + " thumbs=" + Object.keys(thumbs).length + (attempt ? " attempt=" + (attempt + 1) : ""));
+        return; // 成功
+        } catch (e) {
+          // iOS 行程再起直後は IndexedDB が一過性に失敗し得る。少し待って再試行(全滅時も次回起動で自癒)。
+          /* ▼診断用(3-4で除去)▼ */ console.info("[mg-zukan] img-boot retry " + (attempt + 1) + ": " + String(e && e.message || e));
+          await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+        }
+        }
       })();
       // 託管建置(managedOn)では BYO 起動同期を行わない:
       //   残留した旧 supaUrl/supaKey が託管テーブルへ誤射する事故を防ぐ
@@ -1412,10 +1421,11 @@ function App() {
         const id = ref === "primary" ? viewer.kitId : ref;
         try {
           const u = await imageStore.getOrigURL(id);
+          /* ▼診断用▼ */ console.info("[mg-zukan] vwr-orig:", ref, "dead=" + dead, "u=" + (u ? u.slice(0, 24) : null));
           if (dead || !u) continue;
           const vk = viewer.kitId + "/" + ref;
           setViewerOrig((p) => (p[vk] ? p : { ...p, [vk]: u }));
-        } catch (e) {}
+        } catch (e) { /* ▼診断用▼ */ console.info("[mg-zukan] vwr-orig ERR:", ref, String(e && e.message || e)); }
       }
     })();
     return () => { dead = true; };
@@ -3396,7 +3406,7 @@ function App() {
         return (
           <div className="viewer-bg" onClick={close}>
             <SwipeViewer slides={flat} index={gi} resetKey={String(curRef)}
-              resolveSrc={(sl) => (sl.ref ? (viewerOrig[sl.kitId + "/" + sl.ref] || refSrc(sl.ref, sl.kitId, images, extras)) : null)}
+              resolveSrc={(sl) => { if (!sl.ref) return null; const o = viewerOrig[sl.kitId + "/" + sl.ref]; /* ▼診断用▼ */ if (sl.ref === (viewer && viewer.ref)) console.info("[mg-zukan] vwr-res:", sl.ref, o ? "ORIG" : "THUMB"); return o || refSrc(sl.ref, sl.kitId, images, extras); }}
               serifOf={(sl) => (sl.ref ? (serifs[sl.ref] || "") : "")}
               onSerif={(sl) => { if (sl.ref) setSerifEdit({ ref: sl.ref, text: serifs[sl.ref] || "" }); }}
               onIndex={(i) => { setViewerDel(false); setSerifEdit(null); setViewer({ kitId: flat[i].kitId, ref: flat[i].ref, from: vfrom }); }}

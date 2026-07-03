@@ -30,19 +30,37 @@ export function idbBackend() {
     dbp = new Promise((resolve, reject) => {
       const req = indexedDB.open(DB_NAME, 1);
       req.onupgradeneeded = () => { req.result.createObjectStore(ORIG); req.result.createObjectStore(THUMB); };
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
+      req.onsuccess = () => {
+        // iOS はプロセス回収等で接続を黙って閉じる。次の操作で開き直せるよう快取を破棄。
+        req.result.onclose = () => { dbp = null; };
+        resolve(req.result);
+      };
+      req.onerror = () => { dbp = null; reject(req.error); }; // 失敗を快取しない(次回再試行)
     });
     return dbp;
   };
-  const tx = async (store, mode, fn) => {
-    const db = await open();
-    return new Promise((resolve, reject) => {
-      const t = db.transaction(store, mode);
-      const req = fn(t.objectStore(store));
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
+  const tx = async (store, mode, fn, retried) => {
+    let db;
+    try { db = await open(); }
+    catch (e) {
+      if (retried) throw e;
+      await new Promise((r) => setTimeout(r, 400)); // iOS 行程再起直後の一過性失敗に一拍
+      return tx(store, mode, fn, true);
+    }
+    try {
+      return await new Promise((resolve, reject) => {
+        const t = db.transaction(store, mode);
+        const req = fn(t.objectStore(store));
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    } catch (e) {
+      if (!retried && e && (e.name === "InvalidStateError" || e.name === "TransactionInactiveError")) {
+        dbp = null; // 死んだ接続を捨てて開き直す
+        return tx(store, mode, fn, true);
+      }
+      throw e;
+    }
   };
   return {
     get: (store, id) => tx(store, "readonly", (s) => s.get(id)),
