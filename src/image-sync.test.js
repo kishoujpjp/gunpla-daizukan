@@ -4,7 +4,7 @@ import assert from "node:assert";
 import {
   storagePath, uploadImage, downloadImage, deleteRemoteImage,
   parseIdx, mergeIdx, isDeadIdx, stampIdxUp, tombstoneIdx, idxDiff,
-  parseQ, qAdd, qRemove,
+  parseQ, qAdd, qRemove, userIdFromJWT,
 } from "./image-sync.js";
 
 const CFG = { url: "https://x.supabase.co", anonKey: "anonK", accessToken: "jwtT", userId: "u1" };
@@ -126,4 +126,11 @@ test("qAdd/qRemove: 異なる id は共存、qRemove は op+id 一致のみ除�
 test("parseQ: 壊れ JSON は [] に安全化", () => {
   assert.deepStrictEqual(parseQ("junk"), []);
   assert.deepStrictEqual(parseQ('[{"op":"up","id":"a","at":1}]'), [{ op: "up", id: "a", at: 1 }]);
+});
+
+test("userIdFromJWT: payload.sub を取得、壊れ token は空文字", () => {
+  const payload = Buffer.from(JSON.stringify({ sub: "uuid-123", role: "authenticated" })).toString("base64url");
+  assert.strictEqual(userIdFromJWT("head." + payload + ".sig"), "uuid-123");
+  assert.strictEqual(userIdFromJWT("junk"), "");
+  assert.strictEqual(userIdFromJWT(null), "");
 });

@@ -106,3 +106,12 @@ export function qAdd(q, op, id, now) {
 export function qRemove(q, op, id) {
   return (q || []).filter((e) => !(e.op === op && e.id === id));
 }
+
+/* JWT(access_token)payload の sub = Supabase user id。session 形状に依存しない取得法。 */
+export function userIdFromJWT(token) {
+  try {
+    const b64 = String(token).split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const p = JSON.parse(atob(b64));
+    return (p && p.sub) || "";
+  } catch (e) { return ""; }
+}

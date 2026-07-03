@@ -58,6 +58,9 @@ import {
 } from "./storage-lib.js";
 import { imageStore } from "./image-store.js";
 import { migrateShardsToStore, isHttpSrc, blobToDataURL } from "./image-migrate.js";
+import { IMGIDX_KEY, IMGQ_KEY, uploadImage, downloadImage, deleteRemoteImage,
+         parseIdx, mergeIdx, stampIdxUp, tombstoneIdx, idxDiff,
+         parseQ, qAdd, qRemove, userIdFromJWT } from "./image-sync.js";
 
 
 
@@ -851,6 +854,7 @@ function App() {
             if (!u) continue;
             if (id.indexOf("~") >= 0) setExtras((p) => ({ ...p, [id]: u }));
             else setImages((p) => ({ ...p, [id]: u }));
+            if (managedOn()) enqueueImg("up", id); // v3 端末由来の画像を Storage へ救出
           } catch (e) { /* 個別失敗は次へ */ }
         }
         try { await window.storage.delete(row.key); } catch (e) {}
@@ -866,6 +870,18 @@ function App() {
           for (const [k, v] of Object.entries(prev)) if (!isHttpSrc(v)) next[k] = v;
           return { ...next, ...um };
         });
+      } catch (e) { return false; }
+      return true;
+    }
+    if (row.key === "mg_imgidx") {
+      try {
+        const incoming = parseIdx(row.value);
+        const merged = mergeIdx(imgIdxRef.current, incoming);
+        imgIdxRef.current = merged;
+        const mj = JSON.stringify(merged);
+        // pullCloud が直後に row.value を落地するため、書き戻しは一拍置く(merged を最終形に)
+        if (mj !== row.value) setTimeout(() => { saveKey("mg_imgidx", mj); }, 400);
+        setTimeout(() => { imgReconcile(false); }, 600); // 新規=DL・墓碑=本地掃除
       } catch (e) { return false; }
       return true;
     }
@@ -1214,6 +1230,8 @@ function App() {
         const nn = await pullCloud(mcfg);
         markAllDirty();
         flushDirty();
+        processImgQ(); // 3-3: 未送信の画像キュー
+        imgReconcile(true); // 3-3: 索引照合(DL/墓碑掃除/本地のみ分の upload)
         setSyncMsg(L("アカウント同期:受信 ", "Account synced: ", "帳號同步:收到 ") + nn + L(" 件 ", " items ", " 筆 ") + new Date().toLocaleTimeString());
       } catch (e) { setSyncMsg(L("アカウント同期エラー:", "Account sync error: ", "帳號同步錯誤:") + ((e && e.message) || e)); }
     })();
@@ -1255,6 +1273,96 @@ function App() {
      依存配列なしで毎レンダー再生成すると observer churn と limit の暴走増分を招くため。 */
 
   /* ── 保存圖像分片 ── */
+  /* ═══ P2 第3批(3-3): 画像の雲端同期(託管ログイン時のみ) ═══
+     原図 = Supabase Storage({userId}/{id})、索引 = mg_imgidx(KV・merge.js LWW)、
+     再送 = mg_imgq(端末ローカル)。cfg は session の JWT から都度直構成(時序免疫)。
+     ★安全原則★ 墓碑はユーザの明示削除のみ。本地読取失敗時は照合を中止する。 */
+  const imgAuthRef = useRef(null);
+  imgAuthRef.current = auth.session;
+  const imgIdxRef = useRef({});
+  const imgQRef = useRef([]);
+  const imgQBusy = useRef(false);
+  const imgQTimer = useRef(0);
+  const imgBootRef = useRef(false);
+
+  function imgSyncCfg() {
+    const ss = imgAuthRef.current;
+    if (!managedOn() || !ss) return null;
+    const uid = userIdFromJWT(ss.access_token);
+    if (!uid) return null;
+    return { url: MANAGED_BACKEND.url.replace(/\/+$/, ""), anonKey: MANAGED_BACKEND.anonKey, accessToken: ss.access_token, userId: uid };
+  }
+  async function saveImgIdx(next) { imgIdxRef.current = next; try { await saveKey(IMGIDX_KEY, JSON.stringify(next)); } catch (e) {} }
+  async function saveImgQ(q) { imgQRef.current = q; try { await window.storage.set(IMGQ_KEY, JSON.stringify(q)); } catch (e) {} }
+  function scheduleImgQ(ms) { clearTimeout(imgQTimer.current); imgQTimer.current = setTimeout(processImgQ, ms == null ? 800 : ms); }
+  function enqueueImg(op, id) { saveImgQ(qAdd(imgQRef.current, op, id, Date.now())); scheduleImgQ(); }
+  function imgStateSet(id, u) { if (id.indexOf("~") >= 0) setExtras((p) => ({ ...p, [id]: u })); else setImages((p) => ({ ...p, [id]: u })); }
+  function imgStateDel(id) { if (id.indexOf("~") >= 0) setExtras((p) => { const nx = { ...p }; delete nx[id]; return nx; }); else setImages((p) => { const nx = { ...p }; delete nx[id]; return nx; }); }
+
+  async function processImgQ() {
+    if (imgQBusy.current) return;
+    const cfg = imgSyncCfg();
+    if (!cfg) return; // 未ログイン/BYO:キューは温存(ログイン後に処理)
+    imgQBusy.current = true;
+    try {
+      for (const e of [...imgQRef.current]) {
+        try {
+          if (e.op === "up") {
+            const blob = await imageStore.getOrigBlob(e.id); // 読取失敗は throw → キューに残す
+            if (blob) {
+              await uploadImage(cfg, e.id, blob);
+              const meta = await imageStore.getOrigMeta(e.id);
+              await saveImgIdx(stampIdxUp(imgIdxRef.current, e.id, meta || {}, new Date().toISOString()));
+            }
+          } else {
+            await deleteRemoteImage(cfg, e.id);
+            await saveImgIdx(tombstoneIdx(imgIdxRef.current, e.id, new Date().toISOString()));
+          }
+          await saveImgQ(qRemove(imgQRef.current, e.op, e.id));
+        } catch (err) { /* 一時失敗はキューに残す(後で再送) */ }
+      }
+    } finally { imgQBusy.current = false; }
+    if (imgQRef.current.length) scheduleImgQ(30000);
+  }
+
+  async function imgReconcile(withUpload) {
+    const cfg = imgSyncCfg();
+    if (!cfg) return;
+    let localIds;
+    try { localIds = new Set(await imageStore.listIds()); }
+    catch (e) { return; } // ★安全原則:本地読取失敗 ≠ 不存在。照合そのものを中止。
+    const d = idxDiff(imgIdxRef.current, localIds);
+    for (const id of d.removeLocal) {
+      try { await imageStore.deleteImage(id); imgStateDel(id); } catch (e) {}
+    }
+    for (const id of d.download) {
+      try {
+        const blob = await downloadImage(cfg, id);
+        if (!blob) continue; // 索引先行(実体未着)→ 次回
+        await imageStore.putOrig(id, blob);
+        const u = await imageStore.getThumbURL(id);
+        if (u) imgStateSet(id, u);
+      } catch (e) { /* 次回 */ }
+    }
+    if (withUpload) for (const id of d.upload) enqueueImg("up", id);
+  }
+
+  /* 起動:索引/キュー読込(画像 boot 鏈と独立)。回線復帰で再送。 */
+  useEffect(() => {
+    if (!loaded || imgBootRef.current) return;
+    imgBootRef.current = true;
+    (async () => {
+      try { const r = await window.storage.get(IMGIDX_KEY); imgIdxRef.current = parseIdx(r && r.value); } catch (e) {}
+      try { const r = await window.storage.get(IMGQ_KEY); imgQRef.current = parseQ(r && r.value); } catch (e) {}
+      scheduleImgQ(1500);
+    })();
+  }, [loaded]);
+  useEffect(() => {
+    const onUp = () => scheduleImgQ(500);
+    window.addEventListener("online", onUp);
+    return () => window.removeEventListener("online", onUp);
+  }, []);
+
   /* ── v4 画像書込ヘルパー ──
      値の種別で分流:data:URL → image-store(orig+縮図)/ http(s) URL → mg_imgurls 行 / null → 削除。
      state には縮図 URL(または http URL)。即時表示のため一旦 data:URL を置き、store 化後に差し替える。 */
@@ -1267,6 +1375,7 @@ function App() {
     const blob = await (await fetch(dataURL)).blob();
     const norm = await imageStore.normalizeImport(blob);
     await imageStore.putOrig(id, norm.blob, norm.w ? { w: norm.w, h: norm.h } : undefined);
+    if (managedOn()) enqueueImg("up", id); // 3-3: 雲端 Storage へ(未ログイン分はログイン後に処理)
     return imageStore.getThumbURL(id);
   }, []);
   /* AI変換などが原図(data:URL)を要する時の解決器。store 原図 → 無ければ http URL → null */
@@ -1331,6 +1440,7 @@ function App() {
         const wasUrl = isHttpSrc(next[id]);
         delete next[id];
         imageStore.deleteImage(id);
+        if (managedOn() && !wasUrl) enqueueImg("del", id); // 明示削除=墓碑対象
         if (wasUrl) persistUrlRow(next);
         return next;
       });
@@ -1391,9 +1501,9 @@ function App() {
   // アルバムから1枚削除(primary か extra)。役割/順序/構図も掃除。
   const removeAlbumImage = useCallback((kitId, ref) => {
     if (ref === "primary") {
-      setImages((prev) => { const next = { ...prev }; const wasUrl = isHttpSrc(next[kitId]); delete next[kitId]; imageStore.deleteImage(kitId); if (wasUrl) persistUrlRow(next); return next; });
+      setImages((prev) => { const next = { ...prev }; const wasUrl = isHttpSrc(next[kitId]); delete next[kitId]; imageStore.deleteImage(kitId); if (managedOn() && !wasUrl) enqueueImg("del", kitId); if (wasUrl) persistUrlRow(next); return next; });
     } else {
-      setExtras((prev) => { const next = { ...prev }; delete next[ref]; imageStore.deleteImage(ref); return next; });
+      setExtras((prev) => { const next = { ...prev }; delete next[ref]; imageStore.deleteImage(ref); if (managedOn()) enqueueImg("del", ref); return next; });
     }
     setAlbumMeta((prev) => {
       const m = prev[kitId] || {};
@@ -1498,7 +1608,7 @@ function App() {
         const blob = await imageStore.getOrigBlob(id);
         if (!blob) continue;
         const norm = await imageStore.normalizeImport(blob);
-        if (norm.blob !== blob) { await imageStore.putOrig(id, norm.blob, { w: norm.w, h: norm.h }); changed++; }
+        if (norm.blob !== blob) { await imageStore.putOrig(id, norm.blob, { w: norm.w, h: norm.h }); changed++; if (managedOn()) enqueueImg("up", id); }
       }
       const rebuilt = await imageStore.rebuildThumbs();
       // state の縮図 URL を作り直したものへ全差し替え(URL 項目は温存)
@@ -1700,7 +1810,7 @@ function App() {
       if (d.images) {
         // 復元は全置換の意味論(v3 同様):バックアップに無い主画像は store から削除。
         setImages(d.images); // 即時表示(base64/URL のまま)→ store 化後に縮図 URL へ順次差し替え
-        for (const id of await imageStore.listIds()) if (id.indexOf("~") < 0 && !(id in d.images)) await imageStore.deleteImage(id);
+        for (const id of await imageStore.listIds()) if (id.indexOf("~") < 0 && !(id in d.images)) { await imageStore.deleteImage(id); if (managedOn()) enqueueImg("del", id); }
         const um = {};
         for (const [k, v] of Object.entries(d.images)) {
           if (typeof v !== "string") continue;
@@ -1712,7 +1822,7 @@ function App() {
       }
       if (d.extras && isPlainObj(d.extras)) {
         setExtras(d.extras);
-        for (const id of await imageStore.listIds()) if (id.indexOf("~") >= 0 && !(id in d.extras)) await imageStore.deleteImage(id);
+        for (const id of await imageStore.listIds()) if (id.indexOf("~") >= 0 && !(id in d.extras)) { await imageStore.deleteImage(id); if (managedOn()) enqueueImg("del", id); }
         for (const [k, v] of Object.entries(d.extras)) {
           if (typeof v !== "string" || v.indexOf("data:") !== 0) continue;
           try { const u = await storeImage(k, v); if (u) setExtras((p) => ({ ...p, [k]: u })); } catch (e) {}
